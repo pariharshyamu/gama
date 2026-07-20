@@ -65,10 +65,11 @@ npm run dev:react    # react-three-fiber: 120 boids as declarative JSX
 
 ## Documentation
 
-**Docs site with live playground** — run it locally with `npm run site:dev`
-(or build the static site with `npm run site:build`; deploy `site/dist`
-anywhere). It includes every guide below plus a dozen editable, runnable
-examples of steering, flocking, navmesh baking, behavior trees and more.
+**Docs site with live playground** — run it locally with `npm run site:dev`,
+or `npm run site:publish` to build it and push it to the `docs` branch for
+GitHub Pages (Settings → Pages → Deploy from a branch → `docs`, `/ (root)`).
+It includes every guide below plus a dozen editable, runnable examples of
+steering, flocking, navmesh baking, behavior trees and more.
 
 - [Getting started](docs/getting-started.md)
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
