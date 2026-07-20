@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM"],
     "strict": true,
+    "jsx": "react-jsx",
     "declaration": true,
     "skipLibCheck": true,
     "esModuleInterop": true,

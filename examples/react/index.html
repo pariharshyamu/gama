@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GAMA — react-three-fiber bindings</title>
+    <style>
+      html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; color: #cdd6f4;
+        font: 14px/1.5 system-ui, sans-serif; user-select: none; z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <strong>GAMA — react-three-fiber</strong><br />
+      120 boids as React components: <code>&lt;Entity&gt;</code> +
+      <code>useComponent(MotionAgent)</code> + <code>useFlockGrid</code>.<br />
+      The red chaser pursues the flock; everything is declarative JSX.
+    </div>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

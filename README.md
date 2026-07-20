@@ -60,6 +60,7 @@ npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 npm run dev:physics  # rapier: stairs, ramps, crate pyramid, jumping character
 npm run dev:ai       # behavior-tree guards: patrol → chase → give up
 npm run dev:navgen   # navmesh BAKED from level boxes + orbit camera
+npm run dev:react    # react-three-fiber: 120 boids as declarative JSX
 ```
 
 ## Documentation
@@ -70,6 +71,7 @@ npm run dev:navgen   # navmesh BAKED from level boxes + orbit camera
 - [Animation](docs/animation.md) — tweens, easing, clip cross-fades
 - [Gameplay](docs/gameplay.md) — input & actions, camera, collisions, audio, assets
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
+- [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
 ## Architecture
 
@@ -102,6 +104,9 @@ npm run dev:navgen   # navmesh BAKED from level boxes + orbit camera
 ├────────────────────┴───────────────┴──────────────────────┤
 │ gama/rapier (optional entry point, peer dep on rapier)    │
 │ PhysicsWorld · RigidBody · PhysicsCharacterController     │
+├───────────────────────────────────────────────────────────┤
+│ gama/react (optional entry point, peer deps react + r3f)  │
+│ GamaProvider · Entity · useComponent · useFlockGrid       │
 └───────────────────────────────────────────────────────────┘
                           three.js
 ```
@@ -236,8 +241,8 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Rapier adapter (`gama/rapier`): rigid bodies + physics character controller
 - [x] Behavior trees (reactive composites, decorators, typed contexts)
 - [x] Orbit and shoulder camera rigs (drag-orbit + pointer-lock mouse look with occlusion)
+- [x] React-three-fiber bindings (`gama/react`): Entity/GameObject bridge, component hooks, flock grid
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
-- [ ] React-three-fiber bindings (`@gama/react`)
 
 ## Development
 
