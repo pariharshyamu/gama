@@ -164,6 +164,69 @@ brain.addState({
 brain.setState('patrol');
 ```
 
+## Decision-making at scale: behavior trees
+
+State machines get unwieldy past ~5 states — every new behavior multiplies
+transitions. A behavior tree composes instead: priorities are order,
+interruption is built in, and branches are reusable.
+
+```ts
+import {
+  BehaviorTree, reactiveSelector, reactiveSequence,
+  condition, action, cooldown, wait, sequence,
+} from 'gama';
+
+const tree = new BehaviorTree<Guard>(
+  reactiveSelector(
+    // Priority 1: fight when the player is visible.
+    reactiveSequence(
+      condition((g) => g.canSeePlayer()),
+      action((g) => { g.chase(); return 'running'; })
+    ),
+    // Priority 2: investigate the last known position.
+    reactiveSequence(
+      condition((g) => g.hasLastKnownPosition()),
+      action((g) => g.goToLastKnown()),   // boolean or BTStatus
+      wait(2),                            // look around
+      action((g) => { g.clearLastKnown(); return 'success'; })
+    ),
+    // Fallback: patrol.
+    action((g) => { g.patrol(); return 'running'; })
+  ),
+  guardContext
+);
+guard.addComponent(tree);
+```
+
+Semantics (matching BehaviorTree.CPP conventions):
+
+- `sequence` / `selector` have **memory**: they resume at their running
+  child and do not re-run earlier children.
+- `reactiveSequence` / `reactiveSelector` re-tick from the first child
+  every tick — conditions are re-checked while later children run, and a
+  flipped condition or newly-viable higher branch **interrupts** (resets)
+  the running child. Use reactive nodes wherever behavior must be
+  abortable; that's usually the root.
+- `parallel(children, { successThreshold, failureThreshold })` ticks all
+  children per tick.
+- Decorators: `invert`, `succeed`, `repeat(node, n)`, `untilFail`,
+  `cooldown(node, seconds)` for attack/ability timers, and the `wait(s)`
+  leaf.
+- Actions return `'success' | 'failure' | 'running'` — or a boolean as
+  shorthand. Long-running work returns `'running'` and keeps getting
+  ticked.
+
+The typical GAMA pattern: actions swap the MotionAgent's steering
+behaviors on mode change and return `'running'`; conditions read
+distances and world state. `new BehaviorTree(root, ctx, { interval: 0.1 })`
+staggers AI ticks — an easy perf win for crowds, since steering keeps
+integrating every frame regardless.
+
+`StateMachine` remains the better fit for genuinely modal logic with few
+states (game phases, door open/closed); reach for the tree when an NPC's
+"what should I do now?" list grows past a handful of rules. See
+`examples/ai` for three patrol guards that chase and give up.
+
 ## Tuning tips
 
 - **Jittery agents**: lower `maxForce`, or raise behavior radii so forces

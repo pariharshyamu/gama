@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GAMA — behavior tree guards</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; color: #cdd6f4;
+        font: 14px/1.5 system-ui, sans-serif; user-select: none;
+      }
+      .green { color: #34d399; } .red { color: #f87171; } .yellow { color: #fbbf24; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <strong>GAMA — behavior tree guards</strong><br />
+      WASD — move. Guards run a behavior tree:<br />
+      <span class="green">patrol route</span> →
+      <span class="red">chase</span> when you're close →
+      <span class="yellow">return to route</span> when you escape. <kbd>F3</kbd> — debug.
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

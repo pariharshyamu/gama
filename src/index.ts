@@ -46,6 +46,41 @@ export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidanc
 export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
 export { NavMeshAgent, type NavMeshAgentOptions } from './nav/NavMeshAgent';
 
+// AI: behavior trees
+export {
+  BehaviorTree,
+  BTNode,
+  Action,
+  Condition,
+  Wait,
+  Sequence,
+  Selector,
+  ReactiveSequence,
+  ReactiveSelector,
+  Parallel,
+  Inverter,
+  Succeeder,
+  Repeat,
+  UntilFail,
+  Cooldown,
+  sequence,
+  selector,
+  reactiveSequence,
+  reactiveSelector,
+  parallel,
+  action,
+  condition,
+  wait,
+  invert,
+  succeed,
+  repeat,
+  untilFail,
+  cooldown,
+  type BTStatus,
+  type BehaviorTreeOptions,
+  type ParallelOptions,
+} from './ai/behaviorTree';
+
 // Animation
 export { Tween, Tweens, type TweenOptions } from './animation/Tween';
 export * as easing from './animation/easing';

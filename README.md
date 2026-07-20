@@ -58,6 +58,7 @@ npm run dev          # player + pursuing chasers + flock + pickups (F3 = debug o
 npm run dev:flock    # 400 boids: spatial hashing, obstacle avoidance, containment
 npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 npm run dev:physics  # rapier: stairs, ramps, crate pyramid, jumping character
+npm run dev:ai       # behavior-tree guards: patrol → chase → give up
 ```
 
 ## Documentation
@@ -94,6 +95,7 @@ npm run dev:physics  # rapier: stairs, ramps, crate pyramid, jumping character
 │ NavMesh (A*+funnel)│               │                      │
 │ NavMeshAgent.goTo  │               │                      │
 │ StateMachine       │               │                      │
+│ BehaviorTree       │               │                      │
 ├────────────────────┴───────────────┴──────────────────────┤
 │ gama/rapier (optional entry point, peer dep on rapier)    │
 │ PhysicsWorld · RigidBody · PhysicsCharacterController     │
@@ -229,8 +231,8 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Navmesh pathfinding: `NavMesh` (A* + funnel) and `NavMeshAgent.goTo(point)`
 - [ ] Navmesh *generation* from arbitrary level geometry (Recast-style voxelization)
 - [x] Rapier adapter (`gama/rapier`): rigid bodies + physics character controller
+- [x] Behavior trees (reactive composites, decorators, typed contexts)
 - [ ] Orbit and shoulder camera rigs
-- [ ] Behavior trees on top of `StateMachine`
 - [ ] React-three-fiber bindings (`@gama/react`)
 
 ## Development
