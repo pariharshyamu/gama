@@ -1,4 +1,5 @@
 import { PerspectiveCamera, WebGLRenderer, type Camera } from 'three';
+import { FixedStepper } from './FixedStepper';
 import { Time } from './Time';
 import { World } from './World';
 import { Input } from '../input/Input';
@@ -13,6 +14,8 @@ export interface GameOptions {
   autoResize?: boolean;
   /** Cap on devicePixelRatio. Default 2. */
   maxPixelRatio?: number;
+  /** Fixed simulation step in seconds for onFixedUpdate/fixedUpdate. Default 1/50. */
+  fixedDelta?: number;
 }
 
 /**
@@ -24,15 +27,27 @@ export class Game {
   readonly renderer: WebGLRenderer;
   readonly world = new World();
   readonly time = new Time();
+  /** Timing seen by fixed-step callbacks: constant delta, fixed-step counters. */
+  readonly fixedTime = new Time();
   readonly input: Input;
   camera: Camera;
 
   private updateCallbacks: Array<(time: Time) => void> = [];
+  private fixedCallbacks: Array<(time: Time) => void> = [];
+  private stepper: FixedStepper;
   private running = false;
   private frameHandle = 0;
 
   constructor(options: GameOptions = {}) {
-    const { canvas, parent, antialias = true, autoResize = true, maxPixelRatio = 2 } = options;
+    const {
+      canvas,
+      parent,
+      antialias = true,
+      autoResize = true,
+      maxPixelRatio = 2,
+      fixedDelta = 1 / 50,
+    } = options;
+    this.stepper = new FixedStepper(fixedDelta);
 
     this.renderer = new WebGLRenderer({ canvas, antialias });
     if (!canvas) (parent ?? document.body).appendChild(this.renderer.domElement);
@@ -65,6 +80,24 @@ export class Game {
     };
   }
 
+  /**
+   * Register a callback run at the fixed simulation rate (see `fixedDelta`).
+   * Use for physics-like logic that must be framerate-independent and
+   * deterministic. Returns an unsubscribe.
+   */
+  onFixedUpdate(callback: (time: Time) => void): () => void {
+    this.fixedCallbacks.push(callback);
+    return () => {
+      const i = this.fixedCallbacks.indexOf(callback);
+      if (i >= 0) this.fixedCallbacks.splice(i, 1);
+    };
+  }
+
+  /** Interpolation factor in [0, 1) between the last two fixed steps. */
+  get fixedAlpha(): number {
+    return this.stepper.alpha;
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -84,6 +117,14 @@ export class Game {
 
   /** One simulation + render step. Exposed for testing and manual stepping. */
   step(time: Time): void {
+    this.input.update();
+    this.stepper.advance(time.delta, (fixedDelta) => {
+      this.fixedTime.delta = fixedDelta;
+      this.fixedTime.elapsed += fixedDelta;
+      this.fixedTime.frame++;
+      for (const callback of this.fixedCallbacks) callback(this.fixedTime);
+      this.world.fixedUpdate(this.fixedTime);
+    });
     for (const callback of this.updateCallbacks) callback(time);
     this.world.update(time);
     this.input.lateUpdate();

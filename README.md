@@ -50,37 +50,47 @@ game.onUpdate((time) => cam.update(time.delta));
 game.start();
 ```
 
-Run the bundled demo (player + pursuing chasers + a wandering flock + tweened pickups):
+Run the bundled demos:
 
 ```bash
 npm install
-npm run dev
+npm run dev        # player + pursuing chasers + flock + pickups (F3 = debug overlay)
+npm run dev:flock  # 400 boids: spatial hashing, obstacle avoidance, containment
 ```
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
+- [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling
+- [Animation](docs/animation.md) — tweens, easing, clip cross-fades
+- [Gameplay](docs/gameplay.md) — input & actions, camera, collisions, audio, assets
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Game            loop · renderer · resize · input    │
-├─────────────────────────────────────────────────────┤
-│ World           THREE.Scene + GameObject registry   │
-│ GameObject      extends THREE.Object3D + components │
-│ Component       onAttach / update(time) / onDetach  │
-├──────────────┬───────────────┬──────────────────────┤
-│ Motion       │ Animation     │ Gameplay             │
-│ MotionAgent  │ Tween/Tweens  │ CharacterController  │
-│ steering:    │ easing        │ FollowCamera         │
-│  Seek/Flee   │ Animator      │ SphereCollider       │
-│  Arrive      │  (mixer +     │ BoxCollider          │
-│  Pursue/Evade│   crossfade)  │ checkCollisions      │
-│  Wander      │               │ Assets (gltf/tex/    │
-│  Separation  │               │         audio)       │
-│  Alignment   │               │                      │
-│  Cohesion    │               │                      │
-│  FollowPath  │               │                      │
-│ StateMachine │               │                      │
-└──────────────┴───────────────┴──────────────────────┘
-                        three.js
+┌───────────────────────────────────────────────────────────┐
+│ Game       loop · fixed timestep · renderer · input       │
+├───────────────────────────────────────────────────────────┤
+│ World      THREE.Scene + GameObject registry              │
+│ GameObject extends THREE.Object3D + components + events   │
+│ Component  onAttach / update / fixedUpdate / onDetach     │
+├────────────────────┬───────────────┬──────────────────────┤
+│ Motion             │ Animation     │ Gameplay             │
+│ MotionAgent        │ Tween/Tweens  │ Input + ActionMap    │
+│  Seek/Flee/Arrive  │ easing        │  (keyboard, gamepad) │
+│  Pursue/Evade      │ Animator      │ CharacterController  │
+│  Wander            │  (mixer +     │ FollowCamera         │
+│  Separation        │   crossfade)  │ Sphere/BoxCollider   │
+│  Alignment         │               │ CollisionSystem      │
+│  Cohesion          │               │  (enter/exit events) │
+│  FollowPath        │               │ Pool                 │
+│  ObstacleAvoidance │               │ AudioManager         │
+│  Containment       │               │ Assets               │
+│ SpatialGrid        │               │ DebugOverlay         │
+│ StateMachine       │               │                      │
+└────────────────────┴───────────────┴──────────────────────┘
+                          three.js
 ```
 
 ### Motion agents
@@ -122,7 +132,23 @@ boid.addComponent(new MotionAgent({ maxSpeed: 3 }))
   .addBehavior(new Cohesion(() => flock, 6), 0.8);
 ```
 
-Available behaviors: `Seek`, `Flee`, `Arrive`, `Pursue`, `Evade`, `Wander`, `Separation`, `Alignment`, `Cohesion`, `FollowPath`. Implement the one-method `SteeringBehavior` interface to add your own.
+Available behaviors: `Seek`, `Flee`, `Arrive`, `Pursue`, `Evade`, `Wander`, `Separation`, `Alignment`, `Cohesion`, `FollowPath`, `ObstacleAvoidance`, `Containment`. Implement the one-method `SteeringBehavior` interface to add your own.
+
+Flocks scale with `SpatialGrid`, a spatial hash for near-O(n) neighbor queries — `examples/flock` runs 400 boids with obstacle avoidance:
+
+```ts
+const grid = new SpatialGrid(5);
+game.onUpdate(() => grid.rebuild(flock));
+agent.addBehavior(new Separation(grid.near(agent, 5), 1.5), 1.8);
+```
+
+### Seeing what agents think
+
+```ts
+new DebugOverlay(game); // press F3
+```
+
+Velocity arrows (cyan), steering-force arrows (magenta), collider wireframes, and an FPS/entity/draw-call panel — steering bugs stop being invisible.
 
 ### Animation
 
@@ -152,13 +178,18 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 
 ## Roadmap
 
-- [ ] Spatial hashing for `Separation`/`Alignment`/`Cohesion` neighbor queries at scale
-- [ ] Obstacle-avoidance and wall-following steering behaviors
-- [ ] Navmesh path generation feeding `FollowPath`
-- [ ] Gamepad support in `Input`
+- [x] Spatial hashing for `Separation`/`Alignment`/`Cohesion` neighbor queries at scale
+- [x] Obstacle-avoidance (`ObstacleAvoidance`) and bounds (`Containment`) steering behaviors
+- [x] Gamepad support and named-action input mapping
+- [x] Audio manager (one-shots, positional audio, music cross-fade)
+- [x] Debug overlay (steering/velocity arrows, collider wireframes, stats)
+- [x] Object pooling and collision enter/exit events
+- [x] Fixed-timestep simulation option
+- [ ] Navmesh path generation feeding `FollowPath` (`agent.goTo(point)`)
 - [ ] Orbit and shoulder camera rigs
-- [ ] Audio manager (positional audio, music cross-fade)
 - [ ] Optional adapters for rapier physics bodies
+- [ ] Behavior trees on top of `StateMachine`
+- [ ] React-three-fiber bindings (`@gama/react`)
 
 ## Development
 

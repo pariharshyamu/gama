@@ -29,6 +29,8 @@ export interface MotionAgentOptions {
  */
 export class MotionAgent extends Component {
   readonly velocity = new Vector3();
+  /** The clamped steering force applied last frame (useful for debugging). */
+  readonly lastSteering = new Vector3();
   maxSpeed: number;
   maxForce: number;
   mass: number;
@@ -77,6 +79,7 @@ export class MotionAgent extends Component {
       this.steering.addScaledVector(force, weight);
     }
     this.steering.clampLength(0, this.maxForce);
+    this.lastSteering.copy(this.steering);
 
     this.acceleration.copy(this.steering).divideScalar(this.mass);
     this.velocity.addScaledVector(this.acceleration, dt);

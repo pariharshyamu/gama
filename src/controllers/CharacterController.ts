@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Vector2, Vector3 } from 'three';
 import { Component } from '../core/Component';
 import type { Time } from '../core/Time';
 import type { Input } from '../input/Input';
@@ -25,6 +25,7 @@ export class CharacterController extends Component {
   turnRate: number;
 
   private readonly desired = new Vector3();
+  private readonly axisScratch = new Vector2();
 
   constructor(private input: Input, options: CharacterControllerOptions = {}) {
     super();
@@ -36,7 +37,7 @@ export class CharacterController extends Component {
 
   override update(time: Time): void {
     const dt = time.delta;
-    const axis = this.input.moveAxis();
+    const axis = this.input.moveAxis(this.axisScratch);
     // Screen-space forward is -Z in the default camera setup.
     this.desired.set(axis.x, 0, -axis.y).multiplyScalar(this.speed);
 

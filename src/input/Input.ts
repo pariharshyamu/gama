@@ -12,6 +12,15 @@ export class Input {
   readonly pointerNdc = new Vector2();
   pointerDown = false;
 
+  /** First connected gamepad's left stick, deadzone applied, y = forward. */
+  readonly leftStick = new Vector2();
+  readonly rightStick = new Vector2();
+  gamepadConnected = false;
+  /** Stick deadzone radius. */
+  deadzone = 0.15;
+
+  private gpDown: boolean[] = [];
+  private gpPressed: boolean[] = [];
   private down = new Set<string>();
   private pressed = new Set<string>();
   private released = new Set<string>();
@@ -54,21 +63,68 @@ export class Input {
     return this.released.has(code);
   }
 
-  /** WASD/arrow-key movement as a normalized vector (x: right, y: forward). */
-  moveAxis(): Vector2 {
-    const axis = new Vector2(
+  /** Is the gamepad button at `index` currently held? (standard mapping) */
+  gamepadDown(index: number): boolean {
+    return this.gpDown[index] === true;
+  }
+
+  /** Did the gamepad button at `index` go down since last frame? */
+  gamepadPressed(index: number): boolean {
+    return this.gpPressed[index] === true;
+  }
+
+  /**
+   * WASD/arrow-key + left-stick movement as a vector of length ≤ 1
+   * (x: right, y: forward). Pass a target to avoid allocation.
+   */
+  moveAxis(target = new Vector2()): Vector2 {
+    target.set(
       (this.isDown('KeyD') || this.isDown('ArrowRight') ? 1 : 0) -
         (this.isDown('KeyA') || this.isDown('ArrowLeft') ? 1 : 0),
       (this.isDown('KeyW') || this.isDown('ArrowUp') ? 1 : 0) -
         (this.isDown('KeyS') || this.isDown('ArrowDown') ? 1 : 0)
     );
-    return axis.lengthSq() > 1 ? axis.normalize() : axis;
+    target.add(this.leftStick);
+    return target.lengthSq() > 1 ? target.normalize() : target;
+  }
+
+  /** Poll gamepad state. Called by Game at the start of each step. */
+  update(): void {
+    const pads =
+      typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+    let pad: Gamepad | null = null;
+    for (const p of pads) {
+      if (p) {
+        pad = p;
+        break;
+      }
+    }
+    this.gamepadConnected = pad !== null;
+    if (!pad) {
+      this.leftStick.set(0, 0);
+      this.rightStick.set(0, 0);
+      this.gpDown.length = 0;
+      this.gpPressed.length = 0;
+      return;
+    }
+    this.applyDeadzone(this.leftStick.set(pad.axes[0] ?? 0, -(pad.axes[1] ?? 0)));
+    this.applyDeadzone(this.rightStick.set(pad.axes[2] ?? 0, -(pad.axes[3] ?? 0)));
+    this.gpPressed.length = pad.buttons.length;
+    for (let i = 0; i < pad.buttons.length; i++) {
+      const isDown = pad.buttons[i].pressed;
+      this.gpPressed[i] = isDown && !this.gpDown[i];
+      this.gpDown[i] = isDown;
+    }
   }
 
   /** Clear per-frame edge state. Called by Game after each step. */
   lateUpdate(): void {
     this.pressed.clear();
     this.released.clear();
+  }
+
+  private applyDeadzone(stick: Vector2): void {
+    if (stick.length() < this.deadzone) stick.set(0, 0);
   }
 
   dispose(): void {

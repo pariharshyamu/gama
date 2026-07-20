@@ -30,6 +30,23 @@ export class World {
     return this.objects.filter((o) => o.tags.has(tag));
   }
 
+  /**
+   * Detach an object from the world *without* disposing its components.
+   * Used by Pool for reuse; for permanent removal use `object.destroy()`.
+   */
+  remove(object: GameObject): void {
+    const i = this.objects.indexOf(object);
+    if (i >= 0) this.objects.splice(i, 1);
+    object.world = null;
+    this.scene.remove(object);
+  }
+
+  fixedUpdate(time: Time): void {
+    for (const object of this.objects) {
+      if (!object.destroyed) object.fixedUpdate(time);
+    }
+  }
+
   update(time: Time): void {
     for (const object of this.objects) {
       if (!object.destroyed) object.update(time);

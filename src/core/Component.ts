@@ -13,4 +13,6 @@ export abstract class Component {
   onAttach(): void {}
   onDetach(): void {}
   update(_time: Time): void {}
+  /** Called at the fixed simulation rate when the Game runs fixed steps. */
+  fixedUpdate(_time: Time): void {}
 }

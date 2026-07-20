@@ -4,12 +4,21 @@
 // Core
 export { Game, type GameOptions } from './core/Game';
 export { World } from './core/World';
-export { GameObject } from './core/GameObject';
+export { GameObject, type GameObjectEvents } from './core/GameObject';
 export { Component } from './core/Component';
 export { Time } from './core/Time';
+export { EventEmitter } from './core/EventEmitter';
+export { FixedStepper } from './core/FixedStepper';
+export { Pool, type PoolOptions } from './core/Pool';
 
 // Input
 export { Input } from './input/Input';
+export {
+  ActionMap,
+  GamepadButton,
+  type ActionBinding,
+  type ActionInput,
+} from './input/ActionMap';
 
 // Motion agents & steering
 export { MotionAgent, type MotionAgentOptions } from './motion/MotionAgent';
@@ -30,6 +39,8 @@ export {
 } from './motion/steering';
 export { Path } from './motion/Path';
 export { StateMachine, type State } from './motion/StateMachine';
+export { SpatialGrid } from './motion/SpatialGrid';
+export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidance';
 
 // Animation
 export { Tween, Tweens, type TweenOptions } from './animation/Tween';
@@ -50,6 +61,15 @@ export {
   checkCollisions,
   type CollisionPair,
 } from './physics/Collider';
+export { CollisionSystem } from './physics/CollisionSystem';
 
-// Assets
+// Assets & audio
 export { Assets } from './assets/Assets';
+export {
+  AudioManager,
+  type PlayOptions,
+  type PositionalPlayOptions,
+} from './audio/AudioManager';
+
+// Debug
+export { DebugOverlay, type DebugOverlayOptions } from './debug/DebugOverlay';

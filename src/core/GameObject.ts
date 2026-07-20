@@ -1,9 +1,17 @@
 import { Object3D } from 'three';
 import { Component } from './Component';
+import { EventEmitter } from './EventEmitter';
 import type { Time } from './Time';
 import type { World } from './World';
 
 type ComponentClass<T extends Component> = new (...args: never[]) => T;
+
+/** Well-known GameObject events. Custom string events carry `unknown`. */
+export interface GameObjectEvents extends Record<string, unknown> {
+  'collision-enter': GameObject;
+  'collision-exit': GameObject;
+  destroyed: GameObject;
+}
 
 /**
  * An entity in the game world. A GameObject *is* a three.js Object3D,
@@ -13,6 +21,7 @@ type ComponentClass<T extends Component> = new (...args: never[]) => T;
 export class GameObject extends Object3D {
   readonly components: Component[] = [];
   readonly tags = new Set<string>();
+  readonly events = new EventEmitter<GameObjectEvents>();
   world: World | null = null;
   destroyed = false;
 
@@ -52,15 +61,24 @@ export class GameObject extends Object3D {
     }
   }
 
+  fixedUpdate(time: Time): void {
+    for (const c of this.components) {
+      if (c.enabled) c.fixedUpdate(time);
+    }
+  }
+
   /** Remove from the world at the end of the current frame. */
   destroy(): void {
+    if (this.destroyed) return;
     this.destroyed = true;
+    this.events.emit('destroyed', this);
   }
 
   /** Called by the World when the object is actually removed. */
   dispose(): void {
     for (const c of this.components) c.onDetach();
     this.components.length = 0;
+    this.events.clear();
     this.removeFromParent();
   }
 }

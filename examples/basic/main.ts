@@ -21,7 +21,8 @@ import {
   CharacterController,
   FollowCamera,
   SphereCollider,
-  checkCollisions,
+  CollisionSystem,
+  DebugOverlay,
   Tweens,
   easing,
 } from '../../src';
@@ -91,18 +92,21 @@ function spawnPickup(): void {
 }
 for (let i = 0; i < 6; i++) spawnPickup();
 
+// Collision events: the player reacts to the moment of contact.
+const collisions = new CollisionSystem();
+game.onUpdate(() => collisions.update(game.world.objects));
+
 let score = 0;
-game.onUpdate(() => {
-  for (const [a, b] of checkCollisions(game.world.objects)) {
-    const pickup = a.tags.has('pickup') ? a : b.tags.has('pickup') ? b : null;
-    const other = pickup === a ? b : a;
-    if (pickup && other.tags.has('player') && !pickup.destroyed) {
-      pickup.destroy();
-      score++;
-      document.title = `GAMA demo — score ${score}`;
-      spawnPickup();
-    }
+player.events.on('collision-enter', (other) => {
+  if (other.tags.has('pickup') && !other.destroyed) {
+    other.destroy();
+    score++;
+    document.title = `GAMA demo — score ${score}`;
+    spawnPickup();
   }
 });
+
+// Press F3 for velocity/steering arrows, collider wireframes and stats.
+new DebugOverlay(game);
 
 game.start();
