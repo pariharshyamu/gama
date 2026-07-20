@@ -13,7 +13,7 @@ Design principles:
 - **three.js-native, not a wrapper.** A `GameObject` *is* a `THREE.Object3D`. Anything from the three.js ecosystem — loaders, materials, postprocessing — works unchanged. GAMA never hides the renderer or the scene graph from you.
 - **Motion is the product.** Character movement, steering-driven AI, animation cross-fades, camera rigs and tweens are first-class, because motion is what makes a 3D scene feel like a game.
 - **Composable behaviors over inheritance trees.** An enemy is a `GameObject` + `MotionAgent` + a few weighted steering behaviors + a `StateMachine`. Swap behaviors at runtime to change how it moves.
-- **Small and honest scope.** GAMA ships gameplay-level collisions (spheres, boxes, triggers), not a physics engine. When you need rigid-body dynamics, pair it with [rapier](https://rapier.rs) or cannon-es — a `GameObject` composes cleanly with either.
+- **Small and honest scope.** GAMA ships gameplay-level collisions (spheres, boxes, triggers) in core, not a physics engine. When you need rigid-body dynamics, the optional `gama/rapier` adapter binds [rapier](https://rapier.rs) bodies and a stair-climbing character controller to GameObjects — core stays dependency-free either way.
 
 ## Install
 
@@ -57,6 +57,7 @@ npm install
 npm run dev          # player + pursuing chasers + flock + pickups (F3 = debug overlay)
 npm run dev:flock    # 400 boids: spatial hashing, obstacle avoidance, containment
 npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
+npm run dev:physics  # rapier: stairs, ramps, crate pyramid, jumping character
 ```
 
 ## Documentation
@@ -66,6 +67,7 @@ npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling
 - [Animation](docs/animation.md) — tweens, easing, clip cross-fades
 - [Gameplay](docs/gameplay.md) — input & actions, camera, collisions, audio, assets
+- [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 
 ## Architecture
 
@@ -92,7 +94,10 @@ npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 │ NavMesh (A*+funnel)│               │                      │
 │ NavMeshAgent.goTo  │               │                      │
 │ StateMachine       │               │                      │
-└────────────────────┴───────────────┴──────────────────────┘
+├────────────────────┴───────────────┴──────────────────────┤
+│ gama/rapier (optional entry point, peer dep on rapier)    │
+│ PhysicsWorld · RigidBody · PhysicsCharacterController     │
+└───────────────────────────────────────────────────────────┘
                           three.js
 ```
 
@@ -159,6 +164,25 @@ navAgent.goTo(clickPoint);
 enemy.events.on('nav-arrived', () => attack());
 ```
 
+### Physics (optional)
+
+Real rigid-body dynamics via the [rapier](https://rapier.rs) adapter — a
+separate entry point, so core `gama` stays dependency-free:
+
+```ts
+import { PhysicsWorld, RigidBody, PhysicsCharacterController } from 'gama/rapier';
+
+const physics = await PhysicsWorld.create();
+physics.attach(game); // steps at the game's fixed rate
+
+crate.addComponent(new RigidBody(physics, {
+  collider: { shape: 'box', halfExtents: new Vector3(0.5, 0.5, 0.5) },
+}));
+const controller = player.addComponent(
+  new PhysicsCharacterController(physics, game.input, { speed: 7 })
+); // slopes, stairs, snap-to-ground, gravity, jump()
+```
+
 ### Seeing what agents think
 
 ```ts
@@ -204,8 +228,8 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Fixed-timestep simulation option
 - [x] Navmesh pathfinding: `NavMesh` (A* + funnel) and `NavMeshAgent.goTo(point)`
 - [ ] Navmesh *generation* from arbitrary level geometry (Recast-style voxelization)
+- [x] Rapier adapter (`gama/rapier`): rigid bodies + physics character controller
 - [ ] Orbit and shoulder camera rigs
-- [ ] Optional adapters for rapier physics bodies
 - [ ] Behavior trees on top of `StateMachine`
 - [ ] React-three-fiber bindings (`@gama/react`)
 

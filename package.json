@@ -1,6 +1,6 @@
 {
   "name": "gama",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "GAMA — Gaming And Motion Agent: a 3D game development library built on top of three.js, focused on game loops, entities, steering-based motion agents, animation, cameras and input.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./rapier": {
+      "types": "./dist/rapier.d.ts",
+      "import": "./dist/rapier.js",
+      "require": "./dist/rapier.cjs"
     }
   },
   "files": [
@@ -19,10 +24,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
+    "build": "tsup src/index.ts src/rapier.ts --format esm,cjs --dts --sourcemap --clean",
     "dev": "vite examples/basic",
     "dev:flock": "vite examples/flock",
     "dev:navmesh": "vite examples/navmesh",
+    "dev:physics": "vite examples/physics",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -40,9 +46,16 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@dimforge/rapier3d-compat": ">=0.12.0",
     "three": ">=0.150.0"
   },
+  "peerDependenciesMeta": {
+    "@dimforge/rapier3d-compat": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.3",
     "@types/three": "^0.165.0",
     "three": "^0.165.0",
     "tsup": "^8.0.0",
