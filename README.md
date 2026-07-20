@@ -59,6 +59,7 @@ npm run dev:flock    # 400 boids: spatial hashing, obstacle avoidance, containme
 npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 npm run dev:physics  # rapier: stairs, ramps, crate pyramid, jumping character
 npm run dev:ai       # behavior-tree guards: patrol → chase → give up
+npm run dev:navgen   # navmesh BAKED from level boxes + orbit camera
 ```
 
 ## Documentation
@@ -85,7 +86,8 @@ npm run dev:ai       # behavior-tree guards: patrol → chase → give up
 │  Seek/Flee/Arrive  │ easing        │  (keyboard, gamepad) │
 │  Pursue/Evade      │ Animator      │ CharacterController  │
 │  Wander            │  (mixer +     │ FollowCamera         │
-│  Separation        │   crossfade)  │ Sphere/BoxCollider   │
+│  Separation        │   crossfade)  │ OrbitRig/ShoulderRig │
+│  (cont.)           │               │ Sphere/BoxCollider   │
 │  Alignment         │               │ CollisionSystem      │
 │  Cohesion          │               │  (enter/exit events) │
 │  FollowPath        │               │ Pool                 │
@@ -94,6 +96,7 @@ npm run dev:ai       # behavior-tree guards: patrol → chase → give up
 │ SpatialGrid        │               │ DebugOverlay         │
 │ NavMesh (A*+funnel)│               │                      │
 │ NavMeshAgent.goTo  │               │                      │
+│ generateNavMesh    │               │                      │
 │ StateMachine       │               │                      │
 │ BehaviorTree       │               │                      │
 ├────────────────────┴───────────────┴──────────────────────┤
@@ -229,10 +232,11 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Object pooling and collision enter/exit events
 - [x] Fixed-timestep simulation option
 - [x] Navmesh pathfinding: `NavMesh` (A* + funnel) and `NavMeshAgent.goTo(point)`
-- [ ] Navmesh *generation* from arbitrary level geometry (Recast-style voxelization)
+- [x] Navmesh generation from level geometry (`generateNavMesh`: grid sampling, slope/step/radius rules)
 - [x] Rapier adapter (`gama/rapier`): rigid bodies + physics character controller
 - [x] Behavior trees (reactive composites, decorators, typed contexts)
-- [ ] Orbit and shoulder camera rigs
+- [x] Orbit and shoulder camera rigs (drag-orbit + pointer-lock mouse look with occlusion)
+- [ ] Multi-layer navmesh generation (Recast-style voxelization)
 - [ ] React-three-fiber bindings (`@gama/react`)
 
 ## Development

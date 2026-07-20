@@ -10,6 +10,10 @@ export class Input {
   readonly pointer = new Vector2();
   /** Pointer position normalized to [-1, 1], y up — ready for raycasting. */
   readonly pointerNdc = new Vector2();
+  /** Pointer movement since last frame (movementX/Y — works under pointer lock). */
+  readonly pointerDelta = new Vector2();
+  /** Wheel deltaY accumulated since last frame. */
+  wheelDelta = 0;
   pointerDown = false;
 
   /** First connected gamepad's left stick, deadzone applied, y = forward. */
@@ -40,7 +44,13 @@ export class Input {
       this.released.add(key);
     });
     this.listen(window, 'blur', () => this.down.clear());
-    this.listen(target, 'pointermove', (e) => this.updatePointer(e as PointerEvent));
+    this.listen(target, 'pointermove', (e) => {
+      const pe = e as PointerEvent;
+      this.pointerDelta.x += pe.movementX ?? 0;
+      this.pointerDelta.y += pe.movementY ?? 0;
+      this.updatePointer(pe);
+    });
+    this.listen(target, 'wheel', (e) => (this.wheelDelta += (e as WheelEvent).deltaY));
     this.listen(target, 'pointerdown', (e) => {
       this.pointerDown = true;
       this.updatePointer(e as PointerEvent);
@@ -121,6 +131,8 @@ export class Input {
   lateUpdate(): void {
     this.pressed.clear();
     this.released.clear();
+    this.pointerDelta.set(0, 0);
+    this.wheelDelta = 0;
   }
 
   private applyDeadzone(stick: Vector2): void {

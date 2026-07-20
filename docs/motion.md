@@ -135,10 +135,32 @@ Other steering behaviors compose as usual: give agents `Separation` so
 groups don't stack up on the same waypoint. See `examples/navmesh` for
 click-to-move with five agents.
 
-Notes on scope: this is a *query* system over a mesh you provide — GAMA does
-not yet generate navmeshes from arbitrary level geometry (that's Recast-style
-voxelization, on the roadmap). Authoring the walkable surface as simple
-quads/triangles in code or in Blender covers most game levels.
+### Generating navmeshes from level geometry
+
+Instead of authoring the walkable surface, bake it:
+
+```ts
+const nav = generateNavMesh(levelRoot, {
+  cellSize: 0.5,     // sampling resolution
+  agentRadius: 0.5,  // clearance eroded from edges and obstacles
+  maxSlope: Math.PI / 4,
+  maxClimb: 0.4,     // step height that still connects cells
+});
+```
+
+`generateNavMesh` grid-samples the geometry with downward raycasts: the
+highest surface in each cell is kept if its slope is walkable, cells near
+edges/obstacles are eroded by `agentRadius`, and the result is
+triangulated with cliff seams left unwelded — so an obstacle's top
+becomes a disconnected island unless a ramp (rising ≤ `maxClimb` per
+cell) connects it. `nav.toBufferGeometry()` renders the baked surface for
+sanity-checking; `examples/navgen` shows a whole level baked from plain
+boxes.
+
+Honest scope: this is **single-layer** sampling — the highest surface
+wins, so walkable space *underneath* bridges and floors is not captured.
+For multi-layer levels, use a Recast-based pipeline offline and feed its
+triangles to `new NavMesh(...)`.
 
 ## Decision-making: StateMachine
 

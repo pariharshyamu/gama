@@ -45,6 +45,7 @@ export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidanc
 // Navigation
 export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
 export { NavMeshAgent, type NavMeshAgentOptions } from './nav/NavMeshAgent';
+export { generateNavMesh, type NavMeshGenOptions } from './nav/generateNavMesh';
 
 // AI: behavior trees
 export {
@@ -92,6 +93,8 @@ export {
   type CharacterControllerOptions,
 } from './controllers/CharacterController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
+export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';
+export { ShoulderRig, type ShoulderRigOptions } from './camera/ShoulderRig';
 
 // Physics-lite
 export {

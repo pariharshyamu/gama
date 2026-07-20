@@ -43,6 +43,41 @@ game.onUpdate((t) => cam.update(t.delta));
 cam.snap();              // after teleports
 ```
 
+### Camera rigs
+
+Three rigs cover the common genres — all follow moving targets and are
+updated from `game.onUpdate`:
+
+- **`FollowCamera`** — fixed-offset smoothed follow (top-down, runners).
+- **`OrbitRig`** — drag to orbit, wheel to zoom, with pitch/distance
+  limits and smoothing (RTS, inspection, tactics):
+
+  ```ts
+  const rig = new OrbitRig(game.camera, hero, game.input, {
+    distance: 12, minDistance: 4, maxDistance: 30,
+    requireDrag: true,     // rotate only while the pointer is held
+  });
+  game.onUpdate((t) => rig.update(t.delta));
+  ```
+
+- **`ShoulderRig`** — over-the-shoulder mouse look for third-person
+  action, with raycast occlusion pulling the camera in front of walls:
+
+  ```ts
+  const rig = new ShoulderRig(game.camera, hero, game.input, {
+    shoulder: 0.6, distance: 3,
+    colliders: [levelMesh],           // camera never clips through these
+  });
+  game.renderer.domElement.addEventListener('click', () =>
+    game.renderer.domElement.requestPointerLock());
+  game.onUpdate((t) => rig.update(t.delta));
+  hero.rotation.y = rig.yaw;          // aim the character with the camera
+  ```
+
+  `rig.forward` (flattened look direction) drives camera-relative
+  movement. Both rigs read `input.pointerDelta`/`wheelDelta`, which work
+  under pointer lock.
+
 ## Collisions
 
 GAMA ships gameplay-level collisions — triggers, pickups, hit detection —

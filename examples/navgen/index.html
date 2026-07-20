@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GAMA — generated navmesh</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0e14; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; color: #cdd6f4;
+        font: 14px/1.5 system-ui, sans-serif; user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <strong>GAMA — generated navmesh</strong><br />
+      The green walkable surface was <em>baked from the level boxes</em> — no
+      hand-authored floor.<br />
+      Click — send agents (they take the ramp to the platform) ·
+      drag — orbit · wheel — zoom.
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
