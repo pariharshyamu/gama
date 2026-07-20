@@ -65,6 +65,11 @@ npm run dev:react    # react-three-fiber: 120 boids as declarative JSX
 
 ## Documentation
 
+**Docs site with live playground** — run it locally with `npm run site:dev`
+(or build the static site with `npm run site:build`; deploy `site/dist`
+anywhere). It includes every guide below plus a dozen editable, runnable
+examples of steering, flocking, navmesh baking, behavior trees and more.
+
 - [Getting started](docs/getting-started.md)
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling
@@ -242,6 +247,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Behavior trees (reactive composites, decorators, typed contexts)
 - [x] Orbit and shoulder camera rigs (drag-orbit + pointer-lock mouse look with occlusion)
 - [x] React-three-fiber bindings (`gama/react`): Entity/GameObject bridge, component hooks, flock grid
+- [x] Documentation site with live, editable playground (`npm run site:dev`)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

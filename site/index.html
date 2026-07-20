@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GAMA — gaming & motion agents for three.js</title>
+    <meta
+      name="description"
+      content="GAMA is a 3D game development library on top of three.js: steering agents, flocking, navmesh pathfinding, behavior trees, cameras, input, physics and more."
+    />
+    <link rel="stylesheet" href="./src/site.css" />
+  </head>
+  <body>
+    <nav class="nav">
+      <a class="logo" href="./index.html">GA<span>MA</span></a>
+      <a class="navlink" href="./guide.html">Guide</a>
+      <a class="navlink" href="./playground.html">Playground</a>
+      <span class="spacer"></span>
+      <a class="navlink" href="https://github.com/pariharshyamu/gama">GitHub</a>
+    </nav>
+
+    <header class="hero">
+      <iframe id="hero-demo" title="live flocking demo" tabindex="-1"></iframe>
+      <div class="inner">
+        <h1>GA<span>MA</span></h1>
+        <p class="tag">three.js renders. <strong>GAMA makes it a game.</strong></p>
+        <p class="tag" style="font-size: 15px">
+          Steering agents · flocking · navmesh pathfinding · behavior trees ·<br />
+          cameras · input · collisions · tweens · optional rapier physics & React bindings
+        </p>
+        <div class="buttons">
+          <a class="btn primary" href="./playground.html">Open the playground</a>
+          <a class="btn" href="./guide.html">Read the guide</a>
+        </div>
+        <p style="margin-top: 22px"><code>npm install gama three</code></p>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2>Everything three.js leaves out</h2>
+      <div class="cards">
+        <div class="card">
+          <span class="chip">MotionAgent · 12 behaviors</span>
+          <h3><a href="./playground.html?example=flock">Motion agents</a></h3>
+          <p>
+            Composable steering: seek, flee, arrive, pursue, evade, wander, flocking,
+            path-following, obstacle avoidance — weighted and swappable at runtime.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">NavMesh · generateNavMesh · goTo()</span>
+          <h3><a href="./playground.html?example=navgen">Navigation</a></h3>
+          <p>
+            A* + funnel pathfinding over triangle meshes — hand-authored or baked straight
+            from your level geometry with slope, step and agent-radius rules.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">BehaviorTree · StateMachine</span>
+          <h3><a href="./playground.html?example=behavior-tree">AI that scales</a></h3>
+          <p>
+            Reactive behavior trees with interruption built in, plus finite state machines
+            for simple modal logic. Actions swap steering behaviors; conditions read the world.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">Game · World · GameObject · Component</span>
+          <h3><a href="./guide.html?page=core">A real game loop</a></h3>
+          <p>
+            Variable + fixed timestep, entities that <em>are</em> Object3Ds, typed events,
+            object pooling, and safe mid-frame destruction.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">Input · ActionMap · 3 camera rigs</span>
+          <h3><a href="./playground.html?example=character">Feel</a></h3>
+          <p>
+            Keyboard/gamepad input with named rebindable actions, character controllers, and
+            follow/orbit/shoulder cameras with smoothing and occlusion.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">gama/rapier · gama/react</span>
+          <h3><a href="./guide.html?page=physics">Optional power-ups</a></h3>
+          <p>
+            A rapier adapter (rigid bodies + a stair-climbing character controller) and
+            react-three-fiber bindings — separate entry points, zero cost if unused.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">DebugOverlay · F3</span>
+          <h3><a href="./playground.html?example=flock">See what agents think</a></h3>
+          <p>
+            Velocity and steering-force arrows on every agent, collider wireframes, and an
+            FPS/entity/draw-call panel. Steering bugs stop being invisible.
+          </p>
+        </div>
+        <div class="card">
+          <span class="chip">109 tests · ESM + CJS + d.ts</span>
+          <h3><a href="https://github.com/pariharshyamu/gama">Small &amp; honest</a></h3>
+          <p>
+            Zero dependencies beyond three. A GameObject is a THREE.Object3D — the whole
+            three.js ecosystem works unchanged.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Ten lines to a chase</h2>
+      <pre><code>import { Game, MotionAgent, Seek, CharacterController, FollowCamera } from 'gama';
+
+const game = new Game();
+const player = game.world.spawn('player');
+player.addComponent(new CharacterController(game.input, { speed: 8 }));
+
+const enemy = game.world.spawn('enemy');
+enemy.position.set(10, 0, 10);
+enemy.addComponent(new MotionAgent({ maxSpeed: 5, planar: true }))
+     .addBehavior(new Seek(player.position));
+
+game.start();</code></pre>
+      <p>
+        <a href="./playground.html?example=seek">Run something like it in the playground →</a>
+      </p>
+    </section>
+
+    <footer class="footer">
+      MIT · built on <a href="https://threejs.org">three.js</a> · the flock behind the title is
+      <a href="./playground.html?example=flock">live, editable code</a>
+    </footer>
+
+    <script type="module" src="./src/landing.ts"></script>
+  </body>
+</html>
