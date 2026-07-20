@@ -10,6 +10,7 @@ type ComponentClass<T extends Component> = new (...args: never[]) => T;
 export interface GameObjectEvents extends Record<string, unknown> {
   'collision-enter': GameObject;
   'collision-exit': GameObject;
+  'nav-arrived': GameObject;
   destroyed: GameObject;
 }
 

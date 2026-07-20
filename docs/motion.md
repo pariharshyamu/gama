@@ -94,6 +94,52 @@ const path = new Path([a, b, c], /* loop */ true);
 agent.addBehavior(new FollowPath(path, 0.5));
 ```
 
+## Navigation: NavMesh & goTo
+
+Hand-authored paths cover patrol routes; for "walk to this point through
+this level", use a navmesh. Feed `NavMesh` the triangles of your walkable
+floor — from a `BufferGeometry` you authored/exported, or built in code:
+
+```ts
+const nav = NavMesh.fromGeometry(floorGeometry);
+// or: new NavMesh(positionsArray, indicesArray?)
+```
+
+The mesh welds shared vertices, derives triangle adjacency, and answers
+queries: A* finds the triangle corridor, then the funnel algorithm
+string-pulls it so paths hug corners instead of zig-zagging between
+triangle centers.
+
+```ts
+nav.findPath(from, to);      // Vector3[] waypoints, or null if disconnected
+nav.closestPoint(p);         // clamp any point onto the walkable surface
+nav.toBufferGeometry();      // renderable geometry for debug display
+```
+
+`NavMeshAgent` turns that into one call. It requires a `MotionAgent` on the
+same object (add it first):
+
+```ts
+enemy.addComponent(new MotionAgent({ maxSpeed: 5, planar: true }));
+const navAgent = enemy.addComponent(new NavMeshAgent(nav));
+
+navAgent.goTo(clickPoint);                    // false if unreachable
+enemy.events.on('nav-arrived', () => attack());
+navAgent.stop();                              // abandon (no arrival event)
+navAgent.currentPath;                         // waypoints, e.g. to draw a line
+```
+
+Paths are computed once per `goTo`. For a moving target, call `goTo` again
+on an interval — repathing every 0.25–0.5 s is plenty for chase behavior.
+Other steering behaviors compose as usual: give agents `Separation` so
+groups don't stack up on the same waypoint. See `examples/navmesh` for
+click-to-move with five agents.
+
+Notes on scope: this is a *query* system over a mesh you provide — GAMA does
+not yet generate navmeshes from arbitrary level geometry (that's Recast-style
+voxelization, on the roadmap). Authoring the walkable surface as simple
+quads/triangles in code or in Blender covers most game levels.
+
 ## Decision-making: StateMachine
 
 Steering answers *how* to move; a `StateMachine` component answers *what to

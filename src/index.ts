@@ -42,6 +42,10 @@ export { StateMachine, type State } from './motion/StateMachine';
 export { SpatialGrid } from './motion/SpatialGrid';
 export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidance';
 
+// Navigation
+export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
+export { NavMeshAgent, type NavMeshAgentOptions } from './nav/NavMeshAgent';
+
 // Animation
 export { Tween, Tweens, type TweenOptions } from './animation/Tween';
 export * as easing from './animation/easing';

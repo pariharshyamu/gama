@@ -54,8 +54,9 @@ Run the bundled demos:
 
 ```bash
 npm install
-npm run dev        # player + pursuing chasers + flock + pickups (F3 = debug overlay)
-npm run dev:flock  # 400 boids: spatial hashing, obstacle avoidance, containment
+npm run dev          # player + pursuing chasers + flock + pickups (F3 = debug overlay)
+npm run dev:flock    # 400 boids: spatial hashing, obstacle avoidance, containment
+npm run dev:navmesh  # click-to-move: A* + funnel pathfinding around walls
 ```
 
 ## Documentation
@@ -88,6 +89,8 @@ npm run dev:flock  # 400 boids: spatial hashing, obstacle avoidance, containment
 │  ObstacleAvoidance │               │ AudioManager         │
 │  Containment       │               │ Assets               │
 │ SpatialGrid        │               │ DebugOverlay         │
+│ NavMesh (A*+funnel)│               │                      │
+│ NavMeshAgent.goTo  │               │                      │
 │ StateMachine       │               │                      │
 └────────────────────┴───────────────┴──────────────────────┘
                           three.js
@@ -142,6 +145,20 @@ game.onUpdate(() => grid.rebuild(flock));
 agent.addBehavior(new Separation(grid.near(agent, 5), 1.5), 1.8);
 ```
 
+### Navigation
+
+Point-to-point movement through a level is one call — `NavMesh` runs A* over
+triangle adjacency and string-pulls the result with the funnel algorithm:
+
+```ts
+const nav = NavMesh.fromGeometry(floorGeometry);
+enemy.addComponent(new MotionAgent({ maxSpeed: 5, planar: true }));
+const navAgent = enemy.addComponent(new NavMeshAgent(nav));
+
+navAgent.goTo(clickPoint);
+enemy.events.on('nav-arrived', () => attack());
+```
+
 ### Seeing what agents think
 
 ```ts
@@ -185,7 +202,8 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Debug overlay (steering/velocity arrows, collider wireframes, stats)
 - [x] Object pooling and collision enter/exit events
 - [x] Fixed-timestep simulation option
-- [ ] Navmesh path generation feeding `FollowPath` (`agent.goTo(point)`)
+- [x] Navmesh pathfinding: `NavMesh` (A* + funnel) and `NavMeshAgent.goTo(point)`
+- [ ] Navmesh *generation* from arbitrary level geometry (Recast-style voxelization)
 - [ ] Orbit and shoulder camera rigs
 - [ ] Optional adapters for rapier physics bodies
 - [ ] Behavior trees on top of `StateMachine`
