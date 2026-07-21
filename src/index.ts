@@ -86,6 +86,13 @@ export {
 export { Tween, Tweens, type TweenOptions } from './animation/Tween';
 export * as easing from './animation/easing';
 export { Animator } from './animation/Animator';
+export {
+  Locomotion,
+  matchClips,
+  type LocomotionClips,
+  type LocomotionOptions,
+  type LocomotionSource,
+} from './animation/Locomotion';
 
 // Controllers & camera
 export {

@@ -50,6 +50,8 @@ export interface PhysicsCharacterOptions {
 export class PhysicsCharacterController extends Component {
   /** Desired world-space horizontal velocity; set each frame when no Input given. */
   readonly moveIntent = new Vector3();
+  /** Actual velocity over the last fixed step (post-collision). */
+  readonly velocity = new Vector3();
   grounded = false;
   /** Vertical velocity (gravity + jumps). */
   verticalVelocity = 0;
@@ -153,6 +155,7 @@ export class PhysicsCharacterController extends Component {
     const next = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
     this.body.setNextKinematicTranslation(next);
     this.owner.position.set(next.x, next.y, next.z);
+    this.velocity.set(movement.x / dt, movement.y / dt, movement.z / dt);
 
     // Hitting a ceiling: stop rising so we don't stick to it.
     if (this.verticalVelocity > 0 && movement.y < this.desired.y * 0.5) {

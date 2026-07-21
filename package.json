@@ -1,6 +1,6 @@
 {
   "name": "gama",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "GAMA — Gaming And Motion Agent: a 3D game development library built on top of three.js, focused on game loops, entities, steering-based motion agents, animation, cameras and input.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -21,6 +21,11 @@
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js",
       "require": "./dist/react.cjs"
+    },
+    "./templates": {
+      "types": "./dist/templates.d.ts",
+      "import": "./dist/templates.js",
+      "require": "./dist/templates.cjs"
     }
   },
   "files": [
@@ -29,7 +34,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/rapier.ts src/react.tsx --format esm,cjs --dts --sourcemap --clean",
+    "build": "tsup src/index.ts src/rapier.ts src/react.tsx src/templates.ts --format esm,cjs --dts --sourcemap --clean",
     "dev": "vite examples/basic",
     "dev:flock": "vite examples/flock",
     "dev:navmesh": "vite examples/navmesh",

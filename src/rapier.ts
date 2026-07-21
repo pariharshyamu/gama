@@ -14,3 +14,8 @@ export {
   PhysicsCharacterController,
   type PhysicsCharacterOptions,
 } from './rapier/PhysicsCharacterController';
+export {
+  createPhysicsThirdPersonCharacter,
+  type PhysicsThirdPersonOptions,
+  type PhysicsThirdPersonCharacter,
+} from './rapier/thirdPerson';

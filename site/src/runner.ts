@@ -4,6 +4,7 @@
 // there is never stale state to clean up.
 
 const gamaUrl = new URL('./vendor/gama.js', location.href).href;
+const templatesUrl = new URL('./vendor/templates.js', location.href).href;
 const threeUrl = new URL('./vendor/three.module.js', location.href).href;
 
 function report(type: 'runner-ok' | 'runner-error', message = ''): void {
@@ -16,6 +17,7 @@ window.addEventListener('unhandledrejection', (e) => report('runner-error', Stri
 window.addEventListener('message', async (event) => {
   if (event.data?.type !== 'run' || typeof event.data.code !== 'string') return;
   const code = (event.data.code as string)
+    .replace(/(from\s*)(['"])gama\/templates\2/g, `$1'${templatesUrl}'`)
     .replace(/(from\s*)(['"])gama\2/g, `$1'${gamaUrl}'`)
     .replace(/(from\s*)(['"])three\2/g, `$1'${threeUrl}'`);
   try {

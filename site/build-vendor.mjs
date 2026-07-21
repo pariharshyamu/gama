@@ -31,6 +31,26 @@ await build({
   ],
 });
 
+// Templates bundle: shares the core module (external 'gama' via the
+// runner's import map) so classes like MotionAgent are not duplicated —
+// instanceof checks across user code and templates must agree.
+await build({
+  entryPoints: [join(root, 'src/templates.ts')],
+  bundle: true,
+  format: 'esm',
+  minify: true,
+  outfile: join(pub, 'vendor', 'templates.js'),
+  plugins: [
+    {
+      name: 'externals',
+      setup(builder) {
+        builder.onResolve({ filter: /^three$/ }, () => ({ path: 'three', external: true }));
+        builder.onResolve({ filter: /^\.\.\/index$/ }, () => ({ path: 'gama', external: true }));
+      },
+    },
+  ],
+});
+
 copyFileSync(
   join(root, 'node_modules/three/build/three.module.js'),
   join(pub, 'vendor', 'three.module.js')

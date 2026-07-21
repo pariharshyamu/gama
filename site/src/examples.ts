@@ -455,6 +455,85 @@ game.start();`,
   },
 
   {
+    id: 'third-person',
+    title: 'Third-person template',
+    group: 'Templates',
+    code: `// A playable third-person character in ONE call: shoulder camera with
+// mouse look, camera-relative WASD, jumping, and a capsule-person
+// placeholder (pass model: gltf to swap it and auto-wire animations).
+// Click the preview to lock the pointer; Esc releases it.
+import { Game } from 'gama';
+import { createThirdPersonCharacter, createCapsulePerson } from 'gama/templates';
+import { Mesh, MeshStandardMaterial, BoxGeometry } from 'three';
+${SCENE}
+
+// Some scenery to walk around (and for the camera to avoid clipping).
+const crates = [];
+const stone = new MeshStandardMaterial({ color: 0x64748b });
+for (let i = 0; i < 9; i++) {
+  const size = 1 + (i % 3);
+  const crate = new Mesh(new BoxGeometry(size, size, size), stone);
+  crate.position.set((Math.random() - 0.5) * 26, size / 2, (Math.random() - 0.5) * 26);
+  game.world.scene.add(crate);
+  crates.push(crate);
+}
+
+const hero = createThirdPersonCharacter(game, {
+  speed: 7,
+  cameraDistance: 4.5,
+  cameraColliders: crates,   // camera pulls in front of crates
+});
+
+// Every part is yours to retune:
+hero.movement.jumpSpeed = 9;
+hero.rig.distance = 3.5;
+
+// A friend, so the world isn't lonely.
+const friend = createCapsulePerson(0xfbbf24);
+friend.position.set(4, 0, -4);
+friend.rotation.y = Math.PI;
+game.world.scene.add(friend);
+
+game.start();`,
+  },
+
+  {
+    id: 'npcs',
+    title: 'NPC archetypes',
+    group: 'Templates',
+    code: `// Guards, a companion, and a flock — each one call. Drive the blue
+// hero with WASD (click the preview first): guards chase you inside
+// their radius, your companion follows, the flock keeps to the sky.
+import { Game } from 'gama';
+import { createTopDownCharacter, createGuard, createCompanion,
+         createFlock } from 'gama/templates';
+import { Box3, Vector3 } from 'three';
+${scene(0, 26, 24)}
+
+const hero = createTopDownCharacter(game, { speed: 9, color: 0x60a5fa });
+
+for (let i = 0; i < 2; i++) {
+  const guard = createGuard(game, {
+    route: [new Vector3(-10, 0, -10 + i * 6), new Vector3(10, 0, -10 + i * 6)],
+    target: hero.object,
+    detectRadius: 7,
+    color: 0xf87171,
+  });
+  guard.object.events.on('guard-spotted', () => (document.title = 'spotted!'));
+  guard.object.events.on('guard-lost', () => (document.title = 'safe'));
+}
+
+createCompanion(game, { owner: hero.object, followDistance: 3, color: 0x34d399 });
+createFlock(game, {
+  count: 60,
+  color: 0xc084fc,
+  bounds: new Box3(new Vector3(-12, 2, -12), new Vector3(12, 8, 12)),
+});
+
+game.start();`,
+  },
+
+  {
     id: 'character',
     title: 'Character + camera + pickups',
     group: 'Gameplay',

@@ -2,6 +2,7 @@ import { renderMarkdown } from './markdown';
 
 const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'getting-started', title: 'Getting started', playground: 'seek' },
+  { id: 'characters', title: 'Characters: templates', playground: 'third-person' },
   { id: 'motion', title: 'Motion agents & steering', playground: 'flock' },
   { id: 'core', title: 'Core: loop, entities, events' },
   { id: 'animation', title: 'Animation: tweens & clips', playground: 'tweens' },
@@ -23,6 +24,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   tweens: 'tweens',
   'camera-rigs': 'orbit',
   collisions: 'character',
+  'third-person': 'third-person',
+  'top-down': 'npcs',
+  'npc-archetypes': 'npcs',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

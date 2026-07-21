@@ -26,6 +26,11 @@ export class Animator extends Component {
     this.actions.set(name, this.mixer.clipAction(clip));
   }
 
+  /** Is a clip with this name registered? */
+  has(name: string): boolean {
+    return this.actions.has(name);
+  }
+
   /** Cross-fade to the named clip. No-op if it is already playing. */
   play(name: string, fadeSeconds = 0.25): void {
     if (name === this.currentName) return;

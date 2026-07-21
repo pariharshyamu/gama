@@ -54,7 +54,9 @@ export class Arrive implements SteeringBehavior {
     const desired = this.force.copy(resolve(this.target)).sub(agent.position);
     const dist = desired.length();
     if (dist < this.stopRadius) {
-      return desired.copy(agent.velocity).multiplyScalar(-1);
+      // Brake hard: -v alone caps at |v| and lets fast agents overshoot.
+      // The agent clamps the final force to maxForce anyway.
+      return desired.copy(agent.velocity).multiplyScalar(-8);
     }
     const speed =
       dist < this.slowRadius ? agent.maxSpeed * (dist / this.slowRadius) : agent.maxSpeed;

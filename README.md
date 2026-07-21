@@ -72,6 +72,7 @@ It includes every guide below plus a dozen editable, runnable examples of
 steering, flocking, navmesh baking, behavior trees and more.
 
 - [Getting started](docs/getting-started.md)
+- [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling
 - [Animation](docs/animation.md) — tweens, easing, clip cross-fades
@@ -113,6 +114,10 @@ steering, flocking, navmesh baking, behavior trees and more.
 ├───────────────────────────────────────────────────────────┤
 │ gama/react (optional entry point, peer deps react + r3f)  │
 │ GamaProvider · Entity · useComponent · useFlockGrid       │
+├───────────────────────────────────────────────────────────┤
+│ gama/templates (characters in one call)                   │
+│ createThirdPersonCharacter · createTopDownCharacter       │
+│ createGuard · createCompanion · createFlock · Locomotion  │
 └───────────────────────────────────────────────────────────┘
                           three.js
 ```
@@ -249,6 +254,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Orbit and shoulder camera rigs (drag-orbit + pointer-lock mouse look with occlusion)
 - [x] React-three-fiber bindings (`gama/react`): Entity/GameObject bridge, component hooks, flock grid
 - [x] Documentation site with live, editable playground (`npm run site:dev`)
+- [x] Character templates (`gama/templates`): third-person & top-down players, guard/companion/flock NPCs, Locomotion animation glue
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development
