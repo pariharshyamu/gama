@@ -6,7 +6,7 @@ Tween any numeric properties — positions, rotations, scales, material
 opacity, camera FOV. Create one `Tweens` group and update it each frame:
 
 ```ts
-import { Tweens, easing } from 'gama';
+import { Tweens, easing } from 'gama3d';
 
 const tweens = new Tweens();
 game.onUpdate((time) => tweens.update(time.delta));

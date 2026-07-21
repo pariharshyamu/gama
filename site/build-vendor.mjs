@@ -45,7 +45,7 @@ await build({
       name: 'externals',
       setup(builder) {
         builder.onResolve({ filter: /^three$/ }, () => ({ path: 'three', external: true }));
-        builder.onResolve({ filter: /^\.\.\/index$/ }, () => ({ path: 'gama', external: true }));
+        builder.onResolve({ filter: /^\.\.\/index$/ }, () => ({ path: 'gama3d', external: true }));
       },
     },
   ],

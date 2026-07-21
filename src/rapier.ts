@@ -1,5 +1,5 @@
-// gama/rapier — optional physics adapter built on @dimforge/rapier3d-compat.
-// Import from 'gama/rapier'; requires the optional peer dependency:
+// gama3d/rapier — optional physics adapter built on @dimforge/rapier3d-compat.
+// Import from 'gama3d/rapier'; requires the optional peer dependency:
 //   npm install @dimforge/rapier3d-compat
 
 export { PhysicsWorld, type PhysicsWorldOptions } from './rapier/PhysicsWorld';

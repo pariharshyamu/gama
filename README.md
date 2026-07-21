@@ -13,19 +13,19 @@ Design principles:
 - **three.js-native, not a wrapper.** A `GameObject` *is* a `THREE.Object3D`. Anything from the three.js ecosystem — loaders, materials, postprocessing — works unchanged. GAMA never hides the renderer or the scene graph from you.
 - **Motion is the product.** Character movement, steering-driven AI, animation cross-fades, camera rigs and tweens are first-class, because motion is what makes a 3D scene feel like a game.
 - **Composable behaviors over inheritance trees.** An enemy is a `GameObject` + `MotionAgent` + a few weighted steering behaviors + a `StateMachine`. Swap behaviors at runtime to change how it moves.
-- **Small and honest scope.** GAMA ships gameplay-level collisions (spheres, boxes, triggers) in core, not a physics engine. When you need rigid-body dynamics, the optional `gama/rapier` adapter binds [rapier](https://rapier.rs) bodies and a stair-climbing character controller to GameObjects — core stays dependency-free either way.
+- **Small and honest scope.** GAMA ships gameplay-level collisions (spheres, boxes, triggers) in core, not a physics engine. When you need rigid-body dynamics, the optional `gama3d/rapier` adapter binds [rapier](https://rapier.rs) bodies and a stair-climbing character controller to GameObjects — core stays dependency-free either way.
 
 ## Install
 
 ```bash
-npm install gama three
+npm install gama3d three
 ```
 
 ## Quick start
 
 ```ts
 import { Mesh, BoxGeometry, MeshStandardMaterial, AmbientLight, Vector3 } from 'three';
-import { Game, MotionAgent, Seek, CharacterController, FollowCamera } from 'gama';
+import { Game, MotionAgent, Seek, CharacterController, FollowCamera } from 'gama3d';
 
 const game = new Game();
 game.world.scene.add(new AmbientLight(0xffffff, 1));
@@ -109,13 +109,13 @@ steering, flocking, navmesh baking, behavior trees and more.
 │ StateMachine       │               │                      │
 │ BehaviorTree       │               │                      │
 ├────────────────────┴───────────────┴──────────────────────┤
-│ gama/rapier (optional entry point, peer dep on rapier)    │
+│ gama3d/rapier (optional entry point, peer dep on rapier)    │
 │ PhysicsWorld · RigidBody · PhysicsCharacterController     │
 ├───────────────────────────────────────────────────────────┤
-│ gama/react (optional entry point, peer deps react + r3f)  │
+│ gama3d/react (optional entry point, peer deps react + r3f)  │
 │ GamaProvider · Entity · useComponent · useFlockGrid       │
 ├───────────────────────────────────────────────────────────┤
-│ gama/templates (characters in one call)                   │
+│ gama3d/templates (characters in one call)                   │
 │ createThirdPersonCharacter · createTopDownCharacter       │
 │ createGuard · createCompanion · createFlock · Locomotion  │
 └───────────────────────────────────────────────────────────┘
@@ -127,7 +127,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 A `MotionAgent` is a component that steers its `GameObject` by summing weighted forces from classic Reynolds steering behaviors. Behaviors take fixed points, live `Vector3` references, getters, or other agents — so targets can move.
 
 ```ts
-import { MotionAgent, Pursue, Evade, Wander, Separation, Alignment, Cohesion, FollowPath, Path, StateMachine } from 'gama';
+import { MotionAgent, Pursue, Evade, Wander, Separation, Alignment, Cohesion, FollowPath, Path, StateMachine } from 'gama3d';
 
 // A guard that patrols, then chases when the player gets close
 const agent = guard.addComponent(new MotionAgent({ maxSpeed: 4, planar: true }));
@@ -191,7 +191,7 @@ Real rigid-body dynamics via the [rapier](https://rapier.rs) adapter — a
 separate entry point, so core `gama` stays dependency-free:
 
 ```ts
-import { PhysicsWorld, RigidBody, PhysicsCharacterController } from 'gama/rapier';
+import { PhysicsWorld, RigidBody, PhysicsCharacterController } from 'gama3d/rapier';
 
 const physics = await PhysicsWorld.create();
 physics.attach(game); // steps at the game's fixed rate
@@ -215,7 +215,7 @@ Velocity arrows (cyan), steering-force arrows (magenta), collider wireframes, an
 ### Animation
 
 ```ts
-import { Tweens, easing, Animator } from 'gama';
+import { Tweens, easing, Animator } from 'gama3d';
 
 const tweens = new Tweens();
 game.onUpdate((t) => tweens.update(t.delta));
@@ -231,7 +231,7 @@ animator.play('run', 0.2);
 ### Assets
 
 ```ts
-import { Assets } from 'gama';
+import { Assets } from 'gama3d';
 
 const assets = new Assets();
 assets.onProgress = (loaded, total) => hud.setProgress(loaded / total);
@@ -249,12 +249,12 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Fixed-timestep simulation option
 - [x] Navmesh pathfinding: `NavMesh` (A* + funnel) and `NavMeshAgent.goTo(point)`
 - [x] Navmesh generation from level geometry (`generateNavMesh`: grid sampling, slope/step/radius rules)
-- [x] Rapier adapter (`gama/rapier`): rigid bodies + physics character controller
+- [x] Rapier adapter (`gama3d/rapier`): rigid bodies + physics character controller
 - [x] Behavior trees (reactive composites, decorators, typed contexts)
 - [x] Orbit and shoulder camera rigs (drag-orbit + pointer-lock mouse look with occlusion)
-- [x] React-three-fiber bindings (`gama/react`): Entity/GameObject bridge, component hooks, flock grid
+- [x] React-three-fiber bindings (`gama3d/react`): Entity/GameObject bridge, component hooks, flock grid
 - [x] Documentation site with live, editable playground (`npm run site:dev`)
-- [x] Character templates (`gama/templates`): third-person & top-down players, guard/companion/flock NPCs, Locomotion animation glue
+- [x] Character templates (`gama3d/templates`): third-person & top-down players, guard/companion/flock NPCs, Locomotion animation glue
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

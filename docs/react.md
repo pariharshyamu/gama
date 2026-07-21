@@ -1,6 +1,6 @@
 # React: the react-three-fiber bindings
 
-`gama/react` brings GAMA's motion/AI layer to
+`gama3d/react` brings GAMA's motion/AI layer to
 [react-three-fiber](https://docs.pmnd.rs/react-three-fiber) — behind a
 separate entry point with optional peer dependencies, so core `gama`
 never touches React.
@@ -10,7 +10,7 @@ npm install react @react-three/fiber   # optional peers
 ```
 
 ```tsx
-import { GamaProvider, Entity, useComponent } from 'gama/react';
+import { GamaProvider, Entity, useComponent } from 'gama3d/react';
 ```
 
 ## Design

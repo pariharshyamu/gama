@@ -196,7 +196,7 @@ interruption is built in, and branches are reusable.
 import {
   BehaviorTree, reactiveSelector, reactiveSequence,
   condition, action, cooldown, wait, sequence,
-} from 'gama';
+} from 'gama3d';
 
 const tree = new BehaviorTree<Guard>(
   reactiveSelector(

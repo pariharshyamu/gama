@@ -8,11 +8,11 @@ export interface PhysicsWorldOptions {
 
 /**
  * GAMA's adapter around a rapier physics world. Rapier is an optional
- * peer dependency — this module lives behind the `gama/rapier` entry
+ * peer dependency — this module lives behind the `gama3d/rapier` entry
  * point so the core library stays dependency-free.
  *
  * ```ts
- * import { PhysicsWorld, RigidBody } from 'gama/rapier';
+ * import { PhysicsWorld, RigidBody } from 'gama3d/rapier';
  *
  * const physics = await PhysicsWorld.create();
  * physics.attach(game);            // steps at the game's fixed rate

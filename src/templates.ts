@@ -1,4 +1,4 @@
-// gama/templates — character templates: pre-wired assemblies over GAMA's
+// gama3d/templates — character templates: pre-wired assemblies over GAMA's
 // public APIs. Thin, readable, and eject-able: when a template's options
 // run out, copy its source into your project and edit.
 

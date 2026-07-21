@@ -7,14 +7,14 @@ and everything from the three.js ecosystem works unchanged.
 ## Install
 
 ```bash
-npm install gama three
+npm install gama3d three
 ```
 
 ## Your first game
 
 ```ts
 import { Mesh, BoxGeometry, MeshStandardMaterial, AmbientLight, Vector3 } from 'three';
-import { Game, MotionAgent, Seek, CharacterController, FollowCamera } from 'gama';
+import { Game, MotionAgent, Seek, CharacterController, FollowCamera } from 'gama3d';
 
 const game = new Game();                       // renderer, canvas, loop, input
 game.world.scene.add(new AmbientLight(0xffffff, 1));
@@ -54,7 +54,7 @@ game.start();
 ## Debugging
 
 ```ts
-import { DebugOverlay } from 'gama';
+import { DebugOverlay } from 'gama3d';
 new DebugOverlay(game); // press F3 in-game
 ```
 

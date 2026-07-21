@@ -1,5 +1,5 @@
-// gama/react — optional react-three-fiber bindings.
-// Import from 'gama/react'; requires the optional peer dependencies:
+// gama3d/react — optional react-three-fiber bindings.
+// Import from 'gama3d/react'; requires the optional peer dependencies:
 //   npm install react @react-three/fiber
 //
 // Design: r3f owns the renderer, scene and frame loop, so there is no Game

@@ -16,7 +16,7 @@ input.pointerNdc;            // pointer in [-1,1] NDC — ready for Raycaster
 Bind **named actions** so game code never hardcodes physical keys:
 
 ```ts
-import { ActionMap, GamepadButton } from 'gama';
+import { ActionMap, GamepadButton } from 'gama3d';
 
 const actions = new ActionMap(game.input)
   .bind('jump',   { keys: ['Space'], buttons: [GamepadButton.A] })

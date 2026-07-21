@@ -1,6 +1,6 @@
 # Characters: templates & locomotion
 
-`gama/templates` turns GAMA's parts into playable characters and living
+`gama3d/templates` turns GAMA's parts into playable characters and living
 NPCs in one call each. Templates are thin, readable factories over public
 APIs — every part they build is returned, and when you outgrow the
 options the intended move is to **copy the template's source into your
@@ -10,7 +10,7 @@ project and edit it**. They are conveniences, not a framework layer.
 import {
   createThirdPersonCharacter, createTopDownCharacter,
   createGuard, createCompanion, createFlock, createCapsulePerson,
-} from 'gama/templates';
+} from 'gama3d/templates';
 ```
 
 Every template renders without assets: omit `model` and you get the
@@ -26,7 +26,7 @@ agent — anything with `velocity` and optionally `grounded` /
 jump/fall in the air, with cross-fades.
 
 ```ts
-import { Animator, Locomotion, matchClips } from 'gama';
+import { Animator, Locomotion, matchClips } from 'gama3d';
 
 const animator = hero.addComponent(new Animator(gltf.animations, gltf.scene));
 hero.addComponent(new Locomotion(animator, controller, {
@@ -58,7 +58,7 @@ arc), and auto-wired animation. For real level geometry — slopes, stairs,
 pushing crates — use the physics sibling from the rapier adapter:
 
 ```ts
-import { PhysicsWorld, createPhysicsThirdPersonCharacter } from 'gama/rapier';
+import { PhysicsWorld, createPhysicsThirdPersonCharacter } from 'gama3d/rapier';
 
 const physics = await PhysicsWorld.create();
 physics.attach(game);

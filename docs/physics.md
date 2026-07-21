@@ -11,10 +11,10 @@ npm install @dimforge/rapier3d-compat   # optional peer dependency
 ```
 
 ```ts
-import { PhysicsWorld, RigidBody, PhysicsCharacterController } from 'gama/rapier';
+import { PhysicsWorld, RigidBody, PhysicsCharacterController } from 'gama3d/rapier';
 ```
 
-Importing `gama` never loads rapier or its WASM — only `gama/rapier` does.
+Importing `gama` never loads rapier or its WASM — only `gama3d/rapier` does.
 
 ## PhysicsWorld
 

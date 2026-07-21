@@ -27,7 +27,7 @@ export const EXAMPLES: Example[] = [
     code: `// Two agents, one target. Blue SEEKS at full speed (and orbits —
 // it can't slow down). Green ARRIVES: it decelerates and stops.
 // Click anywhere on the ground to move the target.
-import { Game, MotionAgent, Seek, Arrive } from 'gama';
+import { Game, MotionAgent, Seek, Arrive } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, RingGeometry,
          Raycaster, Plane, Vector3 } from 'three';
 ${SCENE}
@@ -68,7 +68,7 @@ game.start();`,
     group: 'Steering',
     code: `// Aimless-but-organic meandering: each agent steers toward a point
 // drifting on a circle ahead of it. Containment keeps them in bounds.
-import { Game, MotionAgent, Wander, Containment } from 'gama';
+import { Game, MotionAgent, Wander, Containment } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, Box3, Vector3 } from 'three';
 ${SCENE}
 
@@ -96,7 +96,7 @@ game.start();`,
     group: 'Steering',
     code: `// The red hunter PURSUES the green runner's predicted position;
 // the runner EVADES the hunter's predicted position. Cat and mouse.
-import { Game, MotionAgent, Pursue, Evade, Wander, Containment } from 'gama';
+import { Game, MotionAgent, Pursue, Evade, Wander, Containment } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, Box3, Vector3 } from 'three';
 ${SCENE}
 
@@ -133,7 +133,7 @@ game.start();`,
 // making neighbor queries near-O(n). Press F3 for the debug overlay —
 // cyan arrows are velocity, magenta arrows are steering force.
 import { Game, MotionAgent, Wander, Separation, Alignment, Cohesion,
-         Containment, SpatialGrid, DebugOverlay } from 'gama';
+         Containment, SpatialGrid, DebugOverlay } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, Box3, Vector3 } from 'three';
 ${scene(0, 26, 30, 4)}
 
@@ -171,7 +171,7 @@ game.start();`,
     group: 'Steering',
     code: `// Agents ping-pong across a field of pillars. ObstacleAvoidance probes
 // ahead along the velocity and swerves — it steers sideways, not brakes.
-import { Game, MotionAgent, Seek, Separation, ObstacleAvoidance } from 'gama';
+import { Game, MotionAgent, Seek, Separation, ObstacleAvoidance } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, Vector3 } from 'three';
 ${SCENE}
 
@@ -216,7 +216,7 @@ game.start();`,
     group: 'Steering',
     code: `// A looping patrol circuit. FollowPath seeks each waypoint in turn;
 // on a looping path it never stops.
-import { Game, MotionAgent, FollowPath, Path, Separation } from 'gama';
+import { Game, MotionAgent, FollowPath, Path, Separation } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, RingGeometry, Vector3 } from 'three';
 ${SCENE}
 
@@ -261,7 +261,7 @@ game.start();`,
     code: `// A donut-shaped walkable area (center blocked). Click anywhere:
 // A* finds the triangle corridor, the funnel algorithm string-pulls it,
 // and NavMeshAgent drives a MotionAgent along the waypoints.
-import { Game, MotionAgent, NavMesh, NavMeshAgent, Separation } from 'gama';
+import { Game, MotionAgent, NavMesh, NavMeshAgent, Separation } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, BoxGeometry,
          BufferGeometry, Line, LineBasicMaterial, Raycaster, Vector3 } from 'three';
 ${SCENE}
@@ -332,7 +332,7 @@ game.start();`,
     code: `// No hand-authored floor: the walkable surface (green) is BAKED from
 // the level boxes by grid-sampled raycasts, with agent-radius erosion
 // and a ramp connecting the platform. Click to send the agents.
-import { Game, MotionAgent, NavMeshAgent, generateNavMesh, Separation } from 'gama';
+import { Game, MotionAgent, NavMeshAgent, generateNavMesh, Separation } from 'gama3d';
 import { Group, Mesh, MeshStandardMaterial, BoxGeometry, ConeGeometry,
          Raycaster, Vector3 } from 'three';
 ${scene(0, 30, 26)}
@@ -396,7 +396,7 @@ game.start();`,
 // Higher branches preempt lower ones automatically.
 import { Game, MotionAgent, Pursue, Arrive, FollowPath, Path, Wander,
          Containment, BehaviorTree, reactiveSelector, reactiveSequence,
-         condition, action } from 'gama';
+         condition, action } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, SphereGeometry,
          Box3, Vector3 } from 'three';
 ${SCENE}
@@ -462,8 +462,8 @@ game.start();`,
 // mouse look, camera-relative WASD, jumping, and a capsule-person
 // placeholder (pass model: gltf to swap it and auto-wire animations).
 // Click the preview to lock the pointer; Esc releases it.
-import { Game } from 'gama';
-import { createThirdPersonCharacter, createCapsulePerson } from 'gama/templates';
+import { Game } from 'gama3d';
+import { createThirdPersonCharacter, createCapsulePerson } from 'gama3d/templates';
 import { Mesh, MeshStandardMaterial, BoxGeometry } from 'three';
 ${SCENE}
 
@@ -504,9 +504,9 @@ game.start();`,
     code: `// Guards, a companion, and a flock — each one call. Drive the blue
 // hero with WASD (click the preview first): guards chase you inside
 // their radius, your companion follows, the flock keeps to the sky.
-import { Game } from 'gama';
+import { Game } from 'gama3d';
 import { createTopDownCharacter, createGuard, createCompanion,
-         createFlock } from 'gama/templates';
+         createFlock } from 'gama3d/templates';
 import { Box3, Vector3 } from 'three';
 ${scene(0, 26, 24)}
 
@@ -541,7 +541,7 @@ game.start();`,
 // FollowCamera trails you; CollisionSystem fires collision-enter events;
 // pickups pop in with a tween.
 import { Game, CharacterController, FollowCamera, SphereCollider,
-         CollisionSystem, Tweens, easing } from 'gama';
+         CollisionSystem, Tweens, easing } from 'gama3d';
 import { Mesh, MeshStandardMaterial, ConeGeometry, SphereGeometry, Vector3 } from 'three';
 ${SCENE}
 
@@ -595,7 +595,7 @@ game.start();`,
     group: 'Gameplay',
     code: `// Drag to orbit, wheel to zoom — smoothed, with pitch/distance limits.
 // The rig follows its target, so orbit a moving thing just as easily.
-import { Game, OrbitRig, MotionAgent, Wander, Containment } from 'gama';
+import { Game, OrbitRig, MotionAgent, Wander, Containment } from 'gama3d';
 import { Mesh, MeshStandardMaterial, BoxGeometry, ConeGeometry,
          Box3, Vector3 } from 'three';
 ${SCENE}
@@ -635,7 +635,7 @@ game.start();`,
     group: 'Gameplay',
     code: `// One cube per easing function, bouncing forever. Tweens animate any
 // numeric properties — positions, scales, opacity, camera FOV...
-import { Game, Tweens, easing } from 'gama';
+import { Game, Tweens, easing } from 'gama3d';
 import { Mesh, MeshStandardMaterial, BoxGeometry } from 'three';
 ${scene(0, 10, 24, 3)}
 

@@ -60,7 +60,7 @@ export interface PhysicsThirdPersonCharacter {
 
 /**
  * The physics-backed sibling of `createThirdPersonCharacter` (from
- * `gama/templates`): same shoulder camera, camera-relative movement and
+ * `gama3d/templates`): same shoulder camera, camera-relative movement and
  * auto-wired animation, but movement runs through rapier's character
  * controller — real slopes, stairs, snap-to-ground, and pushing crates.
  *
