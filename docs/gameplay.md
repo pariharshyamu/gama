@@ -156,6 +156,18 @@ linkMechanism(lever, trapdoor, { invert: true });  // …and the trapdoor shuts
 
 Together with SCENA's manipulables and ANIMA's `Gesture` reach, these are a keeper throwing a lever to raise a gate, an automatic door, and an opened chest — see the **manipulables** example in the ANIMA playground.
 
+### Throwing: `throwObject`
+
+The release half of the carry verb. Hand it an object already in world space — straight from ANIMA's `Carry.putDown()` — and it flies a ballistic arc (with tumble) until it hits the ground, then fires `onLand`:
+
+```ts
+const box = carry.putDown();                                   // back in the world, mid-air
+const fly = throwObject(box, { to: cartBed, peak: 2.2, ground: cartBed.y, onLand: stack });
+game.onUpdate((t) => { if (fly) fly(t.delta); });              // arc → tumble → land
+```
+
+Give it a `velocity`, or a target `to` (+ `peak`) and it solves the launch velocity for you (`ballisticVelocity` is that solver, exported). `ground` is the landing height — a number or `(x,z) => y`, so it lands on a cart bed, not the floor. The updater returns `false` once it has landed. See the **carryables** example — a porter loads a crate onto a cart.
+
 ## Vehicles & racing
 
 ### The whole game: `createRace`

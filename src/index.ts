@@ -124,6 +124,7 @@ export {
 } from './physics/Collider';
 export { CollisionSystem } from './physics/CollisionSystem';
 export { resolveCircleCollisions, type ResolveOptions } from './physics/resolve';
+export { throwObject, ballisticVelocity, type ThrowOptions } from './physics/ballistic';
 export {
   Trigger,
   Interactable,
