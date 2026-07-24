@@ -124,6 +124,15 @@ export {
 } from './physics/Collider';
 export { CollisionSystem } from './physics/CollisionSystem';
 export { resolveCircleCollisions, type ResolveOptions } from './physics/resolve';
+export {
+  Trigger,
+  Interactable,
+  linkMechanism,
+  type Mechanism,
+  type MechanismSource,
+  type TriggerOptions,
+  type InteractableOptions,
+} from './interaction/mechanism';
 
 // Assets & audio
 export { Assets } from './assets/Assets';

@@ -123,6 +123,39 @@ game.onUpdate(() => resolveCircleCollisions(game.world.objects));
 
 Tag a body `'static'` and it holds its ground while pushing others (walls, parked cars); triggers are skipped. Returns how many pairs it separated.
 
+## Mechanisms & interaction
+
+The "operate and the world responds" verb. A **`Mechanism`** is anything with `open` / `toggle()` / `set()` / `update()` — structurally identical to SCENA's `Manipulable` (doors, levers, drawers, portcullises), so GAMA drives and wires them with no cross-imports.
+
+**`Interactable`** makes one operable in the world — attach it to a body co-located with the prop:
+
+```ts
+const post = game.world.spawn('lever'); post.add(lever.object);
+post.addComponent(new Interactable(lever, {
+  input: game.input, key: 'KeyE',           // press to operate when in range…
+  onOperate: (open) => playReachGesture(),  // …fire the ANIMA reach here
+}));
+post.events.on('operated', () => {});
+```
+
+Set `mode: 'auto'` and it becomes an **automatic door** — open while a tagged body is near, closed when they leave. It eases the mechanism's joint (`update`) for you.
+
+**`Trigger`** is the bare proximity primitive — a pressure plate, a detection volume — firing `onEnter`/`onExit` (and `trigger-enter`/`trigger-exit` events) for tagged bodies crossing its radius:
+
+```ts
+plate.addComponent(new Trigger({ radius: 1.5, tag: 'player',
+  onEnter: () => gate.set(true), onExit: () => gate.set(false) }));
+```
+
+And **`linkMechanism`** is level logic — one mechanism driving another. A thrown lever raises a portcullis; a switch opens a gate:
+
+```ts
+linkMechanism(lever, portcullis);                  // lever opens → gate rises
+linkMechanism(lever, trapdoor, { invert: true });  // …and the trapdoor shuts
+```
+
+Together with SCENA's manipulables and ANIMA's `Gesture` reach, these are a keeper throwing a lever to raise a gate, an automatic door, and an opened chest — see the **manipulables** example in the ANIMA playground.
+
 ## Vehicles & racing
 
 ### The whole game: `createRace`
