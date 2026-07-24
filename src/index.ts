@@ -160,3 +160,9 @@ export {
 
 // Debug
 export { DebugOverlay, type DebugOverlayOptions } from './debug/DebugOverlay';
+export {
+  RideController,
+  type RideIntent,
+  type RideControllerOptions,
+  type RideEvents,
+} from './controllers/RideController';
