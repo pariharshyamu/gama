@@ -35,7 +35,14 @@ export {
 export {
   Circuit,
   LapTracker,
+  Race,
+  createRace,
   type Point2,
   type LapTrackerOptions,
   type LapState,
+  type RaceEntrant,
+  type RaceOptions,
+  type RaceState,
+  type RaceResult,
+  type RacerStanding,
 } from './templates/racing';

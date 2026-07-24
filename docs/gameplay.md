@@ -125,7 +125,37 @@ Tag a body `'static'` and it holds its ground while pushing others (walls, parke
 
 ## Vehicles & racing
 
-The **motion** layer's kinematic driving model — a benchmark racing game in ~60 lines. `VehicleController` is the player car: feed it driver intent (throttle/steer in [−1, 1]) and it handles eager acceleration, coast drag, braking, reverse, speed-scaled steering (no spinning while stopped) and optional off-track grip loss, moving and yawing its owner and driving a SCENA vehicle's running gear so the wheels spin:
+### The whole game: `createRace`
+
+`createRace` (in `gama3d/templates`) packages the entire assembly — player car, AI rivals, chase camera, touch controls, car-vs-car collision, and live lap **standings with a finish** — so a playable, mobile-ready racer is the world-building plus a dozen lines of glue:
+
+```ts
+import { createRace, Circuit } from 'gama3d/templates';
+
+const circuit = new Circuit(WAYPOINTS);              // SCENA's createPath draws the ribbon
+scene.add(createPath(WAYPOINTS, { loop: true }).mesh);
+
+const race = createRace(game, {
+  circuit,
+  player: { object: playerCar.object, vehicle: playerCar },   // SCENA car + running gear
+  rivals: [
+    { object: r1.object, vehicle: r1, speed: 10 },
+    { object: r2.object, vehicle: r2, speed: 11 },
+  ],
+  laps: 3,
+});
+race.onFinish((r) => showResults(`You finished P${r.position} — ${r.totalTime.toFixed(1)}s`));
+game.onUpdate(() => {
+  const s = race.state;                              // recomputed standings each read
+  hud.textContent = `P${s.position}/${s.total} · LAP ${Math.min(s.lap + 1, 3)}/3 · ${(s.bestLap === Infinity ? 0 : s.bestLap).toFixed(1)}s`;
+});
+```
+
+It grids the field just past the start line (pole furthest ahead), drives the player from `input.moveAxis()` (keyboard, gamepad **and** the auto-mounted `TouchControls`), steers the rivals around the racing line, pushes overlapping cars apart so nobody drives through anybody, chases the player, and tracks every car's lap for `state.standings` (leader first) and `state.position` (your place). Parent an ANIMA driver onto `race.player.object` and they ride the moving seat. `race.reset()` returns the field to the grid; `race.dispose()` unhooks it.
+
+It's built entirely from the public pieces below — when the options run out, copy the `Race` source into your project and edit it. Those pieces on their own:
+
+### `VehicleController` is the player car: feed it driver intent (throttle/steer in [−1, 1]) and it handles eager acceleration, coast drag, braking, reverse, speed-scaled steering (no spinning while stopped) and optional off-track grip loss, moving and yawing its owner and driving a SCENA vehicle's running gear so the wheels spin:
 
 ```ts
 const car = createCar();                            // SCENA visual + slots
@@ -166,7 +196,7 @@ game.onUpdate((t) => {
 });
 ```
 
-Together: `TouchControls` + `VehicleController` + `ChaseCamera` + `Circuit`/`LapTracker` + `driveVehicle` are a playable, mobile-ready racer — see the **Pocket racer** in the ANIMA playground.
+Together — and wrapped up for you by **`createRace`** above — `TouchControls` + `VehicleController` + `ChaseCamera` + `Circuit`/`LapTracker` + `driveVehicle` + `resolveCircleCollisions` are a playable, mobile-ready racer with rivals that bump and a finish line. See the **Pocket racer** in the ANIMA playground.
 
 ## Audio
 
