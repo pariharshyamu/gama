@@ -26,6 +26,21 @@ if (actions.wasPressed('jump')) ...
 actions.bind('jump', { keys: ['KeyZ'] });   // runtime rebinding
 ```
 
+### Touch controls (mobile)
+
+`TouchControls` gives a keyboard game a phone port in **one line** — no branching. It draws an on-screen analog joystick and optional buttons, and writes them into the same `input.moveAxis()` / `input.isDown()` your game already reads (via the input's virtual axis and virtual keys):
+
+```ts
+import { TouchControls } from 'gama3d';
+
+new TouchControls(game.input, {
+  buttons: [{ label: 'A', code: 'Space', css: 'right:26px;bottom:38px' }],
+});
+// input.moveAxis() now reflects the joystick; input.isDown('Space') the button.
+```
+
+It shows only on touch devices by default (`show: 'auto'`), and is purely additive — keyboard and gamepad keep working alongside it, so you can test on desktop. The joystick feeds `input.virtualAxis`; buttons call `input.pressVirtual(code)`; any source can write those directly if you want a custom overlay.
+
 ## Character control & camera
 
 ```ts
@@ -99,6 +114,59 @@ player.events.on('collision-exit', (other) => { ... });
 `CollisionSystem` tracks pairs across frames and fires enter/exit on **both**
 objects at the moment of contact/separation. For a raw same-frame overlap
 list, `checkCollisions(objects)` returns the pairs directly.
+
+Detection reports contact; **`resolveCircleCollisions`** stops it — the arcade "bodies can't pass through each other" you want when cars jostle or a crowd shouldn't interpenetrate. It pushes overlapping `SphereCollider`s apart on the XZ plane (positional only — no momentum):
+
+```ts
+game.onUpdate(() => resolveCircleCollisions(game.world.objects));
+```
+
+Tag a body `'static'` and it holds its ground while pushing others (walls, parked cars); triggers are skipped. Returns how many pairs it separated.
+
+## Vehicles & racing
+
+The **motion** layer's kinematic driving model — a benchmark racing game in ~60 lines. `VehicleController` is the player car: feed it driver intent (throttle/steer in [−1, 1]) and it handles eager acceleration, coast drag, braking, reverse, speed-scaled steering (no spinning while stopped) and optional off-track grip loss, moving and yawing its owner and driving a SCENA vehicle's running gear so the wheels spin:
+
+```ts
+const car = createCar();                            // SCENA visual + slots
+const body = game.world.spawn('player'); body.add(car.object);
+const drive = body.addComponent(new VehicleController(game.input, {
+  vehicle: car,                                     // structural — no SCENA import
+  offTrack: (x, z) => circuit.distanceTo(x, z) > 4, // grass past the verge
+}));
+// Reads input.moveAxis() by default → keyboard, gamepad AND TouchControls all drive it.
+```
+
+For **AI cars**, keep using a `MotionAgent` (it already steers and faces its velocity) and connect its output to the running gear with `driveVehicle` — the adapter that used to be a copy-pasted heading-wrap loop:
+
+```ts
+const agent = rivalBody.addComponent(new MotionAgent({ maxSpeed: 10 }));
+agent.addBehavior(new FollowPath(new Path(waypoints, true), 2));
+const spin = driveVehicle(agent, rivalCar);
+game.onUpdate((t) => spin(t.delta));                // wheels spin, fronts steer
+```
+
+Chase it all with **`ChaseCamera`** (heading-aware, unlike the fixed-offset `FollowCamera`):
+
+```ts
+const cam = new ChaseCamera(game.camera, car.object, { distance: 8.5, height: 4.4 });
+game.onUpdate((t) => cam.update(t.delta));
+```
+
+And the racing **template** (`gama3d/templates`) turns a waypoint loop into gameplay. `Circuit` answers *how far off the line am I?* (grip loss) and *how far round am I?* (standings); `LapTracker` counts forward line crossings and times them:
+
+```ts
+import { Circuit, LapTracker } from 'gama3d/templates';
+
+const circuit = new Circuit(WAYPOINTS);             // SCENA's createPath draws the ribbon
+const laps = new LapTracker(circuit, { laps: 3 });
+game.onUpdate((t) => {
+  const s = laps.update(t.delta, car.object.position.x, car.object.position.z);
+  hud.textContent = `LAP ${s.lap + 1}/3 · ${s.lapTime.toFixed(1)}s · best ${s.bestLap.toFixed(1)}s`;
+});
+```
+
+Together: `TouchControls` + `VehicleController` + `ChaseCamera` + `Circuit`/`LapTracker` + `driveVehicle` are a playable, mobile-ready racer — see the **Pocket racer** in the ANIMA playground.
 
 ## Audio
 

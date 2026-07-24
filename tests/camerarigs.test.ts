@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BoxGeometry, Mesh, Object3D, PerspectiveCamera, Vector2, Vector3 } from 'three';
 import { OrbitRig, type PointerLookInput } from '../src/camera/OrbitRig';
 import { ShoulderRig } from '../src/camera/ShoulderRig';
+import { ChaseCamera } from '../src/camera/ChaseCamera';
 
 class StubInput implements PointerLookInput {
   pointerDelta = new Vector2();
@@ -118,5 +119,38 @@ describe('ShoulderRig', () => {
     rig.update(1 / 60);
     expect(camera.position.z).toBeLessThan(1.5); // in front of the wall
     expect(camera.position.z).toBeGreaterThan(0.5); // but not at the pivot
+  });
+});
+
+describe('ChaseCamera', () => {
+  it('sits behind and above a target, facing +z at heading 0', () => {
+    const camera = new PerspectiveCamera();
+    const target = new Object3D();
+    const chase = new ChaseCamera(camera, target, { distance: 8, height: 4 });
+    // Heading 0 → forward is +z → camera behind at −z.
+    expect(camera.position.z).toBeCloseTo(-8, 4);
+    expect(camera.position.y).toBeCloseTo(4, 4);
+    const dir = camera.getWorldDirection(new Vector3());
+    expect(dir.z).toBeGreaterThan(0.5); // looking toward +z
+  });
+
+  it('swings around behind the target as it turns', () => {
+    const camera = new PerspectiveCamera();
+    const target = new Object3D();
+    const chase = new ChaseCamera(camera, target, { distance: 8, height: 4, stiffness: 1000 });
+    target.rotation.y = Math.PI / 2; // now facing +x
+    chase.update(1);
+    expect(camera.position.x).toBeLessThan(-6); // behind at −x
+    expect(Math.abs(camera.position.z)).toBeLessThan(1);
+  });
+
+  it('can chase the direction of travel instead of heading', () => {
+    const camera = new PerspectiveCamera();
+    const target = new Object3D(); // rotation stays 0…
+    const source = { velocity: new Vector3(5, 0, 0) }; // …but moving +x
+    const chase = new ChaseCamera(camera, target, { mode: 'velocity', distance: 8, stiffness: 1000 });
+    chase.setVelocitySource(source);
+    chase.update(1);
+    expect(camera.position.x).toBeLessThan(-6); // behind the velocity
   });
 });

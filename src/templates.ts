@@ -32,3 +32,10 @@ export {
   type Flock,
   type FlockOptions,
 } from './templates/npcs';
+export {
+  Circuit,
+  LapTracker,
+  type Point2,
+  type LapTrackerOptions,
+  type LapState,
+} from './templates/racing';

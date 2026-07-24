@@ -23,6 +23,28 @@ export class Input {
   /** Stick deadzone radius. */
   deadzone = 0.15;
 
+  /**
+   * A soft directional axis any source can write (x: right, y: forward),
+   * folded into `moveAxis`. `TouchControls` steers this from an on-screen
+   * joystick, so keyboard/gamepad game code works unchanged on phones.
+   */
+  readonly virtualAxis = new Vector2();
+  /**
+   * Soft held "keys" any source can write (KeyboardEvent.code strings),
+   * folded into `isDown`/`wasPressed`. On-screen buttons write here.
+   */
+  readonly virtualDown = new Set<string>();
+  private virtualPressed = new Set<string>();
+  /** Press a virtual key (edge + held) — for on-screen buttons. */
+  pressVirtual(code: string): void {
+    if (!this.virtualDown.has(code)) this.virtualPressed.add(code);
+    this.virtualDown.add(code);
+  }
+  /** Release a virtual key. */
+  releaseVirtual(code: string): void {
+    this.virtualDown.delete(code);
+  }
+
   private gpDown: boolean[] = [];
   private gpPressed: boolean[] = [];
   private down = new Set<string>();
@@ -60,12 +82,12 @@ export class Input {
 
   /** Is the key currently held? Uses KeyboardEvent.code, e.g. 'KeyW', 'Space'. */
   isDown(code: string): boolean {
-    return this.down.has(code);
+    return this.down.has(code) || this.virtualDown.has(code);
   }
 
-  /** Did the key go down since last frame? */
+  /** Did the key go down since last frame? (keyboard or on-screen button) */
   wasPressed(code: string): boolean {
-    return this.pressed.has(code);
+    return this.pressed.has(code) || this.virtualPressed.has(code);
   }
 
   /** Did the key go up since last frame? */
@@ -94,7 +116,7 @@ export class Input {
       (this.isDown('KeyW') || this.isDown('ArrowUp') ? 1 : 0) -
         (this.isDown('KeyS') || this.isDown('ArrowDown') ? 1 : 0)
     );
-    target.add(this.leftStick);
+    target.add(this.leftStick).add(this.virtualAxis);
     return target.lengthSq() > 1 ? target.normalize() : target;
   }
 
@@ -131,6 +153,7 @@ export class Input {
   lateUpdate(): void {
     this.pressed.clear();
     this.released.clear();
+    this.virtualPressed.clear();
     this.pointerDelta.set(0, 0);
     this.wheelDelta = 0;
   }

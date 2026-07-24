@@ -19,6 +19,11 @@ export {
   type ActionBinding,
   type ActionInput,
 } from './input/ActionMap';
+export {
+  TouchControls,
+  type TouchControlsOptions,
+  type TouchButtonSpec,
+} from './input/TouchControls';
 
 // Motion agents & steering
 export { MotionAgent, type MotionAgentOptions } from './motion/MotionAgent';
@@ -41,6 +46,7 @@ export { Path } from './motion/Path';
 export { StateMachine, type State } from './motion/StateMachine';
 export { SpatialGrid } from './motion/SpatialGrid';
 export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidance';
+export { driveVehicle, type VehicleRunningGear } from './motion/driveVehicle';
 
 // Navigation
 export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
@@ -99,7 +105,13 @@ export {
   CharacterController,
   type CharacterControllerOptions,
 } from './controllers/CharacterController';
+export {
+  VehicleController,
+  type VehicleControllerOptions,
+  type DriveIntent,
+} from './controllers/VehicleController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
+export { ChaseCamera, type ChaseCameraOptions } from './camera/ChaseCamera';
 export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';
 export { ShoulderRig, type ShoulderRigOptions } from './camera/ShoulderRig';
 
@@ -111,6 +123,7 @@ export {
   type CollisionPair,
 } from './physics/Collider';
 export { CollisionSystem } from './physics/CollisionSystem';
+export { resolveCircleCollisions, type ResolveOptions } from './physics/resolve';
 
 // Assets & audio
 export { Assets } from './assets/Assets';
