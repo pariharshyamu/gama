@@ -182,6 +182,32 @@ if (stock.spend('wood', 5)) build(fence);   // spend only succeeds if affordable
 
 Not a component — keep one per player or base and share it. See the **work stations** example, where a worker's chop/mine/saw/stir fill the stockpile shown in the HUD.
 
+## Seats: `Occupancy`
+
+Who is sitting where — the bookkeeping that stops two villagers sharing a chair, and the *manners* that stop them all piling onto the same end of a bench. Hand it a SCENA gathering's `seats` (structurally just `{ anchor, approach? }`, so your own will do):
+
+```ts
+const bench = createLongBench({ seats: 4 });                 // SCENA
+const seating = new Occupancy(bench.seats, { personalSpace: 1.5 });
+const seat = seating.claim(villager, { from: villager.position });
+agent.moveTo(seat.approach ?? seat.anchor);                  // walk there first
+// …on arrival: interaction.use(seat)                        // ANIMA stages the sit
+seating.release(villager);                                   // when they get up
+```
+
+The interesting part is `claim`. It does **not** hand out the nearest free seat — it scores each one against how far the claimer must walk *and how close it puts them to whoever is already sitting*. So the first arrival takes an end, the second takes the far end, and only once the bench is busy does anyone squeeze into the middle. That is what people actually do, and it is startlingly more convincing than any amount of extra polish on the sitting animation itself.
+
+| option | what it does |
+| --- | --- |
+| `personalSpace` | how hard occupants avoid company (0 = a queue, 1 = people, 2 = antisocial) |
+| `spacing` | the distance under which two seats feel adjacent (metres) |
+| `effort` | how much the walk matters against the company |
+| `whim` | how often someone takes a seat that isn't the optimal one — real people are not optimisers |
+
+`claim` returns null when the place is full; claiming twice moves the owner and frees their old seat. `nearestFree(from)` ignores company entirely, for queues and docks. Events: `claim`, `release`, `full`.
+
+**`stagger(count, { spread, lead, seed })`** gives a group uneven start times. Nothing betrays a crowd of puppets faster than all of it moving on the same frame; these delays clump and trail off rather than ticking like a metronome. See the **gatherings** example.
+
 ## Vehicles & racing
 
 ### The whole game: `createRace`

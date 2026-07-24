@@ -132,6 +132,15 @@ export {
   type StockChange,
 } from './gameplay/Stockpile';
 export {
+  Occupancy,
+  stagger,
+  type Seat,
+  type SeatClaim,
+  type OccupancyOptions,
+  type OccupancyEvents,
+  type StaggerOptions,
+} from './gameplay/Occupancy';
+export {
   Trigger,
   Interactable,
   linkMechanism,
