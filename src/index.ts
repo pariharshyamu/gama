@@ -126,6 +126,12 @@ export { CollisionSystem } from './physics/CollisionSystem';
 export { resolveCircleCollisions, type ResolveOptions } from './physics/resolve';
 export { throwObject, ballisticVelocity, type ThrowOptions } from './physics/ballistic';
 export {
+  Stockpile,
+  type StockpileOptions,
+  type StockpileEvents,
+  type StockChange,
+} from './gameplay/Stockpile';
+export {
   Trigger,
   Interactable,
   linkMechanism,

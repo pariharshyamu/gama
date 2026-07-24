@@ -168,6 +168,20 @@ game.onUpdate((t) => { if (fly) fly(t.delta); });              // arc → tumble
 
 Give it a `velocity`, or a target `to` (+ `peak`) and it solves the launch velocity for you (`ballisticVelocity` is that solver, exported). `ground` is the landing height — a number or `(x,z) => y`, so it lands on a cart bed, not the floor. The updater returns `false` once it has landed. See the **carryables** example — a porter loads a crate onto a cart.
 
+## Resources: `Stockpile`
+
+The "produce something" payoff for work stations, crafting and gathering. A `Stockpile` counts named resources with `add`/`remove`/`spend`, emits `change` (with the delta) and `full`, and clamps at 0 and an optional `capacity`. Wire a SCENA `WorkStation.onYield` into it and a HUD to its event:
+
+```ts
+const stock = new Stockpile({ capacity: 99 });
+choppingBlock.onYield = () => stock.add('wood');
+stock.events.on('change', ({ resource, count }) => hud.set(resource, count));
+
+if (stock.spend('wood', 5)) build(fence);   // spend only succeeds if affordable
+```
+
+Not a component — keep one per player or base and share it. See the **work stations** example, where a worker's chop/mine/saw/stir fill the stockpile shown in the HUD.
+
 ## Vehicles & racing
 
 ### The whole game: `createRace`
