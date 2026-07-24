@@ -30,7 +30,7 @@ describe('VehicleController', () => {
     expect(car.position.z).toBeGreaterThan(2); // travelled forward
     expect(car.position.x).toBeCloseTo(0, 4);
     // The running gear was pumped with the current speed each frame.
-    expect(gear.at(-1)!.speed).toBeCloseTo(ctrl.speed, 3);
+    expect(gear[gear.length - 1].speed).toBeCloseTo(ctrl.speed, 3);
   });
 
   it('cannot steer while stationary, but turns once rolling', () => {

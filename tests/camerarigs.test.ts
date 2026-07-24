@@ -126,7 +126,7 @@ describe('ChaseCamera', () => {
   it('sits behind and above a target, facing +z at heading 0', () => {
     const camera = new PerspectiveCamera();
     const target = new Object3D();
-    const chase = new ChaseCamera(camera, target, { distance: 8, height: 4 });
+    new ChaseCamera(camera, target, { distance: 8, height: 4 }); // snaps in ctor
     // Heading 0 → forward is +z → camera behind at −z.
     expect(camera.position.z).toBeCloseTo(-8, 4);
     expect(camera.position.y).toBeCloseTo(4, 4);
