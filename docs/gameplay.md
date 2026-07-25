@@ -358,3 +358,25 @@ Interruption turns out to be almost entirely about the things that are *not* uni
 - **Insistence outranks.** A buzz does not interrupt a phone call, but a ring interrupts a buzz. `onIgnore` says which of `weak`, `busy` or `tired` applied, which is what you want when a room has gone quiet and you need to know why.
 
 `broadcast` offers an alert to a group with distance falloff, so a ring in the next room is quieter, and returns how many took it up — which will not be all of them.
+
+## Queue — who is next
+
+`Occupancy` answers *who sits where* — a fixed set of places, claimed and released. `Queue` is its sibling and answers *who is next*: an ordered line where the only place that matters is the front.
+
+```ts
+const queue = new Queue<Character>({ service: 14, spacing: atm.spacing });
+if (queue.join(person) === null) wanderOffInstead(person);   // they balked
+game.onUpdate((t) => {
+  queue.update(t.delta);
+  const at = atm.line.localToWorld(new Vector3(0, 0, -queue.distanceOf(person)));
+});
+```
+
+The bookkeeping is the easy half. What makes a rendered queue look real:
+
+- **The shuffle is staggered.** When the head leaves, a queue does not advance as one — each person notices in their own time, so the gap travels back down the line like a wave. Advancing everyone on the same frame is a conveyor belt and reads as one instantly. People further back notice later, too.
+- **Gaps are not uniform.** People leave different amounts of room, and the same person leaves the same amount every time.
+- **People balk.** `join` returns `null` when the line is longer than they will tolerate — with per-person variation, so the same line turns some away and not others. A hard cutoff makes a queue snap between "everyone joins" and "nobody does" at one length.
+- **People renege.** `giveUpAfter` makes them leave having already joined, which is what stops a jammed line growing forever. Nobody walks out mid-transaction — the person being served stays.
+
+`distanceOf` eases, so a caller drives a walk toward it rather than teleporting.

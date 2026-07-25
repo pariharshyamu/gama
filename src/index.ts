@@ -180,3 +180,4 @@ export {
   type AttentionOptions,
   type BroadcastAlert,
 } from './gameplay/Attention';
+export { Queue, type QueueOptions } from './gameplay/Queue';
