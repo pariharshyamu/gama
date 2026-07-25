@@ -396,3 +396,47 @@ home.on('lamp', (v) => (light.intensity = v * 6));
 - **Sensors hold.** A motion sensor that drops the instant you stop moving turns the lights off on somebody sitting still at a desk — the classic real-world failure, and modelled, the classic tell of a fake one. A re-trigger *refreshes* the hold rather than restarting the channel, so a person moving about produces one rise and no flicker.
 
 Cycles are rejected at `link` time rather than discovered at runtime, and a change already travelling to a target supersedes an earlier one — a switch flicked twice quickly settles once.
+
+## Recipe — what to do next
+
+The kitchen tracks in SCENA built every *thing*: a stove that publishes heat as a field, a cold store that publishes preservation, prep benches that yield, a sink with a queue of dishes, ingredients that go off. What none of them answer is the only question an agent actually has — **what should I do now** — and that is not a list, it is a graph.
+
+```ts
+const stew = new Recipe({
+  steps: [
+    { id: 'chop',  station: 'board', takes: { onion: 1, carrot: 2 }, makes: 'mirepoix' },
+    { id: 'brown', station: 'stove', takes: { meat: 1 }, makes: 'browned' },
+    { id: 'simmer', station: 'stove', needs: ['chop', 'brown'],
+      takes: { mirepoix: 1, browned: 1, stock: 1 }, makes: 'stew', seconds: 30 },
+  ],
+});
+
+const next = stew.ready(pantry)[0];
+if (next && stew.begin(next.id, cook, pantry)) walkTo(stations[next.station]);
+```
+
+It never moves anybody and never touches a mesh. It answers three questions: `ready(pantry)` — what could be started now; `missing(pantry)` — what to go and fetch if nothing could; `progress` — how far through we are.
+
+### Ready is computed, never stored
+
+That is the whole difference between a dependency graph and a checklist. A step is ready when its dependencies are done **and** its inputs are in the pantry — so putting an onion on the counter unblocks a step nobody touched, and a fish going off re-blocks one that was ready a second ago. Nothing has to be told, and no part of the chain knows about any other part of it.
+
+### Inputs go at `begin`, not at `finish`
+
+Taking them at the end lets two cooks both start the same step with one onion between them, and **the bug only shows up when a second agent exists** — which is to say in the demo, not in the tests, unless there is a test for it. There is one.
+
+Abandoning a step **loses** its inputs by default: a half-chopped onion is not an onion. `refundOnAbandon` if your game disagrees.
+
+### `missing` is a shopping list, not a wish list
+
+It asks only for what **nothing in the recipe can make**. Leave out that test and the list becomes a demand for the stew you are trying to cook. It also stops asking for the things whose step is already done — nobody needs to fetch more onions once they are chopped.
+
+Together that is a complete agent decision: `ready()` first, and if nothing is ready, `missing()` says where to go.
+
+### Cycles are rejected at construction
+
+A recipe whose step A needs B needs A is not a recipe that runs badly. `ready` returns an empty list forever and `progress` sticks, which looks exactly like an agent that has decided to stand still and is very hard to diagnose from there. Same for a dependency on a step that does not exist, which blocks that step silently and permanently. Both throw when the recipe is built.
+
+### It composes outward, importing nothing
+
+`Pantry` is anything with `count`, `add` and `remove` — `Stockpile` is one. And `finish` is what a SCENA `WorkStation.onYield` calls, so a recipe driven by real work never calls `update` at all and times nothing itself. `update` is there for steps that are just a wait.

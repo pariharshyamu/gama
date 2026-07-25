@@ -182,6 +182,15 @@ export {
 } from './gameplay/Attention';
 export { Queue, type QueueOptions } from './gameplay/Queue';
 export {
+  Recipe,
+  type RecipeOptions,
+  type RecipeStep,
+  type RecipeEvents,
+  type StepState,
+  type StepStatus,
+  type Pantry,
+} from './gameplay/Recipe';
+export {
   Automation,
   type AutomationOptions,
   type LinkOptions,
