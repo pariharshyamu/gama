@@ -173,3 +173,10 @@ export {
   type DeviceOptions,
   type DeviceEvents,
 } from './gameplay/Device';
+export {
+  Attention,
+  broadcast,
+  type Alert,
+  type AttentionOptions,
+  type BroadcastAlert,
+} from './gameplay/Attention';

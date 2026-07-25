@@ -338,3 +338,23 @@ The realism is in the asymmetries:
 - **Content survives a sleep.** `show('video')` is remembered separately from the power state, so waking returns to the film rather than dumping the viewer at a home screen.
 
 `attach` takes anything with `setMode(mode: string)`, which is exactly what SCENA's `ScreenPanel` publishes — so GAMA drives what a SCENA screen shows with neither library importing the other.
+
+## Attention — what interrupts somebody
+
+Every prop in the trilogy so far waits to be used. Nothing initiates. A phone that rings is the first thing in the world that reaches out and pulls a character out of what they were doing.
+
+```ts
+const attention = new Attention({ seed: 3 });
+attention.onNotice = (alert) => gaze.glance(alert.at, 1.2);
+broadcast({ kind: 'ring', urgency: 0.9, at: phone.position, range: 9 }, crowd);
+game.onUpdate((t) => attention.update(t.delta));
+```
+
+Interruption turns out to be almost entirely about the things that are *not* uniform:
+
+- **Nobody reacts at the same speed.** A shared latency makes a room turn like a chorus line. Each character draws its own reaction time, fresh for every alert, and the more insistent the alert the faster they come round to it.
+- **Not everybody reacts at all.** `sensitivity` sets the type, and a little noise on the judgement means two characters with the *same* sensitivity still disagree about a marginal alert — otherwise `sensitivity` is a constant and a dozen identical characters either all look up or none do.
+- **The fifth buzz is not the first buzz.** Interest in a *kind* of alert wears out as it repeats and recovers exponentially while it is quiet. Without this a repeated alert produces an identical response forever, which reads as clockwork inside about three repeats. Getting sick of a buzzing phone does not make you deaf to a doorbell — fatigue is per kind.
+- **Insistence outranks.** A buzz does not interrupt a phone call, but a ring interrupts a buzz. `onIgnore` says which of `weak`, `busy` or `tired` applied, which is what you want when a room has gone quiet and you need to know why.
+
+`broadcast` offers an alert to a group with distance falloff, so a ring in the next room is quieter, and returns how many took it up — which will not be all of them.
