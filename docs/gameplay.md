@@ -315,3 +315,26 @@ const [hero, grass, theme] = await Promise.all([
 
 Repeated requests for the same URL return the cached promise — safe to call
 from anywhere without coordinating.
+
+## Device — powered things
+
+Every other prop wears its state: a door is open or shut and you can see which. A device's state is invisible except through what it is displaying, and it does not change instantly. Those delays are the whole difference between a prop that has a light on it and a prop that feels powered.
+
+```ts
+const tv = new Device({ boot: 2.4 });
+tv.attach(screenPanel);          // anything with setMode(mode: string)
+tv.press();                      // the remote — then watch it boot
+game.onUpdate((t) => tv.update(t.delta));
+```
+
+States: `off → booting → on`, and `on → dimmed → sleeping` on an idle timer, with `sleeping → waking → on`. `progress` reports 0..1 through a boot or a wake.
+
+The realism is in the asymmetries:
+
+- **A cold boot takes seconds; waking from sleep is near-instant.** `boot` defaults to 2.2 s, `wake` to 0.45 s.
+- **Mashing the power button during a boot does nothing.** Neither does it in life.
+- **Idle is opt-in** (`idle: 0`, the default, never dozes). A desk monitor dims and then sleeps; a television does not do that halfway through a film.
+- **`nudge()` resets the idle clock** and wakes a dozing device — what actually happens when somebody sits back down at a machine.
+- **Content survives a sleep.** `show('video')` is remembered separately from the power state, so waking returns to the film rather than dumping the viewer at a home screen.
+
+`attach` takes anything with `setMode(mode: string)`, which is exactly what SCENA's `ScreenPanel` publishes — so GAMA drives what a SCENA screen shows with neither library importing the other.

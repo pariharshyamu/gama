@@ -166,3 +166,10 @@ export {
   type RideControllerOptions,
   type RideEvents,
 } from './controllers/RideController';
+export {
+  Device,
+  type PowerState,
+  type DisplayTarget,
+  type DeviceOptions,
+  type DeviceEvents,
+} from './gameplay/Device';
