@@ -181,3 +181,8 @@ export {
   type BroadcastAlert,
 } from './gameplay/Attention';
 export { Queue, type QueueOptions } from './gameplay/Queue';
+export {
+  Automation,
+  type AutomationOptions,
+  type LinkOptions,
+} from './gameplay/Automation';

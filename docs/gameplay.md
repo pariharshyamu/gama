@@ -380,3 +380,19 @@ The bookkeeping is the easy half. What makes a rendered queue look real:
 - **People renege.** `giveUpAfter` makes them leave having already joined, which is what stops a jammed line growing forever. Nobody walks out mid-transaction — the person being served stays.
 
 `distanceOf` eases, so a caller drives a walk toward it rather than teleporting.
+
+## Automation — devices wired to each other
+
+A smart home is a graph: a sensor drives a lamp, a switch drives a scene. Modelled naively it is a lookup table and it feels like one. Two properties do the work:
+
+```ts
+const home = new Automation({ seed: 2 });
+home.hold('motion', 14);                     // sensor holds after the last trigger
+home.link('motion', 'lamp', { delay: 0.4 });
+home.on('lamp', (v) => (light.intensity = v * 6));
+```
+
+- **Nothing happens instantly.** You flip a smart switch and the light comes on *a beat later*. That lag is the single most recognisable quality of the real thing; without it the graph reads as a light switch with extra steps. Delays are jittered per link, so a bank of identical devices does not answer as one.
+- **Sensors hold.** A motion sensor that drops the instant you stop moving turns the lights off on somebody sitting still at a desk — the classic real-world failure, and modelled, the classic tell of a fake one. A re-trigger *refreshes* the hold rather than restarting the channel, so a person moving about produces one rise and no flicker.
+
+Cycles are rejected at `link` time rather than discovered at runtime, and a change already travelling to a target supersedes an earlier one — a switch flicked twice quickly settles once.
