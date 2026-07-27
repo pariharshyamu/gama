@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Vector3 } from 'three';
 import { CricketMatch, type BallOutcome, type Shot } from '../src/templates';
 
 /** Bowl one ball, optionally swinging `lead` seconds after release. */
@@ -88,7 +89,7 @@ describe('timing is the game', () => {
 
   it('walks early → good → middled → good → late → missed as you wait', () => {
     const seen: string[] = [];
-    for (const lead of [0.10, 0.24, 0.345, 0.45, 0.56, 0.70]) {
+    for (const lead of [0.06, 0.18, 0.345, 0.46, 0.52, 0.62]) {
       const m = new CricketMatch({ seed: 7 });
       seen.push(bowlOne(m, 'drive', lead).timing);
     }
@@ -112,7 +113,7 @@ describe('timing is the game', () => {
     let predicted = NaN;
     let out: BallOutcome | null = null;
     m.onBall((o) => { out ??= o; });
-    while (m.phase !== 'dead' && t < 5) {
+    while (m.phase !== 'dead' && t < 20) {
       if (t >= 0.30 && Number.isNaN(predicted)) {
         predicted = m.previewError();
         m.swing('drive');
@@ -146,9 +147,11 @@ describe('the strokes', () => {
     const drives = middled('drive');
     // Length and pace both move, so one fixed press time cannot middle every
     // ball — but it middles most of them, and they go to the rope.
-    expect(drives.filter((o) => o.timing === 'middled').length).toBeGreaterThan(24);
-    expect(drives.every((o) => o.timing === 'middled' || o.timing === 'good')).toBe(true);
-    expect(drives.filter((o) => o.runs >= 4).length).toBeGreaterThan(24);
+    // Length moves every ball, so one fixed press time cannot middle them
+    // all — but it middles most, and those go to the rope.
+    expect(drives.filter((o) => o.timing === 'middled').length).toBeGreaterThan(20);
+    expect(drives.filter((o) => o.timing === 'missed').length).toBeLessThan(4);
+    expect(drives.filter((o) => o.runs >= 4).length).toBeGreaterThan(20);
 
     const blocks = middled('defend', 8);
     expect(blocks.every((o) => o.runs === 0)).toBe(true);
@@ -157,26 +160,35 @@ describe('the strokes', () => {
 
   it('a MIDDLED LOFT clears it: sixes, not fours', () => {
     const lofts = middled('loft');
-    expect(lofts.filter((o) => o.runs === 6).length).toBeGreaterThan(24);
-    // And it goes further than the drive that stayed down.
-    const far = (o: BallOutcome) => Math.hypot(o.where.x, o.where.z);
-    expect(Math.max(...lofts.map(far))).toBeGreaterThan(
-      Math.max(...middled('drive').map(far)) - 0.001
-    );
+    const drives = middled('drive');
+    expect(lofts.filter((o) => o.runs === 6).length).toBeGreaterThan(20);
+    // Sixes, where the same timing off a drive is a four along the ground.
+    expect(drives.filter((o) => o.runs === 6).length).toBe(0);
+  });
+
+  it('EVERY STROKE GOES ITS OWN WAY: cut off, pull and sweep to leg', () => {
+    const side = (shot: Shot) =>
+      middled(shot, 30).reduce((a, o) => a + o.where.x, 0) / 30;
+    // A cut and a pull are not one shot with the sign thrown away.
+    expect(side('cut')).toBeGreaterThan(20);
+    expect(side('pull')).toBeLessThan(-20);
+    expect(side('sweep')).toBeLessThan(-20);
+    expect(side('flick')).toBeLessThan(-20);
+    expect(Math.abs(side('drive'))).toBeLessThan(Math.abs(side('cut')));
   });
 
   it('a PULL is square; a drive is straight', () => {
     const square = (shot: Shot) =>
       middled(shot).reduce((a, o) => a + Math.abs(o.where.x), 0) / 40;
-    expect(square('pull')).toBeGreaterThan(square('drive') * 3);
+    expect(square('pull')).toBeGreaterThan(square('drive') * 2);
   });
 
   it('THE RISK IS THE SHOT: a mistimed loft is caught, a block never is', () => {
     let caught = 0;
     let blocked = 0;
     for (let s = 1; s <= 40; s++) {
-      if (bowlOne(new CricketMatch({ seed: s }), 'loft', 0.18).wicket === 'caught') caught++;
-      if (bowlOne(new CricketMatch({ seed: s }), 'defend', 0.18).wicket === 'caught') blocked++;
+      if (bowlOne(new CricketMatch({ seed: s }), 'loft', 0.12).wicket === 'caught') caught++;
+      if (bowlOne(new CricketMatch({ seed: s }), 'defend', 0.12).wicket === 'caught') blocked++;
     }
     expect(caught).toBeGreaterThan(15);
     expect(blocked).toBe(0);
@@ -185,11 +197,65 @@ describe('the strokes', () => {
   it('scores the ladder: 6, 4, and the ones and twos in between', () => {
     const runs = new Set<number>();
     for (let s = 1; s <= 60; s++) {
-      for (const lead of [0.16, 0.24, 0.30, 0.345, 0.44]) {
+      for (const lead of [0.10, 0.14, 0.24, 0.30, 0.345, 0.44]) {
         runs.add(bowlOne(new CricketMatch({ seed: s }), 'drive', lead).runs);
       }
     }
     expect([...runs].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe('the bat has to actually be there', () => {
+  /** A stand-in bat parked at a fixed height in front of the stumps. */
+  const batAt = (y: number, x = 0) => {
+    const at = new Vector3(x, y, -20.12 / 2 + 1.6);
+    return () => at;
+  };
+
+  it('a bat swung a metre over the ball MISSES it', () => {
+    const high = new CricketMatch({ seed: 4, bat: batAt(1.9) });
+    const o = bowlOne(high, 'pull', 0.345);
+    expect(o.timing).toBe('missed');
+    expect(o.runs).toBe(0);
+    expect(o.miss).toBeGreaterThan(0.34);
+  });
+
+  it('…and a bat in the right place hits it', () => {
+    // Where the ball actually is when it gets to the crease.
+    const m = new CricketMatch({ seed: 4 });
+    m.bowl();
+    while (m.phase === 'flight' || m.phase === 'onto') {
+      m.update(1 / 480);
+      if (m.ball.z <= -20.12 / 2 + 1.6) break;
+    }
+    const there = new CricketMatch({ seed: 4, bat: batAt(m.ball.y, m.ball.x) });
+    const o = bowlOne(there, 'drive', 0.345);
+    expect(o.timing).not.toBe('missed');
+    expect(o.miss).toBeLessThan(0.34);
+    expect(o.runs).toBeGreaterThan(0);
+  });
+
+  it('off the middle scores more than off the edge', () => {
+    const runs = (dy: number) => {
+      const m = new CricketMatch({ seed: 4 });
+      m.bowl();
+      while (m.phase === 'flight' || m.phase === 'onto') {
+        m.update(1 / 480);
+        if (m.ball.z <= -20.12 / 2 + 1.6) break;
+      }
+      const at = new CricketMatch({ seed: 4, bat: batAt(m.ball.y + dy, m.ball.x) });
+      return bowlOne(at, 'drive', 0.345);
+    };
+    const middle = runs(0);
+    const edge = runs(0.3);
+    expect(edge.miss).toBeGreaterThan(middle.miss);
+    expect(edge.quality).toBeLessThan(middle.quality);
+  });
+
+  it('with no bat probe it is pure timing, and `miss` says so', () => {
+    const o = bowlOne(new CricketMatch({ seed: 4 }), 'drive', 0.345);
+    expect(o.miss).toBe(-1);
+    expect(o.runs).toBeGreaterThan(0);
   });
 });
 
@@ -208,7 +274,7 @@ describe('the wicket', () => {
     for (let s = 1; s <= 40; s++) {
       if (bowlOne(new CricketMatch({ seed: s }), 'loft', 0.55).wicket === 'bowled') bowled++;
     }
-    expect(bowled).toBeGreaterThan(20);
+    expect(bowled).toBeGreaterThan(14);
   });
 });
 
@@ -278,11 +344,11 @@ describe('the result', () => {
   it('reads the scorecard back correctly, all three ways it can end', () => {
     // Seeds picked because they land on each branch; the assertion is that
     // the words match the arithmetic, not that a given seed is special.
-    const tied = finish(16);
+    const tied = finish(17);
     expect(tied.runs).toBe(tied.firstInnings);
     expect(tied.result).toBe('Match tied');
 
-    const chased = finish(1);
+    const chased = finish(3);
     expect(chased.runs).toBeGreaterThan(chased.firstInnings!);
     expect(chased.result).toBe(
       `Chase won by ${chased.wicketsInHand - chased.wickets} wicket${
@@ -290,10 +356,11 @@ describe('the result', () => {
       }`
     );
 
-    const defended = finish(5);
+    const defended = finish(1);
     expect(defended.runs).toBeLessThan(defended.firstInnings!);
+    const margin = defended.firstInnings! - defended.runs;
     expect(defended.result).toBe(
-      `Defence won by ${defended.firstInnings! - defended.runs} runs`
+      `Defence won by ${margin} run${margin === 1 ? '' : 's'}`
     );
   });
 

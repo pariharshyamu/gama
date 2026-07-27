@@ -28,7 +28,14 @@ import { Vector3 } from 'three';
  * ```
  */
 
-export type Shot = 'drive' | 'pull' | 'defend' | 'loft';
+export type Shot =
+  | 'drive'
+  | 'flick'
+  | 'cut'
+  | 'pull'
+  | 'sweep'
+  | 'defend'
+  | 'loft';
 
 /** How well the ball was struck. */
 export type Timing = 'early' | 'good' | 'middled' | 'late' | 'missed';
@@ -53,6 +60,12 @@ export interface BallOutcome {
   error: number;
   /** How cleanly it was struck, 0 to 1. */
   quality: number;
+  /**
+   * How far the middle of the bat was off the ball's line and height,
+   * metres — or −1 when no bat probe is wired up. Timing is *when*; this
+   * is *where*, and it is the other way to miss.
+   */
+  miss: number;
   shot: Shot | null;
   /** Ball number within the innings, 1-based. */
   ball: number;
@@ -78,6 +91,23 @@ export interface CricketMatchOptions {
    * Default 0.42 — match this to your swing animation's contact phase.
    */
   swingLead?: number;
+  /**
+   * How far in front of the striker's stumps the bat meets the ball,
+   * metres. Default 1.6 — a batter on the popping crease playing a
+   * comfortable arm's length in front of it. If you are driving this from
+   * a rig, set it to where that rig's bat actually is.
+   */
+  contact?: number;
+  /**
+   * Where the middle of the bat is right now, in the same space as
+   * `match.ball`. Supply it and contact becomes a real COLLISION rather
+   * than a timing coincidence: sweep at a bouncer and the bat goes under
+   * it, pull a half-volley and it goes over. ANIMA's
+   * `Cricketer.batPoint` drops straight in.
+   */
+  bat?: () => Vector3;
+  /** How far the bat can be from the ball and still hit it. Default 0.45. */
+  reach?: number;
   seed?: number;
 }
 
@@ -86,6 +116,8 @@ const G = 9.8;
 const OVER_STUMPS = 0.711 + 0.036;
 const OUTSIDE_STUMPS = 0.114 + 0.036;
 const BALL_R = 0.036;
+/** The simulation's own tick. */
+const STEP = 1 / 240;
 
 /**
  * How cleanly the bat struck it, from a timing error in seconds. Bands are
@@ -97,16 +129,38 @@ const strikeQuality = (error: number): number => {
   return q < 0 ? 0 : q > 1 ? 1 : q;
 };
 
-/** Each stroke's launch: how hard, how high, and how square. */
-const SHOTS: Record<Shot, { power: number; loft: number; square: number; risk: number }> = {
+/**
+ * Each stroke's launch: how hard, how high, how square — and WHICH WAY.
+ *
+ * `side` is signed, because a cut and a pull are not the same shot with
+ * the sign thrown away: +1 sends it to the off, −1 to the leg, and a game
+ * that randomises it has a batter with no idea where the ball went.
+ * `height` is where the bat has to meet the ball for the stroke to be the
+ * right one, which is what makes the collision below mean something.
+ */
+interface ShotSpec {
+  power: number;
+  loft: number;
+  side: number;
+  spread: number;
+  risk: number;
+}
+
+const SHOTS: Record<Shot, ShotSpec> = {
   // Straight, hard, along the ground: the safest way to four.
-  drive: { power: 27, loft: 0.16, square: 0.1, risk: 0.12 },
+  drive: { power: 27, loft: 0.16, side: 0.3, spread: 0.35, risk: 0.12 },
+  // The same bat, wrists rolled, worked away off the pads.
+  flick: { power: 23, loft: 0.18, side: -0.75, spread: 0.4, risk: 0.16 },
+  // Late, square, and past point before anybody moves.
+  cut: { power: 24, loft: 0.14, side: 0.95, spread: 0.35, risk: 0.22 },
   // Square and flat, and it beats the ring if it is middled.
-  pull: { power: 25, loft: 0.24, square: 0.85, risk: 0.3 },
+  pull: { power: 25, loft: 0.24, side: -0.95, spread: 0.35, risk: 0.3 },
+  // Round the corner, off the deck, and nobody is behind square.
+  sweep: { power: 21, loft: 0.2, side: -0.85, spread: 0.45, risk: 0.26 },
   // No power at all. You cannot be caught off a shot you did not play.
-  defend: { power: 7, loft: 0.05, square: 0.15, risk: 0.02 },
+  defend: { power: 7, loft: 0.05, side: 0.1, spread: 0.3, risk: 0.02 },
   // The six, or the catch. There is no third outcome that matters.
-  loft: { power: 30, loft: 0.62, square: 0.4, risk: 0.62 },
+  loft: { power: 30, loft: 0.62, side: 0.25, spread: 0.5, risk: 0.62 },
 };
 
 export class CricketMatch {
@@ -147,6 +201,11 @@ export class CricketMatch {
   private error = 0;
   private quality = 0;
   private caught = false;
+  private batAt: (() => Vector3) | null;
+  private reach: number;
+  /** How far the bat was from the ball, or -1 if nothing measured. */
+  private miss = -1;
+  private acc = 0;
   private rand: () => number;
   private ballCbs = new Set<(o: BallOutcome) => void>();
   private overCbs = new Set<(over: number) => void>();
@@ -157,11 +216,13 @@ export class CricketMatch {
     this.wicketsInHand = Math.max(1, options.wickets ?? 2);
     this.boundary = options.boundary ?? 62;
     this.swingLead = options.swingLead ?? 0.42;
+    this.batAt = options.bat ?? null;
+    this.reach = options.reach ?? 0.45;
     this.pace = options.pace ?? 26;
     this.speed = this.pace;
     this.pitchLen = options.pitch ?? 20.12;
-    // The bat meets the ball just in front of the stumps, where it should.
-    this.contactZ = -this.pitchLen / 2 + 0.9;
+    // The bat meets the ball in front of the stumps, where it should.
+    this.contactZ = -this.pitchLen / 2 + (options.contact ?? 1.6);
     let s = (options.seed ?? 1) >>> 0 || 1;
     this.rand = () => {
       s = (s + 0x6d2b79f5) >>> 0;
@@ -220,13 +281,25 @@ export class CricketMatch {
   bowl(from = new Vector3(0, 2.15, this.pitchLen / 2)): boolean {
     if (this.phase !== 'ready' || this.over) return false;
     this.ball.copy(from);
-    // Aimed to pitch a little short of a length, on the stumps.
-    const pitchAt = -this.pitchLen / 2 + 4.5 + this.rand() * 1.6;
+    // LENGTH IS THE BOWLER'S WHOLE ARGUMENT. A ball pitched up arrives at
+    // the batter's ankles and a short one at their chest, so it is length
+    // that decides which stroke is even available — sweep the full one,
+    // pull the short one, and get it wrong and the bat passes over or
+    // under the ball. A bowler who lands it in the same 1.5 m every time
+    // is a bowling machine with one setting.
+    const pitchAt = -this.pitchLen / 2 + 3.4 + this.rand() * 3.8;
     // Never the same ball twice: length and pace both move.
     this.speed = this.pace * (0.94 + this.rand() * 0.12);
     const flight = Math.abs(this.ball.z - pitchAt) / this.speed;
+    // AIMED, not fired parallel. A bowler releases from wide of the stumps
+    // and the ball still arrives ON them — so the sideways velocity is
+    // whatever carries it from the hand to the LINE it is bowled at, not
+    // a fixed drift. (Fired parallel, a hand 40 cm to one side puts every
+    // delivery 40 cm wide of the bat, and nothing can ever be hit.)
+    const line = (this.rand() - 0.5) * 0.7;
+    const onward = (pitchAt - this.contactZ) / (this.speed * 0.86);
     this.vel.set(
-      (this.rand() - 0.5) * 0.55,
+      (line - this.ball.x) / (flight + onward),
       (BALL_R - this.ball.y) / flight + 0.5 * G * flight,
       -this.speed
     );
@@ -237,6 +310,8 @@ export class CricketMatch {
     this.timing = 'missed';
     this.error = 0;
     this.quality = 0;
+    this.miss = -1;
+    this.acc = 0;
     this.phase = 'flight';
     return true;
   }
@@ -304,6 +379,23 @@ export class CricketMatch {
   }
 
   update(dt: number): void {
+    // A FIXED INTERNAL STEP. The flight is integrated explicitly, so a
+    // 30 fps browser and a 240 fps one would otherwise fly the ball along
+    // two different parabolas and disagree about the bounce — the game
+    // would literally be easier on a fast machine. Slices of 1/240 s,
+    // banked between frames, mean every device plays the same match.
+    this.acc += dt;
+    while (this.acc >= STEP) {
+      this.acc -= STEP;
+      this.step(STEP);
+      if (this.phase === 'dead' || this.phase === 'ready') {
+        this.acc = 0;
+        return;
+      }
+    }
+  }
+
+  private step(dt: number): void {
     if (this.phase === 'flight' || this.phase === 'onto') {
       // The bat may land part-way through this step; step to it exactly so
       // the frame rate never decides the innings.
@@ -377,12 +469,34 @@ export class CricketMatch {
     this.error = -(this.ball.z - this.contactZ) / speed;
     this.timing = this.bandFor(this.error);
     this.quality = strikeQuality(this.error);
+
+    // THE BAT HAS TO BE THERE. Timing already asked whether the bat got
+    // there in TIME; this asks whether it got there in SPACE — and only
+    // in space, so the two are not the same question asked twice. The
+    // ball is projected onto the contact PLANE and the bat is measured
+    // against its line and its height, which is what makes the choice of
+    // stroke matter: a sweep passes under a ball a pull would have hit
+    // off the chest.
+    if (this.batAt) {
+      const bat = this.batAt();
+      const t = (this.contactZ - this.ball.z) / this.vel.z;
+      const px = this.ball.x + this.vel.x * t;
+      const py = this.ball.y + this.vel.y * t - 0.5 * G * t * t;
+      this.miss = Math.hypot(bat.x - px, bat.y - py);
+      if (this.miss > this.reach) {
+        this.timing = 'missed';
+        this.quality = 0;
+      } else {
+        // Off the middle at nothing, off the edge at everything.
+        this.quality *= 1 - (this.miss / this.reach) * 0.55;
+      }
+    }
     if (this.timing === 'missed') return;   // play on; the stumps decide
 
     const spec = SHOTS[this.shot as Shot];
     const power = spec.power * this.quality;
-    // Launch: down the ground, squared off by the shot, lofted by it too.
-    const square = spec.square * (this.rand() - 0.5) * 2.4;
+    // Launch: where the stroke sends it, with the spread a bat gives it.
+    const square = spec.side + spec.spread * (this.rand() - 0.5) * 2;
     const loft = spec.loft * (this.timing === 'middled' ? 1.15 : 0.8);
     this.vel.set(square, loft, 1).normalize().multiplyScalar(power);
     this.ball.y = Math.max(this.ball.y, 0.4);
@@ -449,6 +563,7 @@ export class CricketMatch {
       timing,
       error: this.error,
       quality: this.quality,
+      miss: this.miss,
       shot: this.shot,
       ball: this.balls,
       innings: inningsOver,

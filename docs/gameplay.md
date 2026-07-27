@@ -290,7 +290,10 @@ Together — and wrapped up for you by **`createRace`** above — `TouchControls
 ```ts
 import { CricketMatch } from 'gama3d/templates';
 
-const match = new CricketMatch({ overs: 2, wickets: 2, boundary: 62, swingLead: 0.42 });
+const match = new CricketMatch({
+  overs: 2, wickets: 2, boundary: 62, swingLead: 0.42,
+  bat: () => cricketer.batPoint(),   // ANIMA's bat, for real contact
+});
 match.onBall((o) => console.log(o.runs, o.wicket, o.timing));
 match.onOver((n) => console.log(`end of over ${n}`));
 match.onEnd((result) => hud.textContent = result);
@@ -302,9 +305,15 @@ game.onUpdate((t) => match.update(t.delta));
 
 ### The ball actually flies
 
-`bowl()` releases from a hand at 2.15 m and the ball drops under gravity, **pitches once** — losing pace off the deck and standing up off the seam — and arrives at the batter around stump height. That is not decoration: it is where the timing window comes from. A ball that pitches shorter has longer to rise and arrives higher; a fuller one skids on. Length and pace both move every delivery, so no two are the same and you have to watch each one.
+`bowl()` releases from a hand at 2.15 m and the ball drops under gravity, **pitches once** — losing pace off the deck and standing up off the seam — and arrives at the batter around stump height. That is not decoration: it is where the timing window comes from.
+
+**Length is the bowler's whole argument.** A ball pitched up arrives at the batter's ankles and a short one at their chest, so it is length that decides which stroke is even *available* — sweep the full one, pull the short one, and get it wrong and the bat passes over or under the ball. A bowler who lands it in the same metre and a half every time is a bowling machine with one setting, so length, pace and line all move on every delivery.
+
+The delivery is **aimed**, not fired parallel: a bowler releases from wide of the stumps and the ball still arrives on them, so the sideways velocity is whatever carries it from the hand to the line it is bowled at. (Fired parallel, a hand 40 cm to one side puts every ball 40 cm wide of the bat and nothing can ever be hit — which is exactly the bug that showed up the first time a real bowling rig was wired in.)
 
 `match.ball` is a live `Vector3` you can copy straight onto a SCENA `createCricketBall`.
+
+The flight runs on a **fixed internal step** of 1/240 s, banked between frames. Explicit integration at the frame rate would fly the ball along a different parabola on a 30 fps browser than on a 240 fps one and they would disagree about the bounce — the game would literally be easier on a fast machine.
 
 ### The bat takes time to come down
 
@@ -328,12 +337,32 @@ The bat lands at an exact instant, sub-frame: 30 fps and 240 fps play the same i
 
 | | |
 |---|---|
-| `drive` | straight, hard, along the ground — the safest way to four |
-| `pull` | square and flat, and it beats the ring if it is middled |
 | `defend` | no power at all; you cannot be caught off a shot you did not play |
+| `drive` | straight, hard, along the ground — the safest way to four |
+| `flick` | worked away off the pads, to leg |
+| `cut` | late and square, past point before anybody moves |
+| `pull` | square and flat, and it beats the ring if it is middled |
+| `sweep` | round the corner, off the deck, with nobody behind square |
 | `loft` | the six, or the catch — there is no third outcome that matters |
 
+Each carries a **signed** side: a cut and a pull are not the same shot with the sign thrown away, and a game that randomises the direction has a batter with no idea where the ball went.
+
 A mistimed ball hit high is taken on the way down, weighted by the shot's own risk. Leave the ball and it hits the stumps about half the time. Swing too late and it is already through the gate.
+
+### And the bat has to actually be there
+
+Timing asks whether the bat got to the ball in **time**. Supply a `bat` probe and the match also asks whether it got there in **space** — and only in space, so the two are not the same question asked twice. The ball is projected onto the contact plane and the bat is measured against its line and its height:
+
+```ts
+const match = new CricketMatch({
+  bat: () => cricketer.batPoint(),   // world space, same frame as match.ball
+  reach: 0.45,                       // how far off it can be and still connect
+  contact: 1.5,                      // where in front of the stumps the bat is
+});
+match.onBall((o) => o.miss);         // metres off the ball's line and height
+```
+
+That single line is what turns seven strokes from a flavour into a decision: ANIMA's swing paths meet the ball at genuinely different places — a sweep at ankle height, a pull off the chest, a cut out toward point — so sweeping a bouncer passes under it and pulling a half-volley passes over. Without the probe `miss` reports −1 and the game is pure timing.
 
 ### The scoring is the laws
 

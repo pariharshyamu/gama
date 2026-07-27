@@ -1,6 +1,6 @@
 {
   "name": "gama3d",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "GAMA — Gaming And Motion Agent: a 3D game development library built on top of three.js, focused on game loops, entities, steering-based motion agents, animation, cameras and input.",
   "type": "module",
   "main": "./dist/index.cjs",
