@@ -283,6 +283,69 @@ game.onUpdate((t) => {
 
 Together — and wrapped up for you by **`createRace`** above — `TouchControls` + `VehicleController` + `ChaseCamera` + `Circuit`/`LapTracker` + `driveVehicle` + `resolveCircleCollisions` are a playable, mobile-ready racer with rivals that bump and a finish line. See the **Pocket racer** in the ANIMA playground.
 
+## Cricket: `CricketMatch`
+
+`CricketMatch` (in `gama3d/templates`) is a whole short-format match as **rules and a ball** — no scene, no meshes, no three.js beyond a vector. Pair it with SCENA's `createCricketGround` for the field and ANIMA's `Cricketer` for the action, and the three libraries meet at nothing more than positions and a callback.
+
+```ts
+import { CricketMatch } from 'gama3d/templates';
+
+const match = new CricketMatch({ overs: 2, wickets: 2, boundary: 62, swingLead: 0.42 });
+match.onBall((o) => console.log(o.runs, o.wicket, o.timing));
+match.onOver((n) => console.log(`end of over ${n}`));
+match.onEnd((result) => hud.textContent = result);
+
+match.bowl();                                  // the ball is on its way
+button.onclick = () => match.swing('drive');   // commit a stroke
+game.onUpdate((t) => match.update(t.delta));
+```
+
+### The ball actually flies
+
+`bowl()` releases from a hand at 2.15 m and the ball drops under gravity, **pitches once** — losing pace off the deck and standing up off the seam — and arrives at the batter around stump height. That is not decoration: it is where the timing window comes from. A ball that pitches shorter has longer to rise and arrives higher; a fuller one skids on. Length and pace both move every delivery, so no two are the same and you have to watch each one.
+
+`match.ball` is a live `Vector3` you can copy straight onto a SCENA `createCricketBall`.
+
+### The bat takes time to come down
+
+This is the part that makes it a game rather than a reaction test. `swing(shot)` does not resolve anything — it **commits** a stroke, and the bat arrives `swingLead` seconds later (0.42 by default, which is ANIMA's `CONTACT_PHASE` on a shot clip). Only then does the game look at where the ball got to.
+
+The result is `error`, in seconds: negative if the bat was early, positive if it was late. That number is the whole difficulty curve.
+
+| `timing` | error | |
+|---|---|---|
+| `middled` | ≤ 0.05 s | everything the shot has |
+| `good` | ≤ 0.13 s | most of it |
+| `early` | −0.30 … −0.13 s | thin, and in the air |
+| `late` | +0.13 … +0.22 s | if the stumps have not already gone |
+| `missed` | beyond | bowled, or through to the keeper |
+
+The bands are for the scorecard; the ball itself feels a **continuous** strike quality, which is why two middled drives are never quite the same shot. `previewError()` flies the ball forward for real — through the bounce, if it has not pitched yet — and reports how far off a bat committed *right now* would be, for a coaching overlay.
+
+The bat lands at an exact instant, sub-frame: 30 fps and 240 fps play the same innings.
+
+### The shots, and the risk
+
+| | |
+|---|---|
+| `drive` | straight, hard, along the ground — the safest way to four |
+| `pull` | square and flat, and it beats the ring if it is middled |
+| `defend` | no power at all; you cannot be caught off a shot you did not play |
+| `loft` | the six, or the catch — there is no third outcome that matters |
+
+A mistimed ball hit high is taken on the way down, weighted by the shot's own risk. Leave the ball and it hits the stumps about half the time. Swing too late and it is already through the gate.
+
+### The scoring is the laws
+
+Six if it cleared the rope in the air, four if it beat it along the ground, and otherwise what the batters could run. Six balls to an over, wickets bowled and caught, and a chase that ends **the instant** the target is passed. `endInnings` swaps to the second innings with `target`, `needed` and `firstInnings` set; the second one produces `result` — a chase won by wickets, a defence won by runs, or a match tied.
+
+```ts
+match.oversBowled;   // "1.3" — one over and three
+match.ballsLeft;
+match.needed;        // second innings only
+match.next();        // ready the next delivery; false once the match is over
+```
+
 ## Audio
 
 ```ts

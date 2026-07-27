@@ -46,3 +46,11 @@ export {
   type RaceResult,
   type RacerStanding,
 } from './templates/racing';
+export {
+  CricketMatch,
+  type CricketMatchOptions,
+  type BallOutcome,
+  type BallPhase,
+  type Shot,
+  type Timing,
+} from './templates/cricket';

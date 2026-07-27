@@ -255,6 +255,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] React-three-fiber bindings (`gama3d/react`): Entity/GameObject bridge, component hooks, flock grid
 - [x] Documentation site with live, editable playground (`npm run site:dev`)
 - [x] Character templates (`gama3d/templates`): third-person & top-down players, guard/companion/flock NPCs, Locomotion animation glue
+- [x] Game templates (`gama3d/templates`): `createRace` (whole racer), `CricketMatch` (ball flight, timing window, laws-accurate scoring)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development
