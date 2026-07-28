@@ -8,6 +8,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'animation', title: 'Animation: tweens & clips', playground: 'tweens' },
   { id: 'gameplay', title: 'Input, cameras, collisions', playground: 'character' },
   { id: 'audio', title: 'Audio: procedural sound', playground: 'audio' },
+  { id: 'feel', title: 'Game feel & HUD', playground: 'juice' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -31,6 +32,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'one-shots': 'audio',
   'continuous-sources': 'audio',
   'the-spectrum-wall': 'audio',
+  'shake-is-trauma-squared': 'juice',
+  'hit-stop-and-slow-motion': 'juice',
+  'the-radar': 'juice',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

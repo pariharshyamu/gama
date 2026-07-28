@@ -187,13 +187,16 @@ for (const id of list) {
 
   const looksBlank = (m) => m.flattest > 0.985 && m.stdev < 1.5;
   const SHOT_TIMEOUT = 45000;
+  // `body > canvas`, not `canvas`: a Hud radar is ALSO a canvas, nested in
+  // the overlay div — a bare selector matches both and strict mode balks.
+  // The renderer's canvas is the one the Game appends directly to body.
   const shootClip = async () => {
-    const box = await page.frameLocator('iframe').locator('canvas').boundingBox();
+    const box = await page.frameLocator('iframe').locator('body > canvas').first().boundingBox();
     if (!box || box.width < 8 || box.height < 8) throw new Error('no canvas box');
     return page.screenshot({ clip: box, timeout: SHOT_TIMEOUT });
   };
   const shootElement = () =>
-    page.frameLocator('iframe').locator('canvas').screenshot({ timeout: SHOT_TIMEOUT });
+    page.frameLocator('iframe').locator('body > canvas').first().screenshot({ timeout: SHOT_TIMEOUT });
 
   let pix = { ok: false };
   const failures = [];
@@ -211,9 +214,16 @@ for (const id of list) {
     }
   }
   if (!pix.ok && failures.length) pix.why = failures.join(' | ');
+  // GAMA's playground shows a caught runner error in `.pg-error` — and a
+  // caught error draws no scene, while the HUD an example mounted BEFORE
+  // it threw still varies enough pixels to fool the blank check. So the
+  // banner is part of the verdict, not decoration: the `juice` example
+  // shipped its first draft with `scene is not defined` past the pixel
+  // gate, and only an eyeball on the screenshot caught it.
   const banner = await page.evaluate(() => {
-    const el = document.querySelector('.error, [data-error], .runner-error');
-    return el ? el.textContent.trim().slice(0, 160) : '';
+    const el = document.querySelector('.pg-error, #error, .error, [data-error], .runner-error');
+    const text = el ? el.textContent.trim() : '';
+    return text.slice(0, 160);
   });
 
   // If the example's iframe published audio evidence, collect and JUDGE it.
@@ -235,7 +245,7 @@ for (const id of list) {
 
   const blank = !pix.ok || (pix.flattest > 0.985 && pix.stdev < 1.5);
   rows.push({ id, blank, audioBad, errs: errs.length, banner, ...pix });
-  const flag = blank ? 'BLANK' : audioBad ? 'MUTE ' : errs.length ? 'errs ' : '  ok ';
+  const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : errs.length ? 'errs ' : '  ok ';
   console.log(
     `${flag} ${id.padEnd(16)} distinct ${String(pix.distinct ?? 0).padStart(5)}` +
     ` flattest ${String(pix.flattest ?? 1).padStart(5)} stdev ${String(pix.stdev ?? 0).padStart(6)}` +
@@ -245,12 +255,12 @@ for (const id of list) {
     (banner ? `  BANNER: ${banner}` : '') +
     (errs.length ? `\n        ${errs.slice(0, 3).join('\n        ')}` : '')
   );
-  if (blank || audioBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
+  if (blank || banner || audioBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
   await page.close();
   await context.close();
 }
 
-const bad = rows.filter((r) => r.blank || r.audioBad || r.errs);
+const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.errs);
 console.log(`\n${rows.length - bad.length}/${rows.length} render something.`);
 if (bad.length) console.log('PROBLEMS:', bad.map((r) => r.id).join(', '));
 await browser.close();

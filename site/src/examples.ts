@@ -791,7 +791,109 @@ window.audioDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'juice',
+    title: 'Game feel + HUD',
+    group: 'Feel',
+    code: `// JUICE: the few milliseconds that make a hit feel like a hit, and
+// the words drawn over the world. GameFeel runs shake (trauma-based:
+// impacts add trauma, the camera shakes by trauma SQUARED, so small
+// knocks barely register and big ones fill the screen), hit-stop, and
+// slow motion — feed it the real dt, advance the game with what comes
+// back. Hud is the overlay: score, hearts, banner, prompt, radar, and a
+// caption line fed straight from the Soundboard.
+//
+// CLICK for the big one: crack + full shake + hit-stop + rumble.
+import { Game, GameFeel, Hud, Soundboard, MotionAgent, Wander,
+         Containment } from 'gama3d';
+import { Mesh, MeshStandardMaterial, SphereGeometry, ConeGeometry,
+         Box3, Vector3 } from 'three';
+${scene(0, 10, 15, 1)}
+
+const feel = new GameFeel({ seed: 4 });
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 7 });
+sounds.unlock();
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+hud.objective('Watch the ball. Click for the big one.');
+hud.hearts(3, 5);
+
+const ball = new Mesh(new SphereGeometry(0.7, 24, 16),
+  new MeshStandardMaterial({ color: 0xf59e0b }));
+game.world.scene.add(ball);
+let y = 7, vy = 0, score = 0, bounces = 0, elapsed = 0;
+
+// Wanderers for the radar to see.
+const bounds = new Box3(new Vector3(-14, 0, -14), new Vector3(14, 4, 14));
+const wanderers = Array.from({ length: 6 }, () => {
+  const walker = game.world.spawn('wanderer');
+  const mesh = new Mesh(new ConeGeometry(0.4, 1.1, 5),
+    new MeshStandardMaterial({ color: 0x34d399 }));
+  mesh.rotation.x = Math.PI / 2;
+  walker.add(mesh);
+  walker.position.set(Math.random() * 16 - 8, 0.55, Math.random() * 16 - 8);
+  const agent = walker.addComponent(new MotionAgent({ maxSpeed: 4, planar: true }));
+  agent.addBehavior(new Wander());
+  agent.addBehavior(new Containment(bounds));
+  return walker;
+});
+const radar = hud.radar({ range: 18, colors: { walker: '#34d399' } });
+
+addEventListener('pointerdown', () => {
+  sounds.crack(1);
+  feel.shake(1);
+  feel.hitStop(0.1);
+  feel.rumble(1, 140);
+  hud.banner('THE BIG ONE', 1.4);
+});
+
+game.onUpdate((t) => {
+  elapsed += t.delta;
+  // THE CONTRACT: real dt in, gameplay dt out. Hit-stop freezes the
+  // ball mid-air; slow-mo floats it; the wanderers run on real time so
+  // the difference is visible side by side.
+  const dt = feel.update(t.delta);
+  vy -= 18 * dt;
+  y += vy * dt;
+  if (y < 0.7 && vy < 0) {
+    y = 0.7;
+    vy = 12;
+    bounces++;
+    score += 10;
+    feel.shake(0.35);
+    sounds.impact('soft', 0.7, { at: ball.position });
+    if (bounces % 5 === 0) {
+      hud.banner('x' + bounces + ' BOUNCES');
+      sounds.success();
+      feel.slowMo(0.3, 0.9, 0.5);
+    }
+  }
+  ball.position.set(0, y, 0);
+  ball.scale.y = y < 0.9 ? 0.8 : 1;
+
+  hud.score(score);
+  hud.timer(elapsed);
+  hud.prompt(feel.timeScale === 1 ? 'Click: the big one' : null);
+  radar.set(
+    wanderers.map((w) => ({ x: w.position.x, z: w.position.z, kind: 'walker' })),
+    { x: 0, z: 0 }
+  );
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+
+window.juiceDebug = () => ({
+  trauma: feel.trauma,
+  timeScale: feel.timeScale,
+  score,
+  bounces,
+  hudMounted: !!hud.root.parentNode,
+});
+
+game.start();`,
+  },
 ];
+
 
 export function findExample(id: string): Example {
   return EXAMPLES.find((e) => e.id === id) ?? EXAMPLES[0];

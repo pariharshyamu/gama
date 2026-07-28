@@ -238,3 +238,13 @@ export {
   type AutomationOptions,
   type LinkOptions,
 } from './gameplay/Automation';
+
+// Feel & HUD
+export { GameFeel, type GameFeelOptions } from './gameplay/GameFeel';
+export {
+  Hud,
+  type HudOptions,
+  type Radar,
+  type RadarBlip,
+  type RadarOptions,
+} from './hud/Hud';
