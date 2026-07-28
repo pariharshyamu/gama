@@ -15,6 +15,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'retention', title: 'Retention: flow, saves, ghosts', playground: 'trial' },
   { id: 'platformer', title: 'Platformer: jump physics', playground: 'coinrun' },
   { id: 'light', title: 'Light as gameplay', playground: 'stealth' },
+  { id: 'flight', title: 'Flight: the arcade model', playground: 'aviator' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -59,6 +60,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'flashlight-the-light-a-game-carries': 'stealth',
   'moodgrade-the-game-states-visual-voice': 'stealth',
   'the-stealth-garden': 'stealth',
+  flightcontroller: 'aviator',
+  'the-stick-is-a-rate': 'aviator',
+  'the-aviator-playground': 'aviator',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

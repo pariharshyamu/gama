@@ -116,6 +116,11 @@ export {
   type PlatformerOptions,
   type PlatformLike,
 } from './controllers/PlatformerController';
+export {
+  FlightController,
+  type FlightControllerOptions,
+  type FlightControls,
+} from './controllers/FlightController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
 export { ChaseCamera, type ChaseCameraOptions } from './camera/ChaseCamera';
 export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';

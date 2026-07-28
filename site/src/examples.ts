@@ -2019,6 +2019,136 @@ window.stealthDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'aviator',
+    title: 'Aviator: the flight model',
+    group: 'Gameplay',
+    code: `// ARCADE-HONEST FLIGHT. Throttle buys speed, speed buys lift,
+// BANK-TO-TURN makes it feel like flying, climbing costs energy — and
+// below stall speed the wings STOP FLYING. The autopilot takes off,
+// flies the square at 14 m, then once per lap cuts the engine and
+// holds the nose up to show you the stall: nose drop, sink, the
+// recover-with-power. The engine's voice follows the throttle.
+import { Game, FlightController, ChaseCamera, Hud, Soundboard,
+         EngineSound, GameFeel } from 'gama3d';
+import { Mesh, MeshStandardMaterial, BoxGeometry, ConeGeometry,
+         Group } from 'three';
+${scene(0, 18, 30, 6)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 8 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 9 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+const engine = new EngineSound(sounds, { volume: 0.35 });
+
+// The world below: a field big enough that altitude has a horizon,
+// and the strip, so the takeoff has somewhere to leave from.
+const field = new Mesh(new BoxGeometry(400, 0.02, 400),
+  new MeshStandardMaterial({ color: 0x18251c }));
+field.position.y = -0.02;
+const strip = new Mesh(new BoxGeometry(6, 0.06, 70),
+  new MeshStandardMaterial({ color: 0x23262d }));
+strip.position.set(0, 0.03, 20);
+game.world.scene.add(field, strip);
+
+// A box-built airframe: fuselage, wings, tail — the pose IS the story.
+const mat = (c) => new MeshStandardMaterial({ color: c });
+const airframe = new Group();
+const fuselage = new Mesh(new BoxGeometry(0.9, 0.9, 5), mat(0x3a6ea5));
+fuselage.position.y = 0.9;
+const wings = new Mesh(new BoxGeometry(9, 0.12, 1.5), mat(0xd8dee6));
+wings.position.set(0, 1.15, 0.3);
+const fin = new Mesh(new BoxGeometry(0.1, 1.2, 0.8), mat(0xd8dee6));
+fin.position.set(0, 1.6, -2.3);
+const stab = new Mesh(new BoxGeometry(2.6, 0.1, 0.7), mat(0xd8dee6));
+stab.position.set(0, 1.05, -2.4);
+const spinner = new Mesh(new ConeGeometry(0.22, 0.5, 8), mat(0x22262b));
+spinner.rotation.x = Math.PI / 2;
+spinner.position.set(0, 0.9, 2.7);
+airframe.add(fuselage, wings, fin, stab, spinner);
+game.world.scene.add(airframe);
+
+const flight = new FlightController({
+  onTakeoff: () => { hud.banner('AIRBORNE', 1.4); sounds.success(); },
+  onStall: () => { hud.banner('STALL', 1.2); sounds.fail(); feel.shake(0.35); },
+  onLand: (sink) => { hud.banner('DOWN ' + sink.toFixed(1) + ' m/s', 1.6);
+    feel.shake(Math.min(sink / 12, 0.5)); },
+});
+flight.position.set(0, 0, -10);
+
+const cam = new ChaseCamera(game.camera, airframe, { distance: 14, height: 5 });
+
+// The autopilot: a square at 14 m, one deliberate stall per lap.
+const WAYPOINTS = [[38, 45], [-38, 45], [-38, -45], [38, -45]];
+let wp = 0, laps = 0, phase = 'takeoff', stallClock = 0;
+
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+
+  if (phase === 'takeoff') {
+    flight.throttle = 1;
+    flight.control({ pitch: flight.speed > 13 ? 0.5 : 0 });
+    if (flight.position.y > 10) phase = 'cruise';
+  } else if (phase === 'cruise') {
+    const [wx, wz] = WAYPOINTS[wp];
+    const dx = wx - flight.position.x, dz = wz - flight.position.z;
+    if (Math.sqrt(dx * dx + dz * dz) < 26) {
+      wp = (wp + 1) % WAYPOINTS.length;
+      if (wp === 0) { laps++; phase = 'stall'; stallClock = 0;
+        hud.caption('…and now, the stall demonstration'); }
+    }
+    // Chase a heading with bank; chase an altitude with pitch attitude.
+    let err = Math.atan2(dx, dz) - flight.heading;
+    while (err > Math.PI) err -= Math.PI * 2;
+    while (err < -Math.PI) err += Math.PI * 2;
+    // The stick is a RATE: chase target ATTITUDES, don't command raw rates.
+    const targetPitch = Math.min(Math.max((14 - flight.position.y) * 0.05, -0.25), 0.3);
+    const targetBank = Math.min(Math.max(-err * 1.2, -0.85), 0.85);
+    flight.throttle = 0.8;
+    flight.control({
+      roll: Math.min(Math.max((targetBank - flight.bank) * 3, -1), 1),
+      pitch: Math.min(Math.max((targetPitch - flight.pitch) * 4, -1), 1),
+    });
+  } else {
+    // The demonstration: engine to idle, stick back, and wait for physics.
+    stallClock += dt;
+    flight.throttle = 0;
+    flight.control({ pitch: 0.6, roll: 0 });
+    if (flight.stalled && flight.position.y < 9) {
+      phase = 'cruise'; // recover: power on, wings level, fly away
+      flight.throttle = 1;
+      hud.caption('power ON — recovering');
+    }
+    if (stallClock > 12) phase = 'cruise'; // safety net, not that physics needs one
+  }
+
+  flight.update(dt);
+  flight.apply(airframe);
+  engine.set(700 + flight.throttle * 1900 + flight.speed * 8, 0.3 + flight.throttle * 0.6);
+
+  hud.prompt('SPD ' + flight.speed.toFixed(0) + ' m/s · ALT ' +
+    flight.position.y.toFixed(0) + ' m · THR ' +
+    Math.round(flight.throttle * 100) + '%' + (flight.stalled ? '  ⚠ STALL' : ''));
+  hud.update(dt);
+  cam.update(dt);
+  feel.apply(game.camera);
+});
+
+window.aviatorDebug = () => ({
+  phase,
+  laps,
+  speed: Number(flight.speed.toFixed(1)),
+  alt: Number(flight.position.y.toFixed(1)),
+  heading: Number(flight.heading.toFixed(2)),
+  bank: Number(flight.bank.toFixed(2)),
+  stalled: flight.stalled,
+  grounded: flight.grounded,
+  waypoint: wp,
+});
+
+game.start();`,
+  },
 ];
 
 
