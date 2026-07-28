@@ -111,6 +111,11 @@ export {
   type VehicleControllerOptions,
   type DriveIntent,
 } from './controllers/VehicleController';
+export {
+  PlatformerController,
+  type PlatformerOptions,
+  type PlatformLike,
+} from './controllers/PlatformerController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
 export { ChaseCamera, type ChaseCameraOptions } from './camera/ChaseCamera';
 export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';

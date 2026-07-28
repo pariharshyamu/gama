@@ -83,6 +83,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Stakes](docs/stakes.md) — `Health` (i-frames, death as an edge, knockback vectors) and `Projectiles` (pooled instanced shots, teams, arcs)
 - [Opposition](docs/opposition.md) — `Harass` (ring-keeping, seeded strafe) and `WaveDirector` (staggered waves, rest, rubber-band pressure)
 - [Retention](docs/retention.md) — `GameFlow` (title/playing/paused/results, `gate()` as the pause), `Objectives`, `SaveSlot` (versioned, corruption-safe), ghosts (`GhostRecorder`/`Ghost` — race yesterday's you)
+- [Platformer](docs/platformer.md) — `PlatformerController`: gravity, coyote time, jump buffering, variable height, moving-platform carry — and the coin-run payoff demo
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -269,6 +270,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Stakes: `Health` (i-frames, one-shot death edge, revive with mercy window, computed knockback) and `Projectiles` (pooled tracers, structural targets, team filtering)
 - [x] Opposition: `Harass` steering (ring + band + seeded strafe) and `WaveDirector` (trickle spawns, rest, escalation under a ceiling, rubber-band pressure)
 - [x] Retention: `GameFlow` (legal-move state machine, `gate()` pause), `Objectives` (clamped progress, once-only completion), `SaveSlot` (versioned envelope, null-means-null), `GhostRecorder`/`GhostTape`/`Ghost` (fixed-interval tapes, seam-safe yaw playback)
+- [x] Platformer: `PlatformerController` (sub-stepped gravity, walls/ceilings, coyote time, jump buffer, variable jump height, moving-platform carry) + the coin-run payoff example
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

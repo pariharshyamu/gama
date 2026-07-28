@@ -13,6 +13,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'stakes', title: 'Stakes: health & projectiles', playground: 'arena' },
   { id: 'opposition', title: 'Opposition: waves & harassment', playground: 'waves' },
   { id: 'retention', title: 'Retention: flow, saves, ghosts', playground: 'trial' },
+  { id: 'platformer', title: 'Platformer: jump physics', playground: 'coinrun' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -49,6 +50,10 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'objectives-what-done-means': 'trial',
   'saveslot-the-all-procedural-bet-pays-off': 'trial',
   'ghosts-beat-yesterdays-you': 'trial',
+  platformercontroller: 'coinrun',
+  'the-three-forgivenesses': 'coinrun',
+  'moving-platforms': 'coinrun',
+  'the-coin-run': 'coinrun',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

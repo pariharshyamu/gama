@@ -1622,6 +1622,235 @@ window.trialDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'coinrun',
+    title: 'Coin run: the payoff platformer',
+    group: 'Gameplay',
+    code: `// THE PAYOFF: every pillar in one platformer. PlatformerController
+// runs the body (gravity, coyote time, jump buffering, variable height,
+// moving-platform carry). GameFlow runs the shell, Objectives name the
+// goal, Collector pays the coins, Health counts the falls, and Hud,
+// GameFeel and Soundboard sell every beat. The runner is an attract-mode
+// bot: it clears the gaps, WAITS for the purple platform, rides it
+// across, and plants the flag — best time and coins persist in a
+// SaveSlot, so the banner remembers you between reloads.
+import { Game, GameFlow, Objectives, SaveSlot, PlatformerController,
+         Collector, Health, Hud, Soundboard, GameFeel } from 'gama3d';
+import { Mesh, MeshStandardMaterial, BoxGeometry, OctahedronGeometry,
+         ConeGeometry } from 'three';
+${scene(6, 7, 18, 2)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 11 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 4 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+// ---- The course. Platforms are just boxes; one of them moves.
+const mat = (c) => new MeshStandardMaterial({ color: c });
+const slab = (x1, x2, top, thick, tint) => {
+  const p = { center: { x: (x1 + x2) / 2, y: top - thick / 2, z: 0 },
+              size: { x: x2 - x1, y: thick, z: 4 } };
+  p.mesh = new Mesh(new BoxGeometry(p.size.x, p.size.y, p.size.z), mat(tint));
+  p.mesh.position.set(p.center.x, p.center.y, 0);
+  game.world.scene.add(p.mesh);
+  return p;
+};
+const stone = 0x3b4a63;
+const mover = slab(29.75, 32.25, 0, 0.5, 0x7c5cd6);
+mover.velocity = { x: 0, y: 0, z: 0 };
+const platforms = [
+  slab(-2, 8, 0, 1, stone),        // start
+  slab(10.5, 16.5, 0, 1, stone),   // across the first gap
+  slab(18, 21, 1.2, 0.5, 0x53a06e), // the green floater
+  slab(22.5, 28, 0, 1, stone),     // the landing
+  mover,                            // the ferry
+  slab(34.5, 41, 0, 1, stone),     // the finish
+];
+
+// ---- Coins: ten octahedra. The PROP owns its taken state; the
+// Collector believes a collect() that returns 0.
+const COINS = [[2, 0.9], [5, 0.9], [9.2, 2.8], [12, 0.9], [15, 0.9],
+               [19, 2.1], [20.3, 2.1], [24, 0.9], [26.5, 0.9], [36.5, 0.9]];
+const coins = COINS.map(([x, y]) => {
+  const mesh = new Mesh(new OctahedronGeometry(0.32), mat(0xfbbf24));
+  mesh.position.set(x, y, 0);
+  game.world.scene.add(mesh);
+  return { mesh, taken: false,
+    trigger: { center: { x, y, z: 0 }, radius: 0.55 },
+    collect() { if (this.taken) return 0;
+      this.taken = true; this.mesh.visible = false; return 0.4; } };
+});
+
+const pole = new Mesh(new BoxGeometry(0.12, 2.6, 0.12), mat(0x94a3b8));
+pole.position.set(39, 1.3, 0);
+const flag = new Mesh(new ConeGeometry(0.45, 1.1, 4), mat(0xe4574d));
+flag.rotation.z = -Math.PI / 2;
+flag.position.set(39.45, 2.2, 0);
+game.world.scene.add(pole, flag);
+
+// ---- The cast: one body, three hearts, ten coins, one flag.
+const hero = new Mesh(new ConeGeometry(0.42, 1.7, 6), mat(0xf59e0b));
+game.world.scene.add(hero);
+const body = new PlatformerController({
+  onJump: () => sounds.boing({ volume: 0.5 }),
+  onLand: (v) => { if (v > 7) { feel.shake(Math.min(v / 45, 0.4));
+    sounds.impact('soft', Math.min(v / 18, 1)); } },
+});
+
+let score = 0, clock = 0, finished = 0;
+const goals = new Objectives(
+  [{ id: 'coins', label: 'Coins', target: COINS.length },
+   { id: 'flag', label: 'Reach the flag' }],
+  { onProgress: () => hud.objective(goals.summary()),
+    onComplete: () => sounds.chime(2) }
+);
+const collector = new Collector({
+  onCollect: ({ at }) => {
+    score += 100; hud.score(score);
+    sounds.coin({ at }); goals.advance('coins');
+  },
+});
+for (const c of coins) collector.add(c);
+
+const health = new Health({
+  max: 3,
+  onDamage: (e) => { hud.hearts(e.current, e.max);
+    sounds.fail({ volume: 0.4 }); feel.shake(0.35); },
+  onDeath: () => { hud.banner('FALLEN', 1.6); feel.hitStop(0.25); },
+});
+
+const slot = new SaveSlot('coinrun-best', { version: 1 });
+let best = slot.load(); // { time, coins } | null
+
+// ---- The bot: run right, jump at the marks, wait for the ferry.
+const CHECKPOINTS = [1, 11.5, 23.5];
+const JUMPS = [7.4, 16.0, 32.6];
+let lastJump = 0, holdUntil = 0, checkpoint = 1;
+
+const flow = new GameFlow({
+  onEnter: {
+    playing: () => {
+      for (const c of coins) { c.taken = false; c.mesh.visible = true; }
+      goals.reset(); health.revive();
+      score = 0; clock = 0; finished = 0; lastJump = 0; checkpoint = 1;
+      body.teleport(1, 0.02);
+      hud.score(0); hud.hearts(3, 3); hud.timer(0);
+      hud.objective(goals.summary());
+      hud.banner(best
+        ? 'BEST ' + best.time.toFixed(1) + 's · ' + best.coins + ' coins'
+        : 'COIN RUN', 1.6);
+    },
+    results: () => {},
+    title: () => hud.banner('COIN RUN', 2),
+  },
+});
+hud.banner('COIN RUN', 2);
+let attract = 1.2;
+addEventListener('pointerdown', () => {
+  if (flow.state === 'title' || flow.state === 'results') flow.to('playing');
+});
+
+game.onUpdate((t) => {
+  const real = feel.update(t.delta);
+  if (flow.state === 'title' || flow.state === 'results') {
+    attract -= t.delta;
+    if (attract <= 0) { attract = 2.5; flow.to('playing'); }
+  }
+  const dt = flow.gate(real);
+  clock += dt;
+
+  // The ferry swings; its velocity is what carries the rider.
+  const w = 1.2, mid = 31, amp = 1.55;
+  mover.center.x = mid + amp * Math.sin(clock * w);
+  mover.velocity.x = amp * w * Math.cos(clock * w);
+  mover.mesh.position.x = mover.center.x;
+
+  if (flow.playing) {
+    const x = body.position.x;
+    const riding = body.ground === mover;
+    // Wait at the edge until the ferry swings within a stride, then
+    // WALK aboard (its left extreme overlaps the ledge); ride until it
+    // swings to the far side, then run and jump for the finish slab.
+    const docked = mover.center.x < 29.6;
+    const wait = x > 27.2 && x < 28.2 && body.grounded && !riding && !docked;
+    const go = riding ? (mover.center.x > 32.2 ? 1 : 0) : (wait ? 0 : 1);
+    body.move(go);
+    const mark = JUMPS.find((j) => j > lastJump && x >= j);
+    if (mark && body.grounded && go) {
+      body.jump(); lastJump = mark; holdUntil = clock + 0.45;
+    }
+    if (clock > holdUntil) body.release();
+    body.update(dt, platforms);
+    hero.position.set(body.position.x, body.position.y + 0.85, 0);
+    collector.sweep({ x: body.position.x, y: body.position.y + 0.9, z: 0 });
+
+    // Checkpoints are just "the furthest slab you stood on".
+    if (body.grounded) {
+      for (const cp of CHECKPOINTS) if (x > cp && cp > checkpoint) checkpoint = cp;
+    }
+    // The pit: lose a heart, go back to the checkpoint.
+    if (body.position.y < -6) {
+      const hit = health.damage({ amount: 1 });
+      if (hit && health.alive) {
+        body.teleport(checkpoint, 0.02);
+        lastJump = checkpoint - 0.5;
+        hud.banner('OOF', 0.9);
+      } else if (!health.alive) {
+        flow.to('results'); attract = 1.8;
+      }
+    }
+    // The flag.
+    if (finished === 0 && body.grounded && x >= 38.6) {
+      finished = clock;
+      goals.finish('flag');
+      const got = goals.get('coins').progress;
+      sounds.success(); feel.slowMo(0.35, 1.1);
+      if (!best || got > best.coins ||
+          (got === best.coins && clock < best.time)) {
+        best = { time: clock, coins: got };
+        slot.save(best);
+        hud.banner('NEW BEST ' + clock.toFixed(1) + 's · ' + got + ' coins', 2.4);
+      } else {
+        hud.banner('DONE ' + clock.toFixed(1) + 's · ' + got + ' coins', 2.2);
+      }
+      flow.to('results'); attract = 2.5;
+    }
+  }
+
+  for (const c of coins) if (!c.taken) {
+    c.mesh.rotation.y += t.delta * 2.4;
+    c.mesh.position.y = c.trigger.center.y + Math.sin(clock * 3 + c.trigger.center.x) * 0.08;
+  }
+  health.update(dt);
+  hud.timer(flow.playing ? clock : null);
+  hud.update(dt);
+
+  // A side-scroller camera: lead the runner, ease along.
+  const cx = body.position.x + 3.5;
+  game.camera.position.x += (cx - game.camera.position.x) * Math.min(1, 4 * t.delta);
+  game.camera.position.y += (body.position.y + 4.5 - game.camera.position.y) * Math.min(1, 2 * t.delta);
+  game.camera.lookAt(game.camera.position.x, body.position.y + 1, 0);
+  feel.apply(game.camera);
+});
+
+window.coinrunDebug = () => ({
+  state: flow.state,
+  x: Number(body.position.x.toFixed(2)),
+  y: Number(body.position.y.toFixed(2)),
+  grounded: body.grounded,
+  riding: body.ground === mover,
+  coins: goals.get('coins').progress,
+  left: coins.filter((c) => !c.taken).map((c) => c.trigger.center.x),
+  hearts: health.current,
+  clock: Number(clock.toFixed(2)),
+  finished: finished > 0,
+  best,
+  saved: slot.exists,
+});
+
+game.start();`,
+  },
 ];
 
 
