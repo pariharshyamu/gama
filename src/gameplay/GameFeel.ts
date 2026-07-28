@@ -144,8 +144,15 @@ export class GameFeel {
 
   /** A vibration pulse on hardware that has one (milliseconds). */
   rumble(strength = 0.5, ms = 80): void {
-    const nav = (globalThis as { navigator?: { vibrate?: (ms: number) => boolean } }).navigator;
-    if (nav?.vibrate) nav.vibrate(Math.round(ms * Math.min(Math.max(strength, 0), 1)));
+    const nav = (globalThis as {
+      navigator?: { vibrate?: (ms: number) => boolean; userActivation?: { hasBeenActive: boolean } };
+    }).navigator;
+    if (!nav?.vibrate) return;
+    // Browsers refuse vibration before the first user gesture AND log an
+    // error about it — so a rumble on an early hit would spam the console
+    // on every page. Ask first; stay silent until the user has touched.
+    if (nav.userActivation && !nav.userActivation.hasBeenActive) return;
+    nav.vibrate(Math.round(ms * Math.min(Math.max(strength, 0), 1)));
   }
 
   /**

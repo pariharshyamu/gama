@@ -239,6 +239,21 @@ export {
   type LinkOptions,
 } from './gameplay/Automation';
 
+// Stakes: health, damage, projectiles
+export {
+  Health,
+  type HealthOptions,
+  type DamageInfo,
+  type DamageEvent,
+} from './gameplay/Health';
+export {
+  Projectiles,
+  type ProjectilesOptions,
+  type ProjectileHit,
+  type FireOptions,
+  type TargetLike,
+} from './physics/Projectiles';
+
 // The pickup loop (consumes SCENA pickups/markers structurally)
 export {
   Collector,

@@ -149,7 +149,7 @@ const launch = () =>
     ],
   });
 let browser = await launch();
-const benign = (t) => /favicon|404|Failed to load resource|WebGL.*deprecat|pointer-lock|Unrecognized feature|AudioContext was not allowed to start/i.test(t);
+const benign = (t) => /favicon|404|Failed to load resource|WebGL.*deprecat|pointer-lock|Unrecognized feature|AudioContext was not allowed to start|Blocked call to navigator.vibrate/i.test(t);
 
 const only = process.argv.slice(2);
 const page0 = await browser.newPage();

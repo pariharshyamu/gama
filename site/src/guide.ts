@@ -10,6 +10,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'audio', title: 'Audio: procedural sound', playground: 'audio' },
   { id: 'feel', title: 'Game feel & HUD', playground: 'juice' },
   { id: 'loop', title: 'The pickup loop', playground: 'loot' },
+  { id: 'stakes', title: 'Stakes: health & projectiles', playground: 'arena' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -38,6 +39,8 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'the-radar': 'juice',
   collector: 'loot',
   checkpointrun: 'loot',
+  health: 'arena',
+  projectiles: 'arena',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

@@ -1055,7 +1055,215 @@ window.lootDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'arena',
+    title: 'Health + Projectiles',
+    group: 'Gameplay',
+    code: `// STAKES, wholesome register: bonk and knockout, not gore. The turret
+// lobs shells at the amber runner (Health 5 — watch the hearts); the
+// runner fires back at the green wanderers (Health 2 each). Everything
+// you feel hangs off two event streams: onDamage (shake, sound, hearts,
+// knockback, i-frame blink) and onDeath (tip over, banner, respawn).
+import { Game, Health, Projectiles, Hud, Soundboard, GameFeel,
+         MotionAgent, Wander, Containment } from 'gama3d';
+import { Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry,
+         Box3, Vector3 } from 'three';
+${scene(0, 13, 16, 1)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 9 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 3 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+hud.objective('Survive the turret; thin the wanderers');
+
+// THE RUNNER (the "player"): laps the arena, gets shot at, shoots back.
+const runner = new Mesh(new ConeGeometry(0.5, 1.4, 5),
+  new MeshStandardMaterial({ color: 0xf59e0b }));
+runner.rotation.x = Math.PI / 2;
+game.world.scene.add(runner);
+let knock = new Vector3();
+let koUntil = 0;
+let koCount = 0;
+
+const playerHealth = new Health({
+  max: 5,
+  invulnerable: 1,
+  onDamage: (e) => {
+    hud.hearts(playerHealth.current, 5);
+    feel.shake(0.35 + e.amount * 0.15);
+    feel.rumble(0.6, 90);
+    sounds.impact('soft', 0.8, { at: runner.position });
+    if (e.knockback) knock.set(e.knockback.x, 0, e.knockback.z);
+  },
+  onDeath: () => {
+    koCount++;
+    hud.banner('KNOCKED OUT', 1.8);
+    sounds.fail();
+    feel.hitStop(0.12);
+    feel.slowMo(0.4, 1.2);
+    koUntil = elapsed + 2.2;
+  },
+  onRevive: () => {
+    hud.banner('BACK UP!', 1.2);
+    hud.hearts(5, 5);
+    sounds.success();
+  },
+});
+hud.hearts(5, 5);
+
+// THE TURRET: leads the runner and lobs on a gravity arc.
+const turret = new Mesh(new CylinderGeometry(0.5, 0.7, 1.4, 8),
+  new MeshStandardMaterial({ color: 0x64748b }));
+turret.position.y = 0.7;
+game.world.scene.add(turret);
+
+// THE WANDERERS: three foes with two hearts each.
+const bounds = new Box3(new Vector3(-13, 0, -13), new Vector3(13, 3, 13));
+const foes = Array.from({ length: 3 }, (_, i) => {
+  const walker = game.world.spawn('foe');
+  const mesh = new Mesh(new ConeGeometry(0.45, 1.2, 5),
+    new MeshStandardMaterial({ color: 0x34d399 }));
+  mesh.rotation.x = Math.PI / 2;
+  walker.add(mesh);
+  walker.position.set(-6 + i * 6, 0.6, -6);
+  const agent = walker.addComponent(new MotionAgent({ maxSpeed: 3.5, planar: true }));
+  agent.addBehavior(new Wander());
+  agent.addBehavior(new Containment(bounds, 3), 2);
+  const foe = { walker, mesh, agent, respawnAt: Infinity, health: null };
+  foe.health = new Health({
+    max: 2,
+    invulnerable: 0.5,
+    onDamage: (e) => {
+      sounds.impact('soft', 0.5, { at: walker.position });
+      if (e.knockback) agent.velocity.add(new Vector3(
+        e.knockback.x, 0, e.knockback.z));
+      mesh.rotation.z = 0.5; // the flinch — eased back below
+    },
+    onDeath: () => {
+      mesh.rotation.z = Math.PI / 2; // tipped over is knocked out
+      foe.respawnAt = elapsed + 3;
+    },
+  });
+  return foe;
+});
+
+// TWO STREAMS OF SHOTS, one pool, teams keep them honest.
+const targets = new Map();
+const shots = new Projectiles({
+  gravity: 9.8,
+  floor: 0,
+  onHit: ({ target, at }) => {
+    const victim = targets.get(target);
+    victim.health.damage({ from: at, knockback: 5 }, target.center);
+  },
+});
+game.world.scene.add(shots.mesh);
+const playerTarget = { center: runner.position, radius: 0.7, team: 'player' };
+targets.set(playerTarget, { health: playerHealth });
+shots.addTarget(playerTarget);
+for (const foe of foes) {
+  const target = { center: foe.walker.position, radius: 0.65, team: 'foes' };
+  targets.set(target, { health: foe.health });
+  shots.addTarget(target);
+}
+
+const radar = hud.radar({ range: 15, colors: { foe: '#34d399', turret: '#94a3b8' } });
+
+let elapsed = 0, nextShell = 1.5, nextBolt = 1;
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+  elapsed += dt;
+  playerHealth.update(dt);
+  for (const foe of foes) foe.health.update(dt);
+
+  // The runner laps — or lies where it fell. Knockback decays off.
+  const down = !playerHealth.alive;
+  if (down && elapsed > koUntil) playerHealth.revive();
+  const a = elapsed * 0.55;
+  if (!down) {
+    runner.position.set(Math.cos(a) * 8 + knock.x, 0.7, Math.sin(a) * 8 + knock.z);
+    runner.rotation.set(Math.PI / 2, 0, 0);
+    runner.rotation.y = -a;
+  } else {
+    runner.rotation.z = Math.PI / 2;
+  }
+  knock.multiplyScalar(Math.pow(0.15, dt));
+  // The i-frame blink: invulnerable = flickering, the oldest signal in games.
+  runner.visible = playerHealth.invulnerableFor <= 0 ||
+    Math.floor(elapsed * 12) % 2 === 0;
+
+  // Turret lobs at where the runner WILL be.
+  if (elapsed > nextShell && !down) {
+    nextShell = elapsed + 1.4;
+    const lead = 0.9;
+    const ahead = a + 0.55 * lead;
+    const aim = new Vector3(Math.cos(ahead) * 8, 0.7, Math.sin(ahead) * 8);
+    const flight = 0.9;
+    shots.fire(new Vector3(0, 1.6, 0), new Vector3(
+      (aim.x - 0) / flight,
+      (aim.y - 1.6) / flight + 9.8 * flight * 0.5,
+      (aim.z - 0) / flight
+    ), { team: 'turret' });
+    sounds.whoosh(0.6);
+  }
+
+  // The runner bolts at the nearest standing foe.
+  if (elapsed > nextBolt && !down) {
+    nextBolt = elapsed + 0.9;
+    const standing = foes.filter((f) => f.health.alive);
+    if (standing.length) {
+      let nearest = standing[0];
+      for (const foe of standing) {
+        if (foe.walker.position.distanceTo(runner.position) <
+            nearest.walker.position.distanceTo(runner.position)) nearest = foe;
+      }
+      const dir = nearest.walker.position.clone().sub(runner.position).setY(0);
+      const d = Math.max(dir.length(), 0.01);
+      shots.fire(runner.position.clone().setY(0.9),
+        dir.multiplyScalar(14 / d).setY(1.2), { team: 'player', life: 2 });
+      sounds.blip();
+    }
+  }
+
+  // Foes ease out of their flinch; the fallen get back up.
+  for (const foe of foes) {
+    if (foe.health.alive) {
+      foe.mesh.rotation.z *= Math.pow(0.05, dt);
+    } else if (elapsed > foe.respawnAt) {
+      foe.health.revive();
+      foe.mesh.rotation.z = 0;
+      foe.walker.position.set((Math.random() - 0.5) * 20, 0.6,
+                              (Math.random() - 0.5) * 20);
+    }
+  }
+
+  shots.update(dt);
+  hud.timer(elapsed);
+  radar.set(
+    [
+      ...foes.filter((f) => f.health.alive)
+        .map((f) => ({ x: f.walker.position.x, z: f.walker.position.z, kind: 'foe' })),
+      { x: 0, z: 0, kind: 'turret' },
+    ],
+    runner.position
+  );
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+
+window.arenaDebug = () => ({
+  playerHp: playerHealth.current,
+  playerAlive: playerHealth.alive,
+  foesAlive: foes.filter((f) => f.health.alive).length,
+  shotsActive: shots.active,
+  koCount,
+});
+
+game.start();`,
+  },
 ];
+
 
 
 
