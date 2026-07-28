@@ -7,6 +7,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'core', title: 'Core: loop, entities, events' },
   { id: 'animation', title: 'Animation: tweens & clips', playground: 'tweens' },
   { id: 'gameplay', title: 'Input, cameras, collisions', playground: 'character' },
+  { id: 'audio', title: 'Audio: procedural sound', playground: 'audio' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -27,6 +28,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'third-person': 'third-person',
   'top-down': 'npcs',
   'npc-archetypes': 'npcs',
+  'one-shots': 'audio',
+  'continuous-sources': 'audio',
+  'the-spectrum-wall': 'audio',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

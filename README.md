@@ -77,6 +77,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling
 - [Animation](docs/animation.md) — tweens, easing, clip cross-fades
 - [Gameplay](docs/gameplay.md) — input & actions, camera, collisions, audio, assets
+- [Audio](docs/audio.md) — `Soundboard`: procedural sound from a seed — footsteps, impacts, engines, weather, crowds, captions
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -256,6 +257,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Documentation site with live, editable playground (`npm run site:dev`)
 - [x] Character templates (`gama3d/templates`): third-person & top-down players, guard/companion/flock NPCs, Locomotion animation glue
 - [x] Game templates (`gama3d/templates`): `createRace` (whole racer), `CricketMatch` (ball flight, timing window, laws-accurate scoring)
+- [x] Procedural audio (`Soundboard`): sample-free synthesized SFX, engines/weather/crowd beds, buses & ducking, captions, offline-render verification
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

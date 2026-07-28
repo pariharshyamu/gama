@@ -663,6 +663,134 @@ curves.forEach(([name, fn], i) => {
 
 game.start();`,
   },
+
+  {
+    id: 'audio',
+    title: 'Procedural audio',
+    group: 'Audio',
+    code: `// EVERY SOUND HERE IS SYNTHESIZED FROM A SEED — no audio files.
+// A walker paces four floors and each speaks with its own footstep
+// voice; an unseen engine revs; wind gusts; a coin blips on a timer.
+// The wall at the back is a live spectrum analyser on the master mix:
+// what you hear is what you see. CLICK ONCE to enable sound (browser
+// autoplay rule) — after that, every click is a bat-crack.
+import { Game, Soundboard } from 'gama3d';
+import { Mesh, MeshStandardMaterial, BoxGeometry, ConeGeometry,
+         TorusGeometry } from 'three';
+${scene(0, 9, 16, 2)}
+
+const sounds = new Soundboard({ seed: 7 });
+sounds.unlock();
+
+const caption = document.createElement('div');
+caption.style.cssText =
+  'position:fixed;left:12px;bottom:12px;color:#e2e8f0;font:13px ui-monospace,monospace;opacity:.85';
+document.body.appendChild(caption);
+sounds.onCaption((c) => { caption.textContent = '♪ ' + c.text; });
+
+// Four floors, four voices.
+const STRIPS = [
+  ['grass', 0x3f7a3f], ['wood', 0x8a6238], ['stone', 0x8b8f96], ['metal', 0x5c6b82],
+];
+STRIPS.forEach(([, color], i) => {
+  const strip = new Mesh(new BoxGeometry(3.5, 0.16, 5), new MeshStandardMaterial({ color }));
+  strip.position.set((i - 1.5) * 3.5, 0.08, 0);
+  game.world.scene.add(strip);
+});
+
+const walker = new Mesh(new ConeGeometry(0.45, 1.3, 6),
+  new MeshStandardMaterial({ color: 0xfbbf24 }));
+walker.position.y = 0.85;
+game.world.scene.add(walker);
+
+// The spectrum wall: 24 bars fed by an analyser on the finished mix.
+const analyser = sounds.createAnalyser(64);
+const bins = new Uint8Array(analyser.frequencyBinCount);
+const bars = Array.from({ length: 24 }, (_, i) => {
+  const bar = new Mesh(new BoxGeometry(0.5, 1, 0.5),
+    new MeshStandardMaterial({ color: 0x60a5fa }));
+  bar.position.set((i - 11.5) * 0.62, 0.5, -6);
+  game.world.scene.add(bar);
+  return bar;
+});
+
+const coin = new Mesh(new TorusGeometry(0.4, 0.14, 10, 24),
+  new MeshStandardMaterial({ color: 0xfcd34d }));
+coin.position.set(5.4, 2.2, -2);
+game.world.scene.add(coin);
+
+const engine = sounds.createEngine({ volume: 0.5 });
+const wind = sounds.createWind();
+addEventListener('pointerdown', () => sounds.crack(0.9));
+
+let elapsed = 0, walked = 0, nextCoin = 2, dir = 1;
+game.onUpdate((t) => {
+  elapsed += t.delta;
+  // A footstep every 0.8 m, voiced by whichever floor is underfoot and
+  // positioned where it lands — walk the row and hear it pan.
+  const step = 2.6 * t.delta;
+  walker.position.x += dir * step;
+  if (Math.abs(walker.position.x) > 6.6) dir = -dir;
+  walker.rotation.z = dir > 0 ? -0.12 : 0.12;
+  walked += step;
+  if (walked > 0.8) {
+    walked = 0;
+    const idx = Math.max(0, Math.min(3, Math.floor((walker.position.x + 7) / 3.5)));
+    sounds.footstep(STRIPS[idx][0], { at: walker.position });
+    walker.position.y = 1.05; // a hop on the beat
+  }
+  walker.position.y += (0.85 - walker.position.y) * 0.2;
+
+  engine.set(1600 + 2400 * (0.5 + 0.5 * Math.sin(elapsed * 0.6)), 0.7);
+  wind.set(0.45 + 0.35 * Math.sin(elapsed * 0.13));
+
+  coin.rotation.y = elapsed * 3;
+  if (elapsed > nextCoin) {
+    nextCoin += 2.4;
+    sounds.coin({ at: coin.position });
+    coin.scale.setScalar(1.6);
+  }
+  coin.scale.multiplyScalar(0.94).clampScalar(1, 2);
+
+  analyser.getByteFrequencyData(bins);
+  bars.forEach((bar, i) => {
+    const v = (bins[Math.floor(i * bins.length / bars.length)] ?? 0) / 255;
+    const h = 0.15 + v * 5.5;
+    bar.scale.y += (h - bar.scale.y) * 0.35;
+    bar.position.y = bar.scale.y / 2;
+  });
+  sounds.updateListener(game.camera.position, { x: 0, y: -0.5, z: -0.87 });
+});
+
+// Headless verification: render the same sounds into an OfflineAudioContext
+// and report energy — silence fails the sweep the way a blank frame does.
+let offline = { offlineRms: 0, offlinePeak: 0 };
+(async () => {
+  const off = new OfflineAudioContext(1, 44100, 44100);
+  const sb = new Soundboard({ context: off, seed: 5 });
+  sb.footstep('stone'); sb.coin(); sb.crack(0.9);
+  sb.createEngine().set(3200, 0.8);
+  sb.createWind().set(0.8);
+  const data = (await off.startRendering()).getChannelData(0);
+  let peak = 0, sum = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = Math.abs(data[i]);
+    peak = v > peak ? v : peak;
+    sum += v * v;
+  }
+  offline = { offlineRms: Math.sqrt(sum / data.length), offlinePeak: peak };
+})();
+window.audioDebug = () => ({
+  ...offline,
+  contextState: sounds.context.state,
+  captions: sounds.captions().length,
+  lastCaption: sounds.captions().length
+    ? sounds.captions()[sounds.captions().length - 1].text
+    : '',
+});
+
+game.start();`,
+  },
 ];
 
 export function findExample(id: string): Example {
