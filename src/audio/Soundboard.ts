@@ -6,6 +6,7 @@ import {
   crackSpec,
   crowdVoicing,
   engineVoicing,
+  rotorVoicing,
   failSpec,
   fillNoise,
   footstepSpec,
@@ -561,6 +562,108 @@ export class EngineSound {
     });
     this.noiseFilter.frequency.setTargetAtTime(voice.noiseFreq, t, 0.08);
     this.noiseGain.gain.setTargetAtTime(voice.noiseGain, t, 0.08);
+  }
+
+  stop(fade = 0.4): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    const t = this.board.context.currentTime;
+    this.out.gain.setTargetAtTime(0, t, Math.max(fade / 4, 0.01));
+    for (const source of this.sources) source.stop(t + fade + 0.1);
+    this.board.forget(this);
+  }
+}
+
+/**
+ * A helicopter rotor: broadband noise CHOPPED at the blade-pass
+ * frequency by an LFO — the wop-wop is a tremolo (see `rotorVoicing`) —
+ * with a rumble body under it and a turbine whine over it. `set(rpm)`
+ * moves the whole voice; the chop rate IS the rotor.
+ *
+ * ```ts
+ * const rotor = new RotorSound(sounds, { blades: 3, volume: 0.5 });
+ * rotor.set(hover.rotor * 400);   // per frame, from the spool
+ * ```
+ */
+export class RotorSound {
+  private readonly lfo: OscillatorNode;
+  private readonly lfoDepth: GainNode;
+  private readonly chopGain: GainNode;
+  private readonly bodyFilter: BiquadFilterNode;
+  private readonly noiseGain: GainNode;
+  private readonly whine: OscillatorNode;
+  private readonly whineGain: GainNode;
+  private readonly out: GainNode;
+  private readonly sources: AudioScheduledSourceNode[];
+  private readonly blades: number;
+  private stopped = false;
+  /** The last rpm handed to `set`. */
+  rpm = 0;
+
+  constructor(
+    private readonly board: Soundboard,
+    options: { blades?: number; volume?: number; at?: Vec3Like } = {}
+  ) {
+    this.blades = options.blades ?? 3;
+    const ctx = board.context;
+    const { buses } = board.ensureGraph();
+    this.out = ctx.createGain();
+    this.out.gain.value = options.volume ?? 1;
+    this.out.connect(board.route(options.at, buses.sfx));
+
+    // Noise → low body filter → chopped gain → out.
+    const noise = ctx.createBufferSource();
+    noise.buffer = board.noiseBuffer('white');
+    noise.loop = true;
+    this.bodyFilter = ctx.createBiquadFilter();
+    this.bodyFilter.type = 'lowpass';
+    this.bodyFilter.Q.value = 0.6;
+    this.noiseGain = ctx.createGain();
+    this.noiseGain.gain.value = 0;
+    this.chopGain = ctx.createGain();
+    this.chopGain.gain.value = 1;
+    noise.connect(this.bodyFilter);
+    this.bodyFilter.connect(this.noiseGain);
+    this.noiseGain.connect(this.chopGain);
+    this.chopGain.connect(this.out);
+
+    // The LFO is the rotor: its frequency is the blade-pass rate.
+    this.lfo = ctx.createOscillator();
+    this.lfo.type = 'sine';
+    this.lfoDepth = ctx.createGain();
+    this.lfoDepth.gain.value = 0;
+    this.lfo.connect(this.lfoDepth);
+    this.lfoDepth.connect(this.chopGain.gain);
+
+    // The turbine whine, thin and high.
+    this.whine = ctx.createOscillator();
+    this.whine.type = 'sine';
+    this.whineGain = ctx.createGain();
+    this.whineGain.gain.value = 0;
+    this.whine.connect(this.whineGain);
+    this.whineGain.connect(this.out);
+
+    const t0 = ctx.currentTime;
+    this.lfo.start(t0);
+    this.whine.start(t0);
+    noise.start(t0, board.random());
+    this.sources = [this.lfo, this.whine, noise];
+    this.set(0);
+  }
+
+  set(rpm: number): void {
+    if (this.stopped) return;
+    this.rpm = rpm;
+    const t = this.board.context.currentTime;
+    const voice = rotorVoicing(rpm, this.blades);
+    this.lfo.frequency.setTargetAtTime(Math.max(voice.chopHz, 0.01), t, 0.06);
+    // Keep the chopped gain positive: base 1 − depth/2, swing ±depth/2.
+    this.chopGain.gain.setTargetAtTime(1 - voice.chopDepth / 2, t, 0.08);
+    this.lfoDepth.gain.setTargetAtTime(voice.chopDepth / 2, t, 0.08);
+    this.bodyFilter.frequency.setTargetAtTime(voice.bodyFreq * 8, t, 0.08);
+    this.noiseGain.gain.setTargetAtTime(voice.noiseGain, t, 0.08);
+    this.whine.frequency.setTargetAtTime(voice.whineFreq, t, 0.06);
+    this.whineGain.gain.setTargetAtTime(voice.whineGain, t, 0.08);
   }
 
   stop(fade = 0.4): void {

@@ -73,3 +73,48 @@ a waypoint square at 14 m, and once per lap the autopilot cuts the
 engine, holds the nose up, and lets physics do the teaching — stall,
 nose-drop, sink, power-on recovery. The engine's voice (`EngineSound`)
 follows the throttle the whole way.
+
+## HoverController — the helicopter's half
+
+```ts
+const hover = new HoverController({ seed: 4, onLand: (s) => feel.shake(s / 10) });
+hover.spool = 1;                       // rotors take seconds, not frames
+game.onUpdate((t) => {
+  hover.control({ collective, cyclicPitch, cyclicRoll, pedal });
+  hover.update(t.delta);
+  hover.apply(shipMesh);
+  heli.update(t.delta, hover.helicopterInput);  // the SCENA ship shows it
+});
+```
+
+Collective climbs, cyclic tilts-to-translate in the heading frame,
+pedals yaw — and nothing lifts until the rotor is spooled and singing.
+The signature detail is the **hover breath**: with the stick centred a
+real helicopter wanders, so a seeded aperiodic drift keeps a
+"perfectly still" hover from reading as a screenshot — bounded, and
+byte-identical for the same seed. Touchdown reports the sink rate for
+the skids to judge.
+
+## rotorVoicing & RotorSound — the wop-wop
+
+A helicopter's voice is amplitude, not pitch: broadband noise CHOPPED
+at the blade-pass frequency (rotor rev/s × blades) — the wop-wop is a
+tremolo, which is why a three-blade ship sounds different from a
+two-blade one at the same rpm. `rotorVoicing(rpm, blades)` is the pure
+recipe; `RotorSound` runs it live — the LFO *is* the rotor:
+
+```ts
+const rotor = new RotorSound(sounds, { blades: 3, volume: 0.4 });
+rotor.set(hover.rotor * 400);   // per frame — 400 rpm × 3 blades = 20 Hz chop
+```
+
+## The night rescue
+
+The `rescue` playground is the searchlight handshake the helicopter
+was built for: the nose light is a gama `Flashlight` feeding an
+`Illumination` field, so the beam the player SEES and the exposure the
+game COMPUTES are the same math. The bot flies the search ladder over
+a night sea, the beam sweeping, until the drifting raft reads
+`inBeam` — then holds the hover (breathing), lowers the winch, and
+counts the soul aboard. Probes watched two rescues end to end with
+exposure rising from 0.03 in the dark to 0.20 under the beam.

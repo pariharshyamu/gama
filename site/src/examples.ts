@@ -2149,6 +2149,189 @@ window.aviatorDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'rescue',
+    title: 'Night rescue: the searchlight',
+    group: 'Gameplay',
+    code: `// THE SEARCHLIGHT HANDSHAKE. A HoverController flies the ship —
+// collective, cyclic, pedals, rotor INERTIA, and a seeded hover
+// breath (a perfectly still hover reads as a screenshot). The nose
+// light is a gama Flashlight feeding an Illumination field: the beam
+// you SEE and the exposure the game COMPUTES are the same math. A
+// raft drifts in the dark; the bot flies the search ladder until the
+// beam finds it, holds the hover, lowers the winch, and the RotorSound
+// wop-wops through the whole thing at blade-pass frequency.
+import { Game, HoverController, Flashlight, Illumination, Hud,
+         Soundboard, RotorSound, GameFeel } from 'gama3d';
+import { Mesh, MeshBasicMaterial, MeshStandardMaterial, AdditiveBlending,
+         BoxGeometry, CylinderGeometry, ConeGeometry, Group } from 'three';
+${scene(0, 16, 26, 3)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 17 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 3 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+const rotorSound = new RotorSound(sounds, { blades: 3, volume: 0.4 });
+
+// Night sea.
+game.world.scene.background.setHex(0x05080f);
+sun.intensity = 0.1;
+sun.color.setHex(0x8fa8d8);
+const sea = new Mesh(new BoxGeometry(300, 0.05, 300),
+  new MeshStandardMaterial({ color: 0x0a1622 }));
+sea.position.y = -0.03;
+game.world.scene.add(sea);
+
+// The raft: three souls' worth of dark orange, invisible until lit.
+const raft = new Mesh(new BoxGeometry(1.6, 0.35, 1.1),
+  new MeshStandardMaterial({ color: 0x7a4416 }));
+raft.position.set(14, 0.2, -10);
+game.world.scene.add(raft);
+let raftDrift = 0.7;
+
+// The ship: a box helicopter with a spinning rotor disc.
+const mat = (c) => new MeshStandardMaterial({ color: c });
+const ship = new Group();
+const cabin = new Mesh(new BoxGeometry(1.4, 1.2, 2.6), mat(0xd8a13a));
+cabin.position.y = 1.1;
+const boom = new Mesh(new BoxGeometry(0.35, 0.4, 3), mat(0xd8a13a));
+boom.position.set(0, 1.25, -2.4);
+const disc = new Mesh(new CylinderGeometry(3.4, 3.4, 0.04, 24),
+  new MeshBasicMaterial({ color: 0xdadfe8, transparent: true, opacity: 0.2,
+    blending: AdditiveBlending, depthWrite: false }));
+disc.position.y = 2.1;
+const skidL = new Mesh(new BoxGeometry(0.08, 0.08, 2.4), mat(0x22262b));
+skidL.position.set(-0.7, 0.08, 0.2);
+const skidR = skidL.clone(); skidR.position.x = 0.7;
+ship.add(cabin, boom, disc, skidL, skidR);
+// The visible beam, apex at the nose light.
+const beamMat = new MeshBasicMaterial({ color: 0xfff2c0, transparent: true,
+  opacity: 0, blending: AdditiveBlending, depthWrite: false });
+const beam = new Mesh(new ConeGeometry(3.2, 13, 14, 1, true), beamMat);
+const beamPivot = new Group();
+beam.rotation.x = -Math.PI / 2; beam.position.z = 6.5;
+beamPivot.add(beam);
+beamPivot.position.set(0, 0.6, 1.2);
+ship.add(beamPivot);
+// The winch line.
+const line = new Mesh(new CylinderGeometry(0.03, 0.03, 1, 5), mat(0x9aa3ad));
+line.visible = false;
+ship.add(line);
+game.world.scene.add(ship);
+
+const hover = new HoverController({ seed: 5,
+  onTakeoff: () => hud.banner('DUSTOFF', 1.4),
+  onLand: (s) => hud.banner('SKIDS DOWN ' + s.toFixed(1), 1.5) });
+hover.spool = 1;
+
+// The searchlight: a Flashlight whose cone IS the gameplay.
+const torch = new Flashlight({ range: 15, halfAngle: 0.32, batteryLife: 9999 });
+const field = new Illumination({ ambient: 0.03 });
+field.add(torch.source);
+
+// The bot: climb, fly the ladder, find, hover, winch, repeat.
+const LADDER = [[-16, -16], [16, -16], [16, 0], [-16, 0], [-16, 16], [16, 16]];
+let leg = 0, phase = 'lift', winch = 0, saved = 0, sweep = 0;
+
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+
+  // The raft drifts; the sea is not still either.
+  raft.position.x += Math.sin(t.elapsed * 0.13) * raftDrift * dt;
+  raft.position.z += Math.cos(t.elapsed * 0.09) * raftDrift * dt;
+  raft.position.y = 0.2 + Math.sin(t.elapsed * 1.1) * 0.06;
+
+  const raftTrigger = { center: raft.position, radius: 1.2 };
+  const lit = torch.illuminates(raftTrigger);
+  const exposure = field.at(raft.position);
+
+  if (phase === 'lift') {
+    hover.control({ collective: 0.9 });
+    if (hover.position.y > 11) { phase = 'search'; hud.banner('SEARCH', 1.2); }
+  } else if (phase === 'search') {
+    const [lx, lz] = LADDER[leg];
+    const dx = lx - hover.position.x, dz = lz - hover.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 3) leg = (leg + 1) % LADDER.length;
+    // Nose toward the leg; cyclic forward; light sweeping ahead.
+    let err = Math.atan2(dx, dz) - hover.heading;
+    while (err > Math.PI) err -= Math.PI * 2;
+    while (err < -Math.PI) err += Math.PI * 2;
+    hover.control({
+      collective: (11 - hover.position.y) * 0.3,
+      cyclicPitch: Math.min(dist * 0.2, 0.75),
+      pedal: Math.min(Math.max(err * 1.4, -1), 1),
+    });
+    sweep += dt;
+    const wag = Math.sin(sweep * 1.3) * 0.5;
+    torch.aim({ x: hover.position.x, y: 0, z: hover.position.z },
+      hover.heading + wag);
+    beamPivot.rotation.y = wag;
+    if (lit) { phase = 'found'; hud.banner('IN THE BEAM', 1.4);
+      sounds.success(); feel.shake(0.2); }
+  } else if (phase === 'found') {
+    // Hold over the raft; when steady, drop the line.
+    const dx = raft.position.x - hover.position.x;
+    const dz = raft.position.z - hover.position.z;
+    let err = Math.atan2(dx, dz) - hover.heading;
+    while (err > Math.PI) err -= Math.PI * 2;
+    while (err < -Math.PI) err += Math.PI * 2;
+    hover.control({
+      collective: (9 - hover.position.y) * 0.35,
+      cyclicPitch: Math.min(Math.sqrt(dx * dx + dz * dz) * 0.14, 0.5),
+      pedal: Math.min(Math.max(err * 1.4, -1), 1),
+    });
+    torch.aim({ x: hover.position.x, y: 0, z: hover.position.z }, hover.heading);
+    beamPivot.rotation.y = 0;
+    if (Math.sqrt(dx * dx + dz * dz) < 2.2) { phase = 'winch'; winch = 0; }
+  } else if (phase === 'winch') {
+    hover.control({ collective: (9 - hover.position.y) * 0.35 });
+    winch += dt;
+    line.visible = true;
+    const drop = Math.min(winch * 2.2, hover.position.y - 1);
+    line.scale.y = drop;
+    line.position.set(0, 1 - drop / 2, 0);
+    if (winch > 4.5) {
+      saved++; hud.score(saved, 'SAVED'); sounds.chime(saved % 6);
+      hud.banner('SOUL ABOARD', 1.6);
+      line.visible = false;
+      // A new raft, somewhere else in the dark.
+      raft.position.set(-20 + (saved * 17) % 40, 0.2, -18 + (saved * 23) % 36);
+      phase = 'search';
+    }
+  }
+
+  hover.update(dt);
+  torch.update(dt);
+  hover.apply(ship);
+  disc.rotation.y += dt * hover.rotor * 25;
+  beamMat.opacity = 0.16 * torch.glow * (phase === 'search' || phase === 'found' || phase === 'winch' ? 1 : 0);
+  rotorSound.set(hover.rotor * 400);
+
+  hud.prompt('ALT ' + hover.position.y.toFixed(0) + ' m · raft exposure ' +
+    exposure.toFixed(2) + (lit ? '  ● IN BEAM' : ''));
+  hud.update(dt);
+  game.camera.position.set(hover.position.x - 10, hover.position.y + 7,
+    hover.position.z + 14);
+  game.camera.lookAt(hover.position.x, Math.max(hover.position.y - 4, 0.5),
+    hover.position.z - 2);
+  feel.apply(game.camera);
+});
+
+window.rescueDebug = () => ({
+  phase,
+  saved,
+  alt: Number(hover.position.y.toFixed(1)),
+  rotor: Number(hover.rotor.toFixed(2)),
+  exposure: Number(field.at(raft.position).toFixed(3)),
+  inBeam: torch.illuminates({ center: raft.position, radius: 1.2 }),
+  raft: [Number(raft.position.x.toFixed(1)), Number(raft.position.z.toFixed(1))],
+  chopHz: Number((rotorSound.rpm / 60 * 3).toFixed(1)),
+});
+
+game.start();`,
+  },
 ];
 
 

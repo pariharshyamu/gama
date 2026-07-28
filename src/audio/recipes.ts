@@ -581,6 +581,41 @@ export interface EngineVoicing {
   noiseFreq: number;
 }
 
+export interface RotorVoicing {
+  /** Blade-pass frequency, Hz — the wop-wop rate itself. */
+  chopHz: number;
+  /** How deep each blade-pass cuts the noise, 0..1. */
+  chopDepth: number;
+  /** Low body rumble centre frequency, Hz. */
+  bodyFreq: number;
+  /** Turbine whine frequency, Hz. */
+  whineFreq: number;
+  whineGain: number;
+  noiseGain: number;
+}
+
+/**
+ * A helicopter's voice is amplitude, not pitch: broadband noise CHOPPED
+ * at the blade-pass frequency (rotor rev/s × blades) — the wop-wop is a
+ * tremolo, which is why a three-blade ship sounds different from a
+ * two-blade one at the same rpm. A low rumble body rides under it and a
+ * thin turbine whine over it; both scale with rpm, but the chop is the
+ * identity.
+ */
+export function rotorVoicing(rpm: number, blades = 3): RotorVoicing {
+  const r = Math.min(Math.max(Number.isFinite(rpm) ? rpm : 0, 0), 600);
+  const b = Math.min(Math.max(Math.round(blades), 2), 6);
+  const spin = r / 60;
+  return {
+    chopHz: spin * b,
+    chopDepth: Math.min(r / 260, 0.85),
+    bodyFreq: 52 + r * 0.09,
+    whineFreq: 850 + r * 3.1,
+    whineGain: Math.min(r / 600, 1) * 0.06,
+    noiseGain: Math.min(r / 320, 1) * 0.55,
+  };
+}
+
 /**
  * A four-stroke, four-cylinder voice: the firing frequency is rpm/60 × 2
  * (two power strokes per revolution), a sine an octave under it is the

@@ -275,6 +275,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Platformer: `PlatformerController` (sub-stepped gravity, walls/ceilings, coyote time, jump buffer, variable jump height, moving-platform carry) + the coin-run payoff example
 - [x] Light as gameplay: `Illumination` field (structural sources, live litness, pure math), `Flashlight` (battery drama, seeded gutter, cone reveal with angular slack), `MoodGrade` (structural rig targets, seamless interrupted blends)
 - [x] Flight: `FlightController` (throttle→speed→lift, bank-to-turn, stall as a state, taxi/rotate/flare/touchdown with sink-rate events, `apply()` + `aircraftInput` bridges)
+- [x] Hover: `HoverController` (collective/cyclic/pedals, rotor spool inertia, seeded hover breath, sink-rate touchdowns, `helicopterInput` bridge) + `rotorVoicing`/`RotorSound` (blade-pass tremolo — the wop-wop is amplitude, not pitch)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

@@ -61,6 +61,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'moodgrade-the-game-states-visual-voice': 'stealth',
   'the-stealth-garden': 'stealth',
   flightcontroller: 'aviator',
+  'hovercontroller-the-helicopters-half': 'rescue',
+  'rotorvoicing-rotorsound-the-wop-wop': 'rescue',
+  'the-night-rescue': 'rescue',
   'the-stick-is-a-rate': 'aviator',
   'the-aviator-playground': 'aviator',
 };

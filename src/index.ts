@@ -121,6 +121,11 @@ export {
   type FlightControllerOptions,
   type FlightControls,
 } from './controllers/FlightController';
+export {
+  HoverController,
+  type HoverControllerOptions,
+  type HoverControls,
+} from './controllers/HoverController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
 export { ChaseCamera, type ChaseCameraOptions } from './camera/ChaseCamera';
 export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';
@@ -171,6 +176,7 @@ export {
 export {
   Soundboard,
   EngineSound,
+  RotorSound,
   AmbientBed,
   CrowdSound,
   type SoundboardOptions,
@@ -194,6 +200,7 @@ export {
   tickSpec,
   blipSpec,
   engineVoicing,
+  rotorVoicing,
   windVoicing,
   rainVoicing,
   crowdVoicing,
@@ -206,6 +213,7 @@ export {
   type FootstepSurface,
   type ImpactMaterial,
   type EngineVoicing,
+  type RotorVoicing,
   type WindVoicing,
   type RainVoicing,
   type CrowdVoicing,
