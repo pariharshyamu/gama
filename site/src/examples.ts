@@ -1449,7 +1449,181 @@ window.wavesDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'trial',
+    title: 'Time trial: flow, ghost & the save',
+    group: 'Gameplay',
+    code: `// THE RETENTION LOOP: beat yesterday's you. GameFlow runs the shell
+// (attract mode starts it; click restarts from results). Every lap is
+// RECORDED at 20 Hz; finish faster than your best and the tape becomes
+// the new ghost — the translucent kart you race from then on. Best time
+// and tape persist in a SaveSlot: reload the page and the ghost is
+// still there, because a save here is a seed and a few kilobytes.
+import { Game, GameFlow, Objectives, SaveSlot, GhostRecorder, Ghost,
+         GhostTape, CheckpointRun, Hud, Soundboard,
+         GameFeel } from 'gama3d';
+import { Mesh, MeshStandardMaterial, ConeGeometry, TorusGeometry,
+         Vector3 } from 'three';
+${scene(0, 14, 17, 1)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 3 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 5 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+// The course: three gates on a triangle.
+const GATES = [0, 1, 2].map((i) => {
+  const a = (i / 3) * Math.PI * 2 + 0.5;
+  return new Vector3(Math.cos(a) * 9, 0, Math.sin(a) * 9);
+});
+const gateMeshes = GATES.map((p) => {
+  const ring = new Mesh(new TorusGeometry(1.5, 0.12, 10, 32),
+    new MeshStandardMaterial({ color: 0x64748b }));
+  ring.position.set(p.x, 1.5, p.z);
+  ring.lookAt(0, 1.5, 0);
+  game.world.scene.add(ring);
+  return ring;
+});
+
+const kart = new Mesh(new ConeGeometry(0.5, 1.4, 5),
+  new MeshStandardMaterial({ color: 0xf59e0b }));
+kart.rotation.x = Math.PI / 2;
+game.world.scene.add(kart);
+
+// The ghost: the same shape, barely there.
+const ghostMesh = new Mesh(new ConeGeometry(0.5, 1.4, 5),
+  new MeshStandardMaterial({ color: 0x8fd0ff, transparent: true,
+    opacity: 0.35, depthWrite: false }));
+ghostMesh.rotation.x = Math.PI / 2;
+ghostMesh.visible = false;
+game.world.scene.add(ghostMesh);
+
+const slot = new SaveSlot('trial-best', { version: 1 });
+let best = slot.load(); // { time, tape } | null
+let ghost = best ? new Ghost(GhostTape.fromJSON(best.tape)) : null;
+const recorder = new GhostRecorder({ sampleEvery: 0.05 });
+
+const LAPS = 3;
+let lapClock = 0, lapsDone = 0, elapsed = 0;
+const goals = new Objectives(
+  [{ id: 'laps', label: 'Finish laps', target: LAPS }],
+  { onProgress: () => hud.objective(goals.summary() +
+      (best ? '\\nbest ' + best.time.toFixed(1) + 's' : '')) }
+);
+
+const run = new CheckpointRun(
+  GATES.map((p, i) => ({
+    trigger: { center: p, radius: 1.5 },
+    setState: (s) => gateMeshes[i].material.color.setHex(
+      s === 'active' ? 0x53c7f0 : s === 'passed' ? 0x4caf6e : 0x64748b),
+  })),
+  {
+    laps: LAPS,
+    onAdvance: () => sounds.blip(),
+    onLap: (lap) => {
+      // The lap is the unit of retention: better than best = new ghost.
+      const tape = recorder.finish();
+      if (!best || lapClock < best.time) {
+        best = { time: lapClock, tape: tape.toJSON() };
+        slot.save(best);
+        ghost = new Ghost(GhostTape.fromJSON(best.tape));
+        hud.banner('BEST ' + lapClock.toFixed(1) + 's', 1.6);
+        sounds.success();
+        feel.slowMo(0.4, 1);
+      } else {
+        hud.banner('LAP ' + lapClock.toFixed(1) + 's', 1.2);
+      }
+      lapClock = 0;
+      lapsDone = lap;
+      goals.advance('laps');
+      hud.lap(Math.min(lap + 1, LAPS), LAPS);
+      if (lap >= LAPS) flow.to('results');
+    },
+  }
+);
+
+const flow = new GameFlow({
+  onEnter: {
+    playing: () => {
+      run.reset();
+      recorder.reset();
+      lapClock = 0;
+      lapsDone = 0;
+      goals.reset();
+      hud.lap(1, LAPS);
+      hud.banner('GO!', 1);
+      hud.objective(goals.summary() +
+        (best ? '\\nbest ' + best.time.toFixed(1) + 's' : ''));
+    },
+    results: () => {
+      hud.banner('DONE — click to run again', 3);
+      sounds.success();
+    },
+    title: () => hud.banner('TIME TRIAL', 2),
+  },
+});
+hud.banner('TIME TRIAL', 2);
+let attract = 1.5; // headless and idle pages start themselves
+addEventListener('pointerdown', () => {
+  if (flow.state === 'title' || flow.state === 'results') flow.to('playing');
+});
+
+game.onUpdate((t) => {
+  const real = feel.update(t.delta);
+  if (flow.state === 'title') {
+    attract -= t.delta;
+    if (attract <= 0) flow.to('playing');
+  }
+  if (flow.state === 'results') {
+    attract -= t.delta;
+    if (attract <= 0) { attract = 2; flow.to('playing'); }
+  }
+  const dt = flow.gate(real);
+  elapsed += dt;
+  lapClock += dt;
+
+  // The kart drives its triangle; speed wobbles so laps differ.
+  const u = (elapsed * (0.11 + 0.015 * Math.sin(elapsed * 0.37))) % 1;
+  const edge = Math.floor(u * 3);
+  const along = u * 3 - edge;
+  const from = GATES[edge], to = GATES[(edge + 1) % 3];
+  if (flow.playing) {
+    kart.position.set(from.x + (to.x - from.x) * along, 0.7,
+                      from.z + (to.z - from.z) * along);
+    kart.lookAt(to.x, 0.7, to.z);
+    run.test(kart.position);
+    recorder.record(kart.position, kart.rotation.y, dt);
+  }
+
+  // The ghost races the CURRENT lap clock.
+  if (ghost && flow.playing) {
+    ghostMesh.visible = true;
+    const pose = ghost.at(lapClock);
+    ghostMesh.position.set(pose.position.x, pose.position.y, pose.position.z);
+    ghostMesh.rotation.set(Math.PI / 2, pose.yaw, 0);
+  } else {
+    ghostMesh.visible = false;
+  }
+
+  hud.timer(lapClock);
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+
+window.trialDebug = () => ({
+  state: flow.state,
+  lapsDone,
+  lapClock: Number(lapClock.toFixed(2)),
+  best: best ? Number(best.time.toFixed(2)) : null,
+  ghostRacing: ghostMesh.visible,
+  saved: slot.exists,
+});
+
+game.start();`,
+  },
 ];
+
 
 
 

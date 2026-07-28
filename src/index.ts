@@ -240,6 +240,24 @@ export {
   type LinkOptions,
 } from './gameplay/Automation';
 
+// Retention: flow, goals, saves, ghosts
+export { GameFlow, type FlowState, type GameFlowOptions } from './gameplay/GameFlow';
+export {
+  Objectives,
+  type Objective,
+  type ObjectiveSpec,
+  type ObjectivesOptions,
+} from './gameplay/Objectives';
+export { SaveSlot, type SaveSlotOptions, type StorageLike } from './gameplay/SaveSlot';
+export {
+  Ghost,
+  GhostRecorder,
+  GhostTape,
+  type GhostPose,
+  type GhostTapeJSON,
+  type GhostRecorderOptions,
+} from './gameplay/ghosts';
+
 // Opposition: the director of waves
 export {
   WaveDirector,
