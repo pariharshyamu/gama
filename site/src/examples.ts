@@ -1262,7 +1262,195 @@ window.arenaDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'waves',
+    title: 'WaveDirector + Harass',
+    group: 'Gameplay',
+    code: `// THE OPPOSITION, PACED. The director decides when, how many, and how
+// hard — then asks the game to spawn each body and waits to hear about
+// deaths. Chasers SEEK; harassers keep their ring and strafe (watch the
+// green ones circle). The quiet feature is RUBBER-BANDING: clear a wave
+// fast and unhurt and the next leans harder; bleed and it eases off.
+// The pressure readout is the objective line, top right.
+import { Game, WaveDirector, Harass, Health, Projectiles, Hud,
+         Soundboard, GameFeel, MotionAgent, Seek } from 'gama3d';
+import { Mesh, MeshStandardMaterial, ConeGeometry, SphereGeometry,
+         Vector3 } from 'three';
+${scene(0, 15, 18, 1)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 6 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 2 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+// The hero circles; enemies come to it.
+const hero = new Mesh(new SphereGeometry(0.5, 20, 14),
+  new MeshStandardMaterial({ color: 0xf59e0b }));
+game.world.scene.add(hero);
+const heroHealth = new Health({
+  max: 8,
+  invulnerable: 0.6,
+  onDamage: (e) => {
+    hud.hearts(heroHealth.current, 8);
+    feel.shake(0.3);
+    sounds.impact('soft', 0.6);
+    director.playerHurt(e.amount);   // the band hears about the bleeding
+  },
+  onDeath: () => {
+    hud.banner('DOWN!', 1.6);
+    sounds.fail();
+    setTimeout(() => { heroHealth.revive(); hud.hearts(8, 8); }, 1800);
+  },
+});
+hud.hearts(8, 8);
+
+// One pool of enemy bodies, reused wave after wave.
+const foeMat = { chaser: new MeshStandardMaterial({ color: 0xf87171 }),
+                 harasser: new MeshStandardMaterial({ color: 0x34d399 }) };
+const pool = [];
+let seedCounter = 1;
+function spawnEnemy(kind) {
+  let foe = pool.find((f) => !f.active);
+  if (!foe) {
+    const walker = game.world.spawn('foe');
+    const mesh = new Mesh(new ConeGeometry(0.45, 1.2, 5), foeMat.chaser);
+    mesh.rotation.x = Math.PI / 2;
+    walker.add(mesh);
+    const agent = walker.addComponent(new MotionAgent({ maxSpeed: 4, planar: true }));
+    foe = { walker, mesh, agent, active: false, health: null, target: null };
+    pool.push(foe);
+  }
+  const a = Math.random() * Math.PI * 2;
+  foe.walker.position.set(Math.cos(a) * 14, 0.6, Math.sin(a) * 14);
+  foe.walker.visible = true;
+  foe.active = true;
+  foe.mesh.material = foeMat[kind];
+  foe.agent.clearBehaviors();
+  if (kind === 'chaser') {
+    foe.agent.addBehavior(new Seek(hero.position));
+    foe.agent.maxSpeed = 4.2;
+  } else {
+    foe.agent.addBehavior(new Harass(hero.position, { ring: 6.5, seed: seedCounter++ }));
+    foe.agent.maxSpeed = 5;
+  }
+  foe.health = new Health({
+    max: 2,
+    invulnerable: 0.3,
+    onDeath: () => {
+      foe.active = false;
+      foe.walker.visible = false;
+      director.enemyDown();          // the director keeps the count
+      sounds.pop();
+    },
+  });
+  foe.target = { center: foe.walker.position, radius: 0.6, team: 'foes' };
+  shots.addTarget(foe.target);
+}
+
+const director = new WaveDirector({
+  kinds: ['chaser', 'harasser'],
+  baseCount: 3,
+  growth: 1.5,
+  maxCount: 10,
+  rest: 3.5,
+  stagger: 0.7,
+  seed: 8,
+  spawn: spawnEnemy,
+  onWave: (wave, count) => {
+    hud.banner('WAVE ' + wave, 1.6);
+    hud.lap(wave, 99, 'WAVE');
+    sounds.success();
+  },
+  onCleared: () => sounds.chime(2),
+});
+
+const shots = new Projectiles({
+  onHit: ({ target, at }) => {
+    const foe = pool.find((f) => f.target === target && f.active);
+    if (foe) foe.health.damage({ from: at, knockback: 4 }, target.center);
+    if (foe && foe.health.alive === false) feel.shake(0.15);
+  },
+});
+game.world.scene.add(shots.mesh);
+const heroChest = new Vector3();
+
+const radar = hud.radar({ range: 16,
+  colors: { chaser: '#f87171', harasser: '#34d399' } });
+
+let elapsed = 0, nextBolt = 0.8;
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+  elapsed += dt;
+  heroHealth.update(dt);
+  director.update(dt);
+
+  const a = elapsed * 0.4;
+  hero.position.set(Math.cos(a) * 4, 0.55, Math.sin(a) * 4);
+  heroChest.copy(hero.position);
+
+  // The hero bolts at the nearest live enemy.
+  if (elapsed > nextBolt && heroHealth.alive) {
+    nextBolt = elapsed + 0.55;
+    const live = pool.filter((f) => f.active);
+    if (live.length) {
+      let nearest = live[0];
+      for (const foe of live) {
+        if (foe.walker.position.distanceTo(hero.position) <
+            nearest.walker.position.distanceTo(hero.position)) nearest = foe;
+      }
+      // LEAD THE TARGET: a harasser strafes fast enough that a bolt
+      // aimed at where it IS misses by a body-width — the first probe of
+      // this example watched one kite the hero indefinitely. Aim at
+      // where it WILL be when the bolt arrives.
+      const d0 = nearest.walker.position.distanceTo(hero.position);
+      const lead = nearest.agent.velocity.clone().multiplyScalar(d0 / 13);
+      const aim = nearest.walker.position.clone().add(lead);
+      const dir = aim.sub(hero.position).setY(0);
+      const d = Math.max(dir.length(), 0.01);
+      shots.fire(hero.position.clone().setY(0.7),
+        dir.multiplyScalar(13 / d).setY(0.2), { team: 'player', life: 2.5 });
+    }
+  }
+
+  // Chasers that reach the hero cost a heart (melee, crudely).
+  for (const foe of pool) {
+    if (!foe.active) continue;
+    foe.health.update(dt);
+    if (foe.walker.position.distanceTo(hero.position) < 1.1) {
+      heroHealth.damage({ from: foe.walker.position, knockback: 2 }, hero.position);
+    }
+  }
+
+  shots.update(dt);
+  hud.timer(elapsed);
+  hud.objective('pressure ' + director.pressure.toFixed(2) +
+    (director.isResting ? ' · resting' : ' · wave ' + director.wave));
+  radar.set(
+    pool.filter((f) => f.active).map((f) => ({
+      x: f.walker.position.x, z: f.walker.position.z,
+      kind: f.mesh.material === foeMat.chaser ? 'chaser' : 'harasser',
+    })),
+    hero.position
+  );
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+director.start();
+
+window.wavesDebug = () => ({
+  wave: director.wave,
+  alive: director.alive,
+  pressure: Number(director.pressure.toFixed(3)),
+  resting: director.isResting,
+  heroHp: heroHealth.current,
+  poolSize: pool.length,
+});
+
+game.start();`,
+  },
 ];
+
 
 
 

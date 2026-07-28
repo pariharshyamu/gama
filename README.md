@@ -81,6 +81,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Game feel & HUD](docs/feel.md) — `GameFeel` (trauma shake, hit-stop, slow-mo, rumble) and `Hud` (score, hearts, banner, prompt, captions, radar)
 - [The pickup loop](docs/loop.md) — `Collector` (sweep, values, respawn timers) and `CheckpointRun` (order enforced, laps, progress) over SCENA-shaped props
 - [Stakes](docs/stakes.md) — `Health` (i-frames, death as an edge, knockback vectors) and `Projectiles` (pooled instanced shots, teams, arcs)
+- [Opposition](docs/opposition.md) — `Harass` (ring-keeping, seeded strafe) and `WaveDirector` (staggered waves, rest, rubber-band pressure)
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -265,6 +266,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] HUD (`Hud`): DOM overlay — score/timer/hearts, banner, objective, prompt, Soundboard caption line, canvas radar
 - [x] Pickup loop: `Collector` (structural pickups/fields, respawn scheduling) and `CheckpointRun` (ordered gates, laps, setState painting)
 - [x] Stakes: `Health` (i-frames, one-shot death edge, revive with mercy window, computed knockback) and `Projectiles` (pooled tracers, structural targets, team filtering)
+- [x] Opposition: `Harass` steering (ring + band + seeded strafe) and `WaveDirector` (trickle spawns, rest, escalation under a ceiling, rubber-band pressure)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

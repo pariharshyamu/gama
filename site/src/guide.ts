@@ -11,6 +11,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'feel', title: 'Game feel & HUD', playground: 'juice' },
   { id: 'loop', title: 'The pickup loop', playground: 'loot' },
   { id: 'stakes', title: 'Stakes: health & projectiles', playground: 'arena' },
+  { id: 'opposition', title: 'Opposition: waves & harassment', playground: 'waves' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -40,6 +41,8 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   collector: 'loot',
   checkpointrun: 'loot',
   health: 'arena',
+  'wavedirector-pacing-without-bodies': 'waves',
+  'harass-the-ranged-enemys-dance': 'waves',
   projectiles: 'arena',
 };
 

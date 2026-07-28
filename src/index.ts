@@ -46,6 +46,7 @@ export { Path } from './motion/Path';
 export { StateMachine, type State } from './motion/StateMachine';
 export { SpatialGrid } from './motion/SpatialGrid';
 export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidance';
+export { Harass, type HarassOptions } from './motion/harass';
 export { driveVehicle, type VehicleRunningGear } from './motion/driveVehicle';
 
 // Navigation
@@ -238,6 +239,13 @@ export {
   type AutomationOptions,
   type LinkOptions,
 } from './gameplay/Automation';
+
+// Opposition: the director of waves
+export {
+  WaveDirector,
+  type WaveDirectorOptions,
+  type WaveSpawner,
+} from './gameplay/WaveDirector';
 
 // Stakes: health, damage, projectiles
 export {
