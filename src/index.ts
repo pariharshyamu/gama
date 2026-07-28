@@ -263,6 +263,19 @@ export {
   type GhostRecorderOptions,
 } from './gameplay/ghosts';
 
+// Light as gameplay: the illumination field, the torch, the mood
+export {
+  Illumination,
+  type LightSourceLike,
+  type IlluminationOptions,
+} from './gameplay/Illumination';
+export { Flashlight, type FlashlightOptions } from './gameplay/Flashlight';
+export {
+  MoodGrade,
+  type MoodTargets,
+  type MoodPreset,
+} from './gameplay/MoodGrade';
+
 // Opposition: the director of waves
 export {
   WaveDirector,

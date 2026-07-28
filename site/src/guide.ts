@@ -14,6 +14,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'opposition', title: 'Opposition: waves & harassment', playground: 'waves' },
   { id: 'retention', title: 'Retention: flow, saves, ghosts', playground: 'trial' },
   { id: 'platformer', title: 'Platformer: jump physics', playground: 'coinrun' },
+  { id: 'light', title: 'Light as gameplay', playground: 'stealth' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -54,6 +55,10 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'the-three-forgivenesses': 'coinrun',
   'moving-platforms': 'coinrun',
   'the-coin-run': 'coinrun',
+  'illumination-the-number-the-stealth-genre-is-made-of': 'stealth',
+  'flashlight-the-light-a-game-carries': 'stealth',
+  'moodgrade-the-game-states-visual-voice': 'stealth',
+  'the-stealth-garden': 'stealth',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;

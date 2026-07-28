@@ -1851,6 +1851,174 @@ window.coinrunDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'stealth',
+    title: 'Stealth: the illumination field',
+    group: 'Gameplay',
+    code: `// LIGHT AS GAMEPLAY. The stealth genre is one number: how lit am I?
+// The Illumination field answers it in pure math (no pixels read) —
+// lamps register structurally, the guard's Flashlight feeds the same
+// field, and the sneaking bot dashes when its NEXT step reads dark.
+// The torch has a battery: it gutters, dies, and gets fresh cells 4 s
+// later — the dark windows are your openings. MoodGrade turns the
+// whole scene red as suspicion climbs.
+import { Game, Illumination, Flashlight, MoodGrade, GameFlow, Hud,
+         Soundboard, GameFeel } from 'gama3d';
+import { Mesh, MeshBasicMaterial, MeshStandardMaterial, AdditiveBlending,
+         BoxGeometry, ConeGeometry, CylinderGeometry, Group, PointLight,
+         SphereGeometry } from 'three';
+${scene(0, 16, 15, 0)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 21 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 6 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+// Night. The helper's sun dims to moonlight; the mood owns the rest.
+sun.intensity = 0.12;
+sun.color.setHex(0x8fa8d8);
+const moon = new AmbientLight(0x7080b0, 0.22);
+game.world.scene.add(moon);
+
+const grade = new MoodGrade({ sun, ambient: moon, scene: game.world.scene });
+grade.define('calm', { background: 0x0b0e14, ambient: { intensity: 0.22 },
+  sun: { color: 0x8fa8d8, intensity: 0.12 } });
+grade.define('alert', { background: 0x1e070c, ambient: { intensity: 0.3 },
+  sun: { color: 0xff5040, intensity: 0.3 } });
+grade.set('calm');
+
+// ---- The lamps: a lit band the hero must cross. Only FOUR real
+// PointLights — a scena LightBudget would pool these; a demo can afford
+// them. Each lamp registers with the FIELD, which is what gameplay reads.
+const field = new Illumination({ ambient: 0.06 });
+const mat = (c) => new MeshStandardMaterial({ color: c });
+for (const x of [-7, -2.5, 2, 6.5]) {
+  const pole = new Mesh(new CylinderGeometry(0.06, 0.09, 2.6, 6),
+    mat(0x2c2f34));
+  pole.position.set(x, 1.3, 0);
+  const bulb = new Mesh(new SphereGeometry(0.14, 8, 6),
+    new MeshStandardMaterial({ color: 0xffd889, emissive: 0xffd889,
+      emissiveIntensity: 2 }));
+  bulb.position.set(x, 2.5, 0);
+  const glow = new PointLight(0xffd889, 5, 7, 1.8);
+  glow.position.set(x, 2.4, 0);
+  game.world.scene.add(pole, bulb, glow);
+  field.add({ center: { x, y: 0, z: 0 }, radius: 3.5 });
+}
+
+// The shed (the goal) and the start.
+const shed = new Mesh(new BoxGeometry(3, 2, 2.4), mat(0x2a3446));
+shed.position.set(-4.2, 1, -12);
+game.world.scene.add(shed);
+
+// ---- The cast.
+const hero = new Mesh(new ConeGeometry(0.4, 1.3, 6), mat(0x53c7f0));
+hero.position.set(-4.2, 0.65, 12);
+const guard = new Mesh(new ConeGeometry(0.45, 1.5, 6), mat(0xe4574d));
+guard.position.set(0, 0.75, 0);
+game.world.scene.add(hero, guard);
+
+// The guard's torch — and its VISIBLE beam, opacity scaled by glow.
+const torch = new Flashlight({ range: 8, halfAngle: 0.38, batteryLife: 12,
+  seed: 3,
+  onLow: () => hud.caption('the torch is guttering…'),
+  onDied: () => { hud.caption('…dead. GO.'); sounds.blip(); } });
+field.add(torch.source);
+const beamMat = new MeshBasicMaterial({ color: 0xfff2c0, transparent: true,
+  opacity: 0.2, blending: AdditiveBlending, depthWrite: false });
+// Apex at the pivot (the guard's hand), spread 8 m down its local +z.
+const beamPivot = new Group();
+const beam = new Mesh(new ConeGeometry(2.6, 8, 14, 1, true), beamMat);
+beam.rotation.x = -Math.PI / 2;
+beam.position.z = 4;
+beamPivot.add(beam);
+game.world.scene.add(beamPivot);
+
+const flow = new GameFlow();
+flow.to('playing');
+hud.banner('REACH THE SHED', 2);
+let suspicion = 0, runs = 0, spotted = 0, deadTimer = 0, exposure = 0;
+
+game.onUpdate((t) => {
+  const real = feel.update(t.delta);
+  const dt = flow.gate(real);
+
+  // The guard patrols the lit band, torch sweeping with the walk.
+  const gx = Math.sin(t.elapsed * 0.32) * 7.5;
+  const facing = Math.cos(t.elapsed * 0.32) > 0 ? Math.PI / 2 : -Math.PI / 2;
+  guard.position.x = gx;
+  guard.rotation.y = facing;
+  torch.aim({ x: gx, y: 0, z: 0 }, facing);
+  torch.update(dt);
+  if (torch.battery <= 0) {
+    deadTimer += dt;
+    if (deadTimer > 4) { torch.refuel(); deadTimer = 0;
+      hud.caption('fresh batteries'); }
+  }
+  beamPivot.position.set(gx, 0.9, 0);
+  beamPivot.rotation.y = facing;
+  beamMat.opacity = 0.2 * torch.glow;
+
+  // The one number: how lit is the hero — and its next step?
+  exposure = field.at(hero.position);
+  const beamOnHero = torch.illuminates({ center: hero.position, radius: 0.4 });
+
+  // The sneak: dash when the NEXT step reads dark and the beam is off you;
+  // if you're caught standing in light, keep moving — out is through.
+  const next = { x: hero.position.x, y: 0, z: hero.position.z - 0.9 };
+  const nextLit = field.at(next) > 0.42;
+  const go = (!nextLit && !beamOnHero) || exposure > 0.42;
+  if (go && flow.playing) hero.position.z -= 2.3 * dt;
+
+  // Suspicion: exposure is only dangerous when the guard can see you.
+  const dx = hero.position.x - gx, dz = hero.position.z;
+  const gd = Math.sqrt(dx * dx + dz * dz);
+  if (beamOnHero) suspicion += 1.4 * dt;
+  else if (gd < 7) suspicion += exposure * (1 - gd / 7) * 1.6 * dt;
+  else suspicion -= 0.35 * dt;
+  suspicion = Math.min(Math.max(suspicion, 0), 1);
+
+  if (suspicion >= 1) {
+    spotted++; suspicion = 0.4;
+    hud.banner('SPOTTED', 1.2);
+    sounds.fail(); feel.shake(0.4);
+    hero.position.set(-4.2, 0.65, 12);
+  }
+  if (hero.position.z < -10.8) {
+    runs++; hud.score(runs, 'RUNS');
+    hud.banner('SLIPPED THROUGH', 1.4);
+    sounds.success();
+    hero.position.set(-4.2, 0.65, 12);
+    suspicion = 0;
+  }
+
+  // The mood follows the suspicion, with hysteresis so it can't flap.
+  if (suspicion > 0.5 && grade.mood !== 'alert') grade.to('alert', 0.8);
+  else if (suspicion < 0.22 && grade.mood !== 'calm') grade.to('calm', 1.6);
+  grade.update(real);
+
+  const bars = Math.round(exposure * 8);
+  hud.prompt('EXPOSURE ' + '█'.repeat(bars) + '░'.repeat(8 - bars) +
+    '  ·  torch ' + Math.round(torch.battery * 100) + '%');
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+
+window.stealthDebug = () => ({
+  exposure: Number(exposure.toFixed(3)),
+  suspicion: Number(suspicion.toFixed(3)),
+  torchBattery: Number(torch.battery.toFixed(3)),
+  torchLit: torch.lit,
+  heroZ: Number(hero.position.z.toFixed(2)),
+  runs,
+  spotted,
+  mood: grade.mood,
+  sources: field.count,
+});
+
+game.start();`,
+  },
 ];
 
 

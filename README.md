@@ -84,6 +84,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Opposition](docs/opposition.md) — `Harass` (ring-keeping, seeded strafe) and `WaveDirector` (staggered waves, rest, rubber-band pressure)
 - [Retention](docs/retention.md) — `GameFlow` (title/playing/paused/results, `gate()` as the pause), `Objectives`, `SaveSlot` (versioned, corruption-safe), ghosts (`GhostRecorder`/`Ghost` — race yesterday's you)
 - [Platformer](docs/platformer.md) — `PlatformerController`: gravity, coyote time, jump buffering, variable height, moving-platform carry — and the coin-run payoff demo
+- [Light as gameplay](docs/light.md) — `Illumination` (the how-lit-am-I field over structural sources), `Flashlight` (battery, gutter, cone reveal test), `MoodGrade` (lerped lighting moods per game state)
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -271,6 +272,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Opposition: `Harass` steering (ring + band + seeded strafe) and `WaveDirector` (trickle spawns, rest, escalation under a ceiling, rubber-band pressure)
 - [x] Retention: `GameFlow` (legal-move state machine, `gate()` pause), `Objectives` (clamped progress, once-only completion), `SaveSlot` (versioned envelope, null-means-null), `GhostRecorder`/`GhostTape`/`Ghost` (fixed-interval tapes, seam-safe yaw playback)
 - [x] Platformer: `PlatformerController` (sub-stepped gravity, walls/ceilings, coyote time, jump buffer, variable jump height, moving-platform carry) + the coin-run payoff example
+- [x] Light as gameplay: `Illumination` field (structural sources, live litness, pure math), `Flashlight` (battery drama, seeded gutter, cone reveal with angular slack), `MoodGrade` (structural rig targets, seamless interrupted blends)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development
