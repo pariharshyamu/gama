@@ -118,3 +118,43 @@ a night sea, the beam sweeping, until the drifting raft reads
 `inBeam` — then holds the hover (breathing), lowers the winch, and
 counts the soul aboard. Probes watched two rescues end to end with
 exposure rising from 0.03 in the dark to 0.20 under the beam.
+
+## Missiles — the turn-rate limit is the whole game
+
+```ts
+const missiles = new Missiles({ turnRate: 1.4, flareCharm: 0.5,
+  onHit: ({ target }) => down(target),
+  onDecoyed: (at) => hud.banner('FLARED OFF') });
+scene.add(missiles.group);
+missiles.fire(jet.position, jet.forward, { center: bandit.position, radius: 2 });
+// per frame: missiles.update(dt);   afraid? missiles.flare(bandit.position);
+```
+
+Pooled instanced rounds that CHASE: lead pursuit toward where the
+target is going (velocity estimated by watching it move — targets stay
+structural `{center, radius}`), turned by an airframe with a **hard
+rate limit**, and hard turns **bleed speed**, which tightens the
+radius. Without the bleed, a round whose turn circle is wider than the
+range *orbits* its quarry forever — the same trap the aviator
+autopilot fell into, now a physics feature: slow targets are doomed,
+fast crossers at close range out-turn the seeker (both are tests), and
+the space between is piloting.
+
+Flares are first-class: each missile gives each flare exactly **one
+seeded chance** to seduce it. The motor runs out (`onMiss`), the
+ground is not optional, and the proximity fuse ends arguments.
+
+## LockOn — the growl before the shot
+
+Cone + range + time: hold the bandit in the seeker cone and `progress`
+climbs to `locked`; drift out and it all resets — no credit for past
+devotion. Map `progress` to a tick cadence and you have the tone.
+
+## The dogfight
+
+The `dogfight` playground flies both sides of the argument: blue hunts
+on a lock-and-fire loop (FOX TWO at solid tone), the bandits orbit,
+fall spinning when hit, respawn across the arena, and shoot back —
+and BOTH sides carry flares, so neither side's missiles are magic.
+Probes watched kills climb 1 → 4 with two rounds flared off and the
+player taking one home.

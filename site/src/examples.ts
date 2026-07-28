@@ -2332,6 +2332,203 @@ window.rescueDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'dogfight',
+    title: 'Dogfight: missiles, locks & flares',
+    group: 'Gameplay',
+    code: `// THE TURN-RATE LIMIT IS THE WHOLE GAME. Missiles chase with lead
+// pursuit but turn like airframes, not math — hard turns bleed speed,
+// slow targets are doomed, fast crossers escape. The LockOn growl
+// climbs to a solid tone; flares get ONE seeded chance each to buy a
+// missile off. Blue hunts the bandits; the bandits shoot back; both
+// sides carry flares and neither side's missiles are magic.
+import { Game, FlightController, Missiles, LockOn, Health, Hud,
+         Soundboard, GameFeel } from 'gama3d';
+import { Mesh, MeshStandardMaterial, MeshBasicMaterial, BoxGeometry,
+         ConeGeometry, Group, Vector3 } from 'three';
+${scene(0, 20, 34, 8)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 23 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 7 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+const field = new Mesh(new BoxGeometry(500, 0.02, 500),
+  new MeshStandardMaterial({ color: 0x1c2a20 }));
+field.position.y = -0.02;
+game.world.scene.add(field);
+
+// A box jet: fuselage, delta wing, fin. Blue for us, rust for them.
+const mat = (c) => new MeshStandardMaterial({ color: c });
+const makeJet = (color) => {
+  const jet = new Group();
+  const body = new Mesh(new BoxGeometry(0.8, 0.7, 4.6), mat(color));
+  body.position.y = 0.8;
+  const wing = new Mesh(new BoxGeometry(6, 0.1, 2.2), mat(0xd8dee6));
+  wing.position.set(0, 0.85, -0.9);
+  const fin = new Mesh(new BoxGeometry(0.08, 1.1, 1), mat(0xd8dee6));
+  fin.position.set(0, 1.5, -2);
+  jet.add(body, wing, fin);
+  return jet;
+};
+
+const player = makeJet(0x3a6ea5);
+game.world.scene.add(player);
+const flight = new FlightController({ maxSpeed: 34 });
+const health = new Health({ max: 5,
+  onDamage: (e) => { hud.hearts(e.current, e.max); feel.shake(0.4);
+    sounds.impact('metal', 0.9); },
+  onDeath: () => { hud.banner('HIT THE SILK', 2); sounds.fail();
+    health.revive(); hud.hearts(5, 5); } });
+hud.hearts(5, 5);
+
+// The bandits: two rust jets orbiting the arena at altitude.
+const bandits = [0, 1].map((i) => {
+  const jet = makeJet(0xb0552e);
+  game.world.scene.add(jet);
+  return { jet, angle: i * Math.PI, radius: 46 + i * 14,
+    height: 16 + i * 5, speed: 0.32 - i * 0.06, down: 0,
+    center: new Vector3(), trigger: null };
+});
+for (const b of bandits) b.trigger = { center: b.center, radius: 2 };
+
+// ---- The ordnance, both directions.
+let kills = 0, decoyed = 0;
+const playerMissiles = new Missiles({ seed: 5, turnRate: 2.1, flareCharm: 0.45,
+  onHit: ({ target }) => {
+    const bandit = bandits.find((b) => b.trigger === target);
+    if (bandit && bandit.down <= 0) {
+      bandit.down = 3.5; kills++;
+      hud.score(kills, 'KILLS'); hud.banner('SPLASH ONE', 1.4);
+      sounds.crack(1); feel.shake(0.45); feel.slowMo(0.4, 0.7);
+    }
+  },
+  onDecoyed: () => { decoyed++; hud.banner('FLARED OFF', 1.1); sounds.pop(); },
+});
+const banditMissiles = new Missiles({ seed: 9, turnRate: 1.5, flareCharm: 0.6,
+  onHit: () => health.damage({ amount: 1 }),
+  onDecoyed: () => hud.caption('their round bought our flare'),
+});
+game.world.scene.add(playerMissiles.group, banditMissiles.group);
+banditMissiles.group.material = new MeshBasicMaterial({ color: 0xff8866 });
+
+const lock = new LockOn({ halfAngle: 0.62, range: 110, lockTime: 0.85 });
+let fireCooldown = 0, banditFireClock = 5, tickClock = 0;
+let flareTimer = -1, banditFlareTimer = -1;
+
+flight.throttle = 1;
+flight.control({ pitch: 0.5 });
+
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+
+  // The bandits fly their circuits (or fall out of them).
+  for (const b of bandits) {
+    if (b.down > 0) {
+      b.down -= dt;
+      b.jet.position.y = Math.max(b.jet.position.y - 8 * dt, 1);
+      b.jet.rotation.z += dt * 5; // going down spinning
+      if (b.down <= 0) b.angle += Math.PI; // respawns across the arena
+    } else {
+      b.angle += b.speed * dt;
+      b.jet.position.set(Math.sin(b.angle) * b.radius, b.height,
+        Math.cos(b.angle) * b.radius);
+      b.jet.rotation.set(0, b.angle + Math.PI / 2, -0.3);
+    }
+    b.center.copy(b.jet.position);
+  }
+
+  // Our autopilot: chase the nearest live bandit's sky.
+  const quarry = bandits.filter((b) => b.down <= 0)
+    .sort((a, c) => a.jet.position.distanceToSquared(flight.position) -
+                    c.jet.position.distanceToSquared(flight.position))[0];
+  if (!flight.grounded && quarry) {
+    const dx = quarry.jet.position.x - flight.position.x;
+    const dz = quarry.jet.position.z - flight.position.z;
+    let err = Math.atan2(dx, dz) - flight.heading;
+    while (err > Math.PI) err -= Math.PI * 2;
+    while (err < -Math.PI) err += Math.PI * 2;
+    const targetBank = Math.min(Math.max(-err * 1.1, -0.8), 0.8);
+    const targetPitch = Math.min(Math.max(
+      (quarry.height - 2 - flight.position.y) * 0.04, -0.2), 0.3);
+    flight.control({
+      roll: Math.min(Math.max((targetBank - flight.bank) * 3, -1), 1),
+      pitch: Math.min(Math.max((targetPitch - flight.pitch) * 4, -1), 1),
+    });
+    flight.throttle = 0.85;
+  }
+  flight.update(dt);
+  flight.apply(player);
+
+  // The seeker looks where we fly.
+  const dir = flight.velocity.clone().normalize();
+  lock.update(dt, { position: flight.position, direction: dir },
+    quarry ? quarry.trigger : null);
+  fireCooldown -= dt;
+  tickClock -= dt;
+  if (lock.state !== 'seeking' && tickClock <= 0) {
+    tickClock = lock.state === 'locked' ? 0.09 : 0.45 - lock.progress * 0.3;
+    sounds.tick();
+  }
+  if (lock.state === 'locked' && fireCooldown <= 0 && quarry) {
+    fireCooldown = 4;
+    playerMissiles.fire(flight.position, dir, quarry.trigger);
+    sounds.whoosh(1);
+    hud.caption('FOX TWO');
+    banditFlareTimer = 1.1; // they saw the smoke
+  }
+
+  // Their side of the argument.
+  banditFireClock -= dt;
+  if (banditFireClock <= 0 && quarry && !flight.grounded) {
+    banditFireClock = 7;
+    const from = quarry.jet.position;
+    const at = new Vector3().subVectors(flight.position, from).normalize();
+    banditMissiles.fire(from, at,
+      { center: flight.position, radius: 1.6 });
+    hud.caption('SMOKE IN THE AIR — flares ready');
+    flareTimer = 1.2;
+  }
+  if (flareTimer > 0 && (flareTimer -= dt) <= 0) {
+    banditMissiles.flare({ x: flight.position.x - dir.x * 3,
+      y: flight.position.y - 1, z: flight.position.z - dir.z * 3 });
+    hud.caption('flares away');
+  }
+  if (banditFlareTimer > 0 && (banditFlareTimer -= dt) <= 0 && quarry) {
+    playerMissiles.flare({ x: quarry.jet.position.x, y: quarry.jet.position.y - 2,
+      z: quarry.jet.position.z - 4 });
+  }
+
+  playerMissiles.update(dt);
+  banditMissiles.update(dt);
+  health.update(dt);
+
+  hud.prompt(lock.state === 'locked' ? '● LOCK — FOX TWO READY'
+    : lock.state === 'locking' ? '◐ locking ' + Math.round(lock.progress * 100) + '%'
+    : '○ seeking');
+  hud.update(dt);
+  game.camera.position.set(flight.position.x - dir.x * 16,
+    flight.position.y + 6, flight.position.z - dir.z * 16);
+  game.camera.lookAt(flight.position.x, flight.position.y, flight.position.z);
+  feel.apply(game.camera);
+});
+
+window.dogfightDebug = () => ({
+  kills,
+  decoyed,
+  playerHp: health.current,
+  lock: lock.state,
+  progress: Number(lock.progress.toFixed(2)),
+  ours: playerMissiles.alive,
+  theirs: banditMissiles.alive,
+  flares: playerMissiles.flaresBurning + banditMissiles.flaresBurning,
+  alt: Number(flight.position.y.toFixed(1)),
+  banditsUp: bandits.filter((b) => b.down <= 0).length,
+});
+
+game.start();`,
+  },
 ];
 
 

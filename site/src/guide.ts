@@ -64,6 +64,9 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'hovercontroller-the-helicopters-half': 'rescue',
   'rotorvoicing-rotorsound-the-wop-wop': 'rescue',
   'the-night-rescue': 'rescue',
+  'missiles-the-turn-rate-limit-is-the-whole-game': 'dogfight',
+  'lockon-the-growl-before-the-shot': 'dogfight',
+  'the-dogfight': 'dogfight',
   'the-stick-is-a-rate': 'aviator',
   'the-aviator-playground': 'aviator',
 };

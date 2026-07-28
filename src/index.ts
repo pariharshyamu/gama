@@ -304,6 +304,14 @@ export {
   type DamageEvent,
 } from './gameplay/Health';
 export {
+  Missiles,
+  LockOn,
+  type MissilesOptions,
+  type MissileTarget,
+  type MissileHit,
+  type LockOnOptions,
+} from './physics/Missiles';
+export {
   Projectiles,
   type ProjectilesOptions,
   type ProjectileHit,

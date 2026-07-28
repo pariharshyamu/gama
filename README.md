@@ -276,6 +276,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Light as gameplay: `Illumination` field (structural sources, live litness, pure math), `Flashlight` (battery drama, seeded gutter, cone reveal with angular slack), `MoodGrade` (structural rig targets, seamless interrupted blends)
 - [x] Flight: `FlightController` (throttle→speed→lift, bank-to-turn, stall as a state, taxi/rotate/flare/touchdown with sink-rate events, `apply()` + `aircraftInput` bridges)
 - [x] Hover: `HoverController` (collective/cyclic/pedals, rotor spool inertia, seeded hover breath, sink-rate touchdowns, `helicopterInput` bridge) + `rotorVoicing`/`RotorSound` (blade-pass tremolo — the wop-wop is amplitude, not pitch)
+- [x] Air combat: `Missiles` (lead pursuit under a hard turn-rate limit with speed-bleed — evadability as physics; seeded one-chance flare seduction; pooled instanced) + `LockOn` (cone/range/time, no credit for past devotion)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development
