@@ -79,6 +79,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Gameplay](docs/gameplay.md) — input & actions, camera, collisions, audio, assets
 - [Audio](docs/audio.md) — `Soundboard`: procedural sound from a seed — footsteps, impacts, engines, weather, crowds, captions
 - [Game feel & HUD](docs/feel.md) — `GameFeel` (trauma shake, hit-stop, slow-mo, rumble) and `Hud` (score, hearts, banner, prompt, captions, radar)
+- [The pickup loop](docs/loop.md) — `Collector` (sweep, values, respawn timers) and `CheckpointRun` (order enforced, laps, progress) over SCENA-shaped props
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -261,6 +262,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Procedural audio (`Soundboard`): sample-free synthesized SFX, engines/weather/crowd beds, buses & ducking, captions, offline-render verification
 - [x] Game feel (`GameFeel`): trauma-squared screen shake, hit-stop, slow-mo with ease-back, haptic rumble
 - [x] HUD (`Hud`): DOM overlay — score/timer/hearts, banner, objective, prompt, Soundboard caption line, canvas radar
+- [x] Pickup loop: `Collector` (structural pickups/fields, respawn scheduling) and `CheckpointRun` (ordered gates, laps, setState painting)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
 ## Development

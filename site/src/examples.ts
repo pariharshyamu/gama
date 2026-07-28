@@ -892,7 +892,171 @@ window.juiceDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'loot',
+    title: 'Collector + CheckpointRun',
+    group: 'Gameplay',
+    code: `// THE PICKUP LOOP, END TO END. Collector sweeps the runner against
+// every coin (each coin is anything shaped {trigger, collect, respawn}
+// — SCENA's pickups drop straight in); CheckpointRun enforces ORDER on
+// the three gates: only the next one counts, however hard you drive
+// through the others. Score, sound, banner and slow-mo all hang off the
+// two event streams.
+import { Game, Collector, CheckpointRun, Hud, Soundboard,
+         GameFeel } from 'gama3d';
+import { Mesh, MeshStandardMaterial, CylinderGeometry, TorusGeometry,
+         ConeGeometry, Vector3 } from 'three';
+${scene(0, 14, 17, 1)}
+
+const hud = new Hud();
+const sounds = new Soundboard({ seed: 5 });
+sounds.unlock();
+const feel = new GameFeel({ seed: 2 });
+sounds.onCaption((c) => hud.caption('♪ ' + c.text));
+
+// The course: three gates on a triangle, coins strewn along its edges.
+const GATES = [0, 1, 2].map((i) => {
+  const a = (i / 3) * Math.PI * 2;
+  return new Vector3(Math.cos(a) * 9, 0, Math.sin(a) * 9);
+});
+const gateMeshes = GATES.map((p) => {
+  const ring = new Mesh(new TorusGeometry(1.6, 0.12, 10, 32),
+    new MeshStandardMaterial({ color: 0x64748b }));
+  ring.position.set(p.x, 1.6, p.z);
+  ring.lookAt(0, 1.6, 0);
+  game.world.scene.add(ring);
+  return ring;
+});
+
+// A coin is ANYTHING shaped {trigger, collect, respawn} — this one is
+// eighteen lines; a SCENA createPickup('coin') is a drop-in replacement.
+const gold = new MeshStandardMaterial({ color: 0xd9a53c, metalness: 0.55,
+  roughness: 0.35, emissive: 0x402c06 });
+function makeCoin(x, z, phase) {
+  const mesh = new Mesh(new CylinderGeometry(0.3, 0.3, 0.07, 14), gold);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.set(x, 0.85, z);
+  game.world.scene.add(mesh);
+  let taken = false;
+  return {
+    mesh, phase,
+    trigger: { center: mesh.position, radius: 0.55 },
+    collect: () => (taken ? 0 : ((taken = true), (mesh.visible = false), 0.3)),
+    respawn: () => ((taken = false), (mesh.visible = true), 0.3),
+  };
+}
+const coins = [];
+for (let g = 0; g < 3; g++) {
+  const from = GATES[g], to = GATES[(g + 1) % 3];
+  for (let k = 1; k <= 4; k++) {
+    const t = k / 5;
+    coins.push(makeCoin(from.x + (to.x - from.x) * t,
+                        from.z + (to.z - from.z) * t, g * 4 + k));
+  }
+}
+
+// The two event streams the whole game hangs off.
+let score = 0;
+const collector = new Collector({
+  respawnAfter: 6,
+  onCollect: ({ at }) => {
+    score += 10;
+    hud.score(score);
+    sounds.coin({ at });
+  },
+});
+for (const coin of coins) collector.add(coin);
+
+const LAPS = 3;
+hud.lap(1, LAPS);
+hud.objective('3 laps, gates in order');
+const run = new CheckpointRun(
+  GATES.map((p, i) => ({
+    trigger: { center: p, radius: 1.6 },
+    setState: (s) => {
+      gateMeshes[i].material = gateMeshes[i].material.clone();
+      gateMeshes[i].material.color.setHex(
+        s === 'active' ? 0x53c7f0 : s === 'passed' ? 0x4caf6e : 0x64748b);
+      gateMeshes[i].material.emissive.setHex(s === 'active' ? 0x0c3946 : 0x000000);
+    },
+  })),
+  {
+    laps: LAPS,
+    onAdvance: () => sounds.blip(),
+    onLap: (lap) => {
+      if (lap < LAPS) {
+        hud.banner('LAP ' + (lap + 1) + '/' + LAPS);
+        hud.lap(lap + 1, LAPS);
+        sounds.success();
+      }
+    },
+    onFinish: () => {
+      hud.banner('FINISH!', 3);
+      sounds.success();
+      feel.slowMo(0.35, 1.6);
+      feel.shake(0.5);
+      setTimeout(() => { run.reset(); hud.lap(1, LAPS); }, 4000);
+    },
+  }
+);
+
+// The runner drives the triangle forever.
+const runner = new Mesh(new ConeGeometry(0.5, 1.4, 5),
+  new MeshStandardMaterial({ color: 0xf59e0b }));
+runner.rotation.x = Math.PI / 2;
+game.world.scene.add(runner);
+
+const radar = hud.radar({ range: 14, colors: { coin: '#fbbf24', gate: '#53c7f0' } });
+
+let elapsed = 0, timer = 0;
+game.onUpdate((t) => {
+  const dt = feel.update(t.delta);
+  elapsed += dt;
+  timer += dt;
+  // Around the triangle: which edge, how far along it.
+  const u = (elapsed * 0.12) % 1;
+  const edge = Math.floor(u * 3);
+  const along = u * 3 - edge;
+  const from = GATES[edge], to = GATES[(edge + 1) % 3];
+  runner.position.set(from.x + (to.x - from.x) * along, 0.7,
+                      from.z + (to.z - from.z) * along);
+  runner.lookAt(to.x, 0.7, to.z);
+
+  collector.sweep(runner.position);
+  collector.update(dt);
+  run.test(runner.position);
+
+  for (const coin of coins) {
+    coin.mesh.rotation.z = elapsed * 1.6 + coin.phase;
+    coin.mesh.position.y = 0.85 + Math.sin(elapsed * 2 + coin.phase) * 0.07;
+  }
+
+  hud.timer(timer);
+  radar.set(
+    [
+      ...coins.filter((c) => c.mesh.visible)
+        .map((c) => ({ x: c.mesh.position.x, z: c.mesh.position.z, kind: 'coin' })),
+      ...GATES.map((p) => ({ x: p.x, z: p.z, kind: 'gate' })),
+    ],
+    runner.position
+  );
+  hud.update(dt);
+  feel.apply(game.camera);
+});
+
+window.lootDebug = () => ({
+  score,
+  collected: collector.collected,
+  lap: run.lap,
+  nextGate: run.index,
+  progress: run.progress,
+  finished: run.finished,
+});
+
+game.start();`,
+  },
 ];
+
 
 
 export function findExample(id: string): Example {

@@ -239,6 +239,20 @@ export {
   type LinkOptions,
 } from './gameplay/Automation';
 
+// The pickup loop (consumes SCENA pickups/markers structurally)
+export {
+  Collector,
+  type CollectibleLike,
+  type FieldLike,
+  type CollectEvent,
+  type CollectorOptions,
+} from './gameplay/Collector';
+export {
+  CheckpointRun,
+  type CheckpointLike,
+  type CheckpointRunOptions,
+} from './gameplay/CheckpointRun';
+
 // Feel & HUD
 export { GameFeel, type GameFeelOptions } from './gameplay/GameFeel';
 export {

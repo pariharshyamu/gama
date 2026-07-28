@@ -9,6 +9,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'gameplay', title: 'Input, cameras, collisions', playground: 'character' },
   { id: 'audio', title: 'Audio: procedural sound', playground: 'audio' },
   { id: 'feel', title: 'Game feel & HUD', playground: 'juice' },
+  { id: 'loop', title: 'The pickup loop', playground: 'loot' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];
@@ -35,6 +36,8 @@ const SECTION_PLAYGROUNDS: Record<string, string> = {
   'shake-is-trauma-squared': 'juice',
   'hit-stop-and-slow-motion': 'juice',
   'the-radar': 'juice',
+  collector: 'loot',
+  checkpointrun: 'loot',
 };
 
 const sidebar = document.getElementById('sidebar') as HTMLElement;
