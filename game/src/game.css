@@ -1,0 +1,247 @@
+:root {
+  --ink: #eef3f8;
+  --dim: #9fb0c2;
+  --panel: rgba(16, 22, 30, 0.9);
+  --edge: rgba(255, 255, 255, 0.12);
+  --hot: #ffbf47;
+  --go: #63d19e;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0d1218;
+  color: var(--ink);
+  overscroll-behavior: none;
+  /* A game: a long-press on the canvas should not offer to copy anything. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app canvas { display: block; }
+
+/* ---- The shell ---------------------------------------------------------- */
+
+.ui {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.screen {
+  pointer-events: auto;
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.screen.hidden { display: none; }
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: clamp(2rem, 7vw, 3rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+h1 span {
+  display: block;
+  font-size: 0.42em;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--hot);
+  margin-top: 0.6rem;
+}
+
+h2 { margin: 0 0 1rem; font-size: 1.5rem; }
+
+.tag { color: var(--dim); margin: 1rem 0 1.25rem; line-height: 1.5; }
+
+.row { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; margin-top: 1.25rem; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 0.7rem 1.15rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.06s;
+}
+
+button:hover { background: rgba(255, 255, 255, 0.16); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--hot); color: #21170a; border-color: transparent; }
+button.primary:hover { background: #ffd47a; }
+button.small { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
+
+.best { color: var(--hot); font-weight: 700; min-height: 1.2em; }
+
+.seedline { color: var(--dim); font-size: 0.85rem; margin: 1.25rem 0 0; }
+.seedline input {
+  font: inherit;
+  width: 6.5em;
+  text-align: center;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  padding: 0.25rem 0.4rem;
+  margin: 0 0.35rem;
+}
+
+.credit { color: #6f8296; font-size: 0.78rem; margin: 1.4rem 0 0; line-height: 1.6; }
+.credit b { color: var(--dim); font-weight: 600; }
+
+.help { text-align: left; color: var(--dim); line-height: 1.7; padding-left: 1.1rem; margin: 0; }
+.help b { color: var(--ink); }
+
+.opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+.opt select {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+}
+.opt input[type='checkbox'] { width: 1.15rem; height: 1.15rem; accent-color: var(--hot); }
+
+.score { font-size: clamp(3rem, 12vw, 4.5rem); font-weight: 800; color: var(--hot); line-height: 1; }
+.stats { color: var(--dim); margin-top: 0.75rem; line-height: 1.8; }
+.stats b { color: var(--ink); }
+
+.spin {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--edge);
+  border-top-color: var(--hot);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- In-play HUD -------------------------------------------------------- */
+
+#play-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+  font-variant-numeric: tabular-nums;
+}
+#play-hud.on { display: block; }
+
+.hud-bar {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(10, 15, 21, 0.72);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
+}
+.hud-bar .clock { font-size: 1.6rem; font-weight: 800; }
+.hud-bar .clock.low { color: #ff7b6b; }
+.hud-bar .lab { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.hud-bar .val { font-size: 1.15rem; font-weight: 700; }
+.hud-bar .streak { color: var(--go); }
+
+.task {
+  position: absolute;
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + 3.6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 191, 71, 0.14);
+  border: 1px solid rgba(255, 191, 71, 0.35);
+  color: var(--hot);
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+/* The compass: a chevron at the screen edge pointing at the current target. */
+#compass {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+#compass .arrow {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  color: var(--hot);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 800;
+  color: var(--go);
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+}
+.toast.show { animation: pop 1s ease-out; }
+@keyframes pop {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -62%) scale(1); }
+}
+
+#pause-btn {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  pointer-events: auto;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  font-size: 1.1rem;
+}
+
+/* Touch controls are drawn by GAMA's TouchControls; this only reserves room. */
+@media (pointer: coarse) {
+  .hud-bar { top: max(0.5rem, env(safe-area-inset-top)); gap: 1rem; padding: 0.45rem 0.8rem; }
+  .hud-bar .clock { font-size: 1.3rem; }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "havenbrook-courier",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Havenbrook Courier — a delivery game built on GAMA, SCENA and ANIMA.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "anima3d": "^0.37.0",
+    "gama3d": "^0.34.0",
+    "scena3d": "^0.102.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.1",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

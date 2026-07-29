@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b2430" />
+    <title>Havenbrook Courier</title>
+    <meta
+      name="description"
+      content="Deliver parcels across a village that is different every time. A small 3D game for the browser."
+    />
+    <!-- Inline, so the one request a game like this would otherwise waste on
+         a favicon 404 never happens. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b2430'/%3E%3Cpath d='M8 12h16v11H8z' fill='%23ffbf47'/%3E%3Cpath d='M8 12h16v3H8z' fill='%23e0a132'/%3E%3Cpath d='M15 12h2v11h-2z' fill='%23c98d28'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/game.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- The shell. Everything outside the canvas: the parts that make this a
+         game rather than a demo. Hidden by default; main.ts drives them. -->
+    <div id="ui" class="ui">
+      <section id="title" class="screen">
+        <h1>Havenbrook<span>Courier</span></h1>
+        <p class="tag">
+          Every parcel delivered buys you more daylight. Keep the round going
+          until dusk beats you.
+        </p>
+        <div class="best" id="best"></div>
+        <div class="row">
+          <button id="play" class="primary">Start a round</button>
+          <button id="open-settings">Settings</button>
+          <button id="open-help">How to play</button>
+        </div>
+        <p class="seedline">
+          Village seed <input id="seed" inputmode="numeric" autocomplete="off" />
+          <button id="reroll" class="small">reroll</button>
+        </p>
+        <p class="credit">
+          Built on <b>gama3d</b> · <b>scena3d</b> · <b>anima3d</b> — the world,
+          the people and the rules are all generated in code.
+        </p>
+      </section>
+
+      <section id="help" class="screen hidden">
+        <h2>How to play</h2>
+        <ul class="help">
+          <li><b>Move</b> — WASD or the arrow keys. On a phone, the stick at the bottom left.</li>
+          <li><b>Sprint</b> — hold Shift, or the button at the bottom right.</li>
+          <li><b>Collect</b> — stand on the depot marker in the square to take a parcel.</li>
+          <li><b>Deliver</b> — the beacon shows the house. Get to its door.</li>
+          <li><b>The clock</b> — every delivery buys seconds. Streaks buy more.</li>
+          <li><b>Villagers</b> — walk into one and you both stumble. It costs you time.</li>
+        </ul>
+        <div class="row"><button id="close-help" class="primary">Back</button></div>
+      </section>
+
+      <section id="settings" class="screen hidden">
+        <h2>Settings</h2>
+        <label class="opt">
+          <span>Detail</span>
+          <select id="quality">
+            <option value="high">High — shadows, full crowd</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low — best for phones</option>
+          </select>
+        </label>
+        <label class="opt"><span>Sound</span><input type="checkbox" id="sound" checked /></label>
+        <label class="opt"><span>Round length</span>
+          <select id="length">
+            <option value="90">Short — 90s</option>
+            <option value="120" selected>Standard — 120s</option>
+            <option value="180">Long — 180s</option>
+          </select>
+        </label>
+        <div class="row"><button id="close-settings" class="primary">Back</button></div>
+      </section>
+
+      <section id="paused" class="screen hidden">
+        <h2>Paused</h2>
+        <div class="row">
+          <button id="resume" class="primary">Resume</button>
+          <button id="quit">End round</button>
+        </div>
+      </section>
+
+      <section id="results" class="screen hidden">
+        <h2 id="results-title">Round over</h2>
+        <div class="score" id="final-score">0</div>
+        <div class="stats" id="final-stats"></div>
+        <div class="row">
+          <button id="again" class="primary">Go again</button>
+          <button id="to-title">Title</button>
+        </div>
+      </section>
+
+      <div id="loading" class="screen hidden"><div class="spin"></div><p>Building the village…</p></div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
