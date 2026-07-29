@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#141a22" />
+    <title>My Game</title>
+    <meta name="description" content="A 3D game for the browser." />
+    <!-- Inline, so the one request every new project wastes on a favicon
+         404 never happens. Swap the emoji-ish shapes for your own mark. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141a22'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%236ee7a8'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/game.css" />
+  </head>
+  <body>
+    <!-- The renderer's canvas is appended here. -->
+    <div id="app"></div>
+
+    <!--
+      THE SHELL.
+
+      GAMA's `Shell` finds this markup by data attribute — it owns no HTML of
+      its own, so the styling below is entirely yours to replace:
+
+        data-screen="title|settings|help|paused|results|loading"
+            a panel. Exactly one is visible; `playing` shows none.
+        data-shell="play|again|resume|pause|quit|title"
+            a button wired to the round lifecycle.
+        data-screen-open="settings"
+            opens a panel that is not a game state (settings, help, credits).
+        data-setting="quality"
+            two-way bound to the settings object, persisted for next visit.
+        data-autofocus
+            what gets keyboard focus when the panel opens.
+    -->
+    <div class="ui">
+      <section data-screen="title" class="panel">
+        <h1>My Game</h1>
+        <p class="tag">
+          Collect the five markers before the clock runs out. Replace this
+          with your own game — everything around it already works.
+        </p>
+        <p class="best" id="best"></p>
+        <div class="row">
+          <button data-shell="play" data-autofocus class="primary">Play</button>
+          <button data-screen-open="settings">Settings</button>
+          <button data-screen-open="help">Controls</button>
+        </div>
+      </section>
+
+      <section data-screen="help" class="panel" hidden>
+        <h2>Controls</h2>
+        <ul class="list">
+          <li><b>Move</b> — WASD or arrows. On a phone, the stick at bottom left.</li>
+          <li><b>Sprint</b> — hold Shift.</li>
+          <li><b>Pause</b> — Escape or P.</li>
+        </ul>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="settings" class="panel" hidden>
+        <h2>Settings</h2>
+        <label class="opt">
+          <span>Detail</span>
+          <select data-setting="quality">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low — best for phones</option>
+          </select>
+        </label>
+        <label class="opt"><span>Sound</span><input type="checkbox" data-setting="sound" /></label>
+        <label class="opt">
+          <span>Round length</span>
+          <select data-setting="length">
+            <option value="45">45s</option>
+            <option value="60">60s</option>
+            <option value="90">90s</option>
+          </select>
+        </label>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="paused" class="panel" hidden>
+        <h2>Paused</h2>
+        <div class="row">
+          <button data-shell="resume" data-autofocus class="primary">Resume</button>
+          <button data-shell="quit">End round</button>
+        </div>
+      </section>
+
+      <section data-screen="results" class="panel" hidden>
+        <h2 id="results-title">Round over</h2>
+        <p class="score" id="final-score">0</p>
+        <p class="stats" id="final-stats"></p>
+        <div class="row">
+          <button data-shell="again" data-autofocus class="primary">Again</button>
+          <button data-shell="title">Title</button>
+        </div>
+      </section>
+
+      <div data-screen="loading" class="panel" hidden>
+        <div class="spin"></div>
+        <p>Building the world…</p>
+      </div>
+    </div>
+
+    <!-- In-play HUD. Outside the panels, because it is visible while none are. -->
+    <div id="hud" hidden>
+      <div class="hud-bar">
+        <span><i>Time</i><b id="hud-clock">0</b></span>
+        <span><i>Found</i><b id="hud-score">0</b></span>
+      </div>
+      <button data-shell="pause" id="pause-btn" aria-label="Pause">II</button>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

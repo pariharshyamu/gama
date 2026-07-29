@@ -21,7 +21,7 @@ import {
   createTree,
   createWell,
 } from 'scena3d';
-import type { Quality } from './settings';
+import type { Quality } from './quality';
 
 /**
  * Havenbrook, generated.

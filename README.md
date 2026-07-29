@@ -21,6 +21,26 @@ Design principles:
 npm install gama3d three
 ```
 
+## Start from a template
+
+The fastest way to a game that is actually a game — title screen, settings
+that persist, pause, results, best score, phone controls and a deployable
+build, all already wired:
+
+```bash
+node scripts/new-game.mjs my-game     # or --template courier
+cd my-game && npm install && npm run dev
+```
+
+| template | what you get |
+|---|---|
+| **starter** | A complete small game (find five markers before the clock runs out) with the whole shell wired. Delete the round, keep the rest. |
+| **courier** | [Havenbrook Courier](game) — a generated village, a delivery loop, townsfolk in the way, day turning to dusk. A worked example; the docs site serves it at `/play/`. |
+
+Both depend on the **published** packages rather than this repo, so what you
+scaffold is exactly what an outside developer gets. See
+[the shell & templates](docs/shell.md).
+
 ## Quick start
 
 ```ts
@@ -72,6 +92,7 @@ It includes every guide below plus a dozen editable, runnable examples of
 steering, flocking, navmesh baking, behavior trees and more.
 
 - [Getting started](docs/getting-started.md)
+- [The shell & templates](docs/shell.md) — the part of a game that is not the game
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling

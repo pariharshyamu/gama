@@ -16,6 +16,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'platformer', title: 'Platformer: jump physics', playground: 'coinrun' },
   { id: 'light', title: 'Light as gameplay', playground: 'stealth' },
   { id: 'flight', title: 'Flight: the arcade model', playground: 'aviator' },
+  { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
 ];

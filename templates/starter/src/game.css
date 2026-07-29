@@ -1,0 +1,166 @@
+/*
+ * Everything here is yours to replace. It is deliberately small: a set of
+ * custom properties at the top, and about a hundred lines of layout that
+ * make the shell look like a game rather than a form.
+ */
+:root {
+  --ink: #eef3f8;
+  --dim: #9aabbd;
+  --panel: rgba(15, 21, 28, 0.9);
+  --edge: rgba(255, 255, 255, 0.12);
+  --accent: #6ee7a8;
+  --accent-ink: #06281a;
+  --warn: #ff7b6b;
+  --radius: 16px;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1016;
+  color: var(--ink);
+  overscroll-behavior: none;
+  /* A game: a long-press on the canvas should not offer to select text. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app canvas { display: block; }
+
+/* ---- Panels -------------------------------------------------------------- */
+
+.ui {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.panel {
+  pointer-events: auto;
+  width: min(520px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.75rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+/* The Shell sets the `hidden` attribute; this makes sure nothing overrides it. */
+[hidden] { display: none !important; }
+
+h1 { margin: 0; font-size: clamp(2rem, 7vw, 3rem); letter-spacing: -0.02em; }
+h2 { margin: 0 0 1rem; font-size: 1.5rem; }
+.tag { color: var(--dim); line-height: 1.6; margin: 1rem 0 1.25rem; }
+.best { color: var(--accent); font-weight: 700; min-height: 1.2em; margin: 0; }
+.list { text-align: left; color: var(--dim); line-height: 1.8; margin: 0; padding-left: 1.1rem; }
+.list b { color: var(--ink); }
+.score { font-size: clamp(3rem, 12vw, 4rem); font-weight: 800; color: var(--accent); margin: 0.5rem 0 0; }
+.stats { color: var(--dim); margin: 0.5rem 0 0; }
+
+.row { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; margin-top: 1.25rem; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 0.7rem 1.15rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.06s;
+}
+button:hover { background: rgba(255, 255, 255, 0.16); }
+button:active { transform: translateY(1px); }
+/* Keyboard users get a visible ring; mouse users do not. */
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+.opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+.opt select {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+}
+.opt input[type='checkbox'] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+
+.spin {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--edge);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Somebody who asked the OS for less motion meant it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---- HUD ----------------------------------------------------------------- */
+
+#hud { position: fixed; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
+
+.hud-bar {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(10, 15, 21, 0.72);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
+}
+.hud-bar span { display: flex; flex-direction: column; align-items: center; }
+.hud-bar i {
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.hud-bar b { font-size: 1.3rem; }
+.hud-bar b.low { color: var(--warn); }
+
+#pause-btn {
+  position: absolute;
+  pointer-events: auto;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+}

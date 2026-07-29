@@ -1,8 +1,7 @@
 {
-  "name": "havenbrook-courier",
+  "name": "my-game",
   "private": true,
-  "version": "1.0.0",
-  "description": "Havenbrook Courier — a delivery game built on GAMA, SCENA and ANIMA.",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

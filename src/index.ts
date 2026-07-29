@@ -333,6 +333,13 @@ export {
   type CheckpointRunOptions,
 } from './gameplay/CheckpointRun';
 
+// The shell: the part of a game that is not the game
+export {
+  Shell,
+  type ShellOptions,
+  type ShellScreen,
+} from './shell/Shell';
+
 // Feel & HUD
 export { GameFeel, type GameFeelOptions } from './gameplay/GameFeel';
 export {
