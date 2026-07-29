@@ -66,6 +66,11 @@ export interface MountEditorOptions {
   snap?: number;
   /** In degrees, because that is what the toolbar offers. */
   snapAngle?: number;
+  /** Starting camera distance. A sixty-metre map wants more than a yard. */
+  distance?: number;
+  /** Starting camera angles, in radians. */
+  pitch?: number;
+  yaw?: number;
   /** Passed through to `Level.instantiate`. */
   release?: boolean;
   /**
@@ -169,11 +174,11 @@ export function mountEditor(options: MountEditorOptions): EditorSession {
   /** A `PointerLookInput` the rig reads — filled only while orbiting. */
   const look = { pointerDelta: new Vector2(), wheelDelta: 0, pointerDown: false };
   const rig = new OrbitRig(camera, pivot, look, {
-    distance: 30,
+    distance: options.distance ?? 30,
     minDistance: 4,
-    maxDistance: 160,
-    pitch: 0.72,
-    yaw: 0.5,
+    maxDistance: Math.max(160, (options.distance ?? 30) * 3),
+    pitch: options.pitch ?? 0.72,
+    yaw: options.yaw ?? 0.5,
     maxPitch: 1.45,
     stiffness: 14,
     lookOffset: new Vector3(0, 1.5, 0),
@@ -266,6 +271,15 @@ export function mountEditor(options: MountEditorOptions): EditorSession {
   // ------------------------------------------------------------ selection
 
   function drawSelection(): void {
+    // Detaching is not freeing. This runs on every change, so a session of
+    // dragging a prop slider quietly accumulated one selection box per
+    // edit — found by measuring the renderer while stress-testing the
+    // thing this file was written to fix.
+    for (const child of gizmos.children) {
+      const box = child as BoxHelper;
+      box.geometry.dispose();
+      box.material.dispose();
+    }
     gizmos.clear();
     for (const placed of editor.selected) {
       placed.object.updateWorldMatrix(true, true);
@@ -811,6 +825,12 @@ export function mountEditor(options: MountEditorOptions): EditorSession {
   });
 
   function dispose(): void {
+    for (const child of gizmos.children) {
+      const box = child as BoxHelper;
+      box.geometry.dispose();
+      box.material.dispose();
+    }
+    gizmos.clear();
     unsubscribe();
     game.stop();
     observer.disconnect();

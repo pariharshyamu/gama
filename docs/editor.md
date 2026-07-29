@@ -6,10 +6,25 @@ The level format gave a scene a file. This is the part that lets somebody
 change it without opening the file — and, more to the point, the part a game
 can embed so that *its own* designers never have to.
 
-`Editor` is not a program. It is the bookkeeping every editor needs and
-every editor gets wrong the same way: what is selected, what an edit did,
-and how to take it back. The program on the docs site is about four hundred
-lines of DOM on top of it.
+There are two halves. `Editor` is the bookkeeping every editor needs and
+every editor gets wrong the same way — what is selected, what an edit did,
+and how to take it back. `mountEditor`, from the separate `gama3d/editor`
+entry point, is the program around it: palette, inspector, drag handling,
+toolbar, keyboard, autosave.
+
+```ts
+import { mountEditor } from 'gama3d/editor';
+
+mountEditor({ catalog, container: document.getElementById('app')!, level });
+```
+
+That is a working editor for whatever your catalog contains. It builds its
+own DOM and injects its own styles (scoped under `.gama-ed`), so there is
+no stylesheet to link and nothing to fight with the host page's CSS, and it
+is a separate entry point so a game that never opens one pays nothing for
+it. `decorate` swaps the default lit grid for your game's sky and ground;
+`actions` adds toolbar buttons; `storageKey: null` turns off browser
+autosave for a project whose levels live in files.
 
 ```ts
 import { Catalog, Level, Editor } from 'gama3d';
@@ -113,14 +128,40 @@ actually reaches, and its own props become the defaults shown.
 | `undo()` · `redo()` · `canUndo` · `undoLabel` · `commit()` · `clearHistory()` | history |
 | `snap` · `snapAngle` · `toJSON()` · `toText()` | the rest |
 
-## What the demo is
+## Freeing what a rebuild replaces
 
-A real tool, and small: palette, viewport, inspector, status bar,
-open/save/copy, grid and angle snapping, browser-local autosave. It is
-headlessly verified the way a tool has to be — not "did it draw something",
-but *place a barrel from the palette, drag it across the map, nudge it with
-the keyboard, undo the lot and check the file came back byte for byte*.
-Twenty checks, and the screenshot is looked at too.
+Changing a prop rebuilds the entity, because the factory already ran. With
+a real generator behind the catalog that is expensive: `createHouse` in
+SCENA allocates six geometries and five materials, shared with nothing, so
+fifteen drags of a width slider is fifteen houses of memory.
+
+`Level.instantiate` takes `{ release }`, on by default, and frees an
+entity's resources when it leaves the level. Ownership is the factory's to
+claim — if what it returned has its own `dispose()`, that is called and
+nothing else is touched, which is how a factory handing out shared or
+cached resources says *not yours to free*. Otherwise the object is
+traversed and its geometries, materials and their textures are released.
+
+Measured in a browser over fifteen rebuilds: **138 geometries leaked with
+release off, 0 with it on.**
+
+## Two demos
+
+[The docs-site editor](../editor.html) runs on twelve procedural primitives
+defined in about three hundred lines — deliberately, because it proves the
+editor ships no content of its own.
+
+[Havenbrook's editor](../play/editor.html) is the same `mountEditor` call
+pointed at a catalog of SCENA props and ANIMA characters: houses, market
+stalls, street lamps, trees, roads, delivery doors. It edits the level the
+game actually loads. See [using all three libraries](./workflow.md) for how
+that fits together.
+
+Both are headlessly verified the way a tool has to be — not "did it draw
+something", but *place a barrel from the palette, drag it across the map,
+nudge it with the keyboard, undo the lot and check the file came back byte
+for byte*. Twenty checks on one, sixteen on the other, and the screenshots
+are looked at too.
 
 ## What it is not
 

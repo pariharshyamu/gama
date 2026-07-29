@@ -1,0 +1,1593 @@
+{
+  "format": "gama.level",
+  "version": 1,
+  "name": "Havenbrook",
+  "seed": 7,
+  "meta": {
+    "bounds": 62,
+    "timeOfDay": 0.42
+  },
+  "entities": [
+    {
+      "id": "fountain",
+      "kind": "fountain",
+      "props": {
+        "size": 2.6,
+        "figure": "figure"
+      }
+    },
+    {
+      "id": "well",
+      "kind": "well",
+      "at": [
+        -7.5,
+        0,
+        5.5
+      ]
+    },
+    {
+      "id": "signpost",
+      "kind": "sign",
+      "at": [
+        -2.6,
+        0,
+        11.4
+      ],
+      "rot": 0.35,
+      "props": {
+        "text": "HAVENBROOK"
+      }
+    },
+    {
+      "id": "bunting",
+      "kind": "bunting",
+      "at": [
+        0,
+        3.4,
+        -9
+      ],
+      "props": {
+        "span": 11,
+        "poleHeight": 3.2
+      }
+    },
+    {
+      "id": "stall-1",
+      "kind": "stall",
+      "at": [
+        8.47,
+        0,
+        4.31
+      ],
+      "rot": 2.042,
+      "props": {
+        "goods": "produce"
+      }
+    },
+    {
+      "id": "stall-2",
+      "kind": "stall",
+      "at": [
+        4.9,
+        0,
+        -8.14
+      ],
+      "rot": 0.542,
+      "props": {
+        "goods": "pottery"
+      }
+    },
+    {
+      "id": "stall-3",
+      "kind": "stall",
+      "at": [
+        -7.77,
+        0,
+        -5.46
+      ],
+      "rot": -0.958,
+      "props": {
+        "goods": "bakery"
+      }
+    },
+    {
+      "id": "depot-cart",
+      "kind": "cart",
+      "at": [
+        6.5,
+        0,
+        7
+      ],
+      "rot": -0.7,
+      "props": {
+        "style": "cart",
+        "cargo": "crates"
+      },
+      "children": [
+        {
+          "id": "depot",
+          "kind": "depot",
+          "at": [
+            -1.6,
+            0,
+            0.6
+          ],
+          "tags": [
+            "depot"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "depot-sign",
+      "kind": "sign",
+      "at": [
+        8.7,
+        0,
+        8.4
+      ],
+      "rot": -2.393,
+      "props": {
+        "text": "DEPOT",
+        "kind": "post"
+      }
+    },
+    {
+      "id": "clutter-1",
+      "kind": "barrel",
+      "at": [
+        0.4,
+        0,
+        5.42
+      ],
+      "rot": 3.069
+    },
+    {
+      "id": "clutter-2",
+      "kind": "crate",
+      "at": [
+        -8.21,
+        0,
+        -2.72
+      ],
+      "rot": 1.274
+    },
+    {
+      "id": "clutter-3",
+      "kind": "barrel",
+      "at": [
+        1.41,
+        0,
+        -6.53
+      ],
+      "rot": 1.738
+    },
+    {
+      "id": "clutter-4",
+      "kind": "crate",
+      "at": [
+        -6.75,
+        0,
+        -0.86
+      ],
+      "rot": 0.49
+    },
+    {
+      "id": "clutter-5",
+      "kind": "barrel",
+      "at": [
+        -8.6,
+        0,
+        0.76
+      ],
+      "rot": 0.619
+    },
+    {
+      "id": "clutter-6",
+      "kind": "crate",
+      "at": [
+        5.2,
+        0,
+        -4.76
+      ],
+      "rot": 1.68
+    },
+    {
+      "id": "clutter-7",
+      "kind": "barrel",
+      "at": [
+        11.35,
+        0,
+        -3.4
+      ],
+      "rot": 0.778
+    },
+    {
+      "id": "house-1",
+      "kind": "house",
+      "at": [
+        9.4,
+        0,
+        35.34
+      ],
+      "rot": -2.882,
+      "props": {
+        "width": 4.9,
+        "depth": 4,
+        "roof": "thatch",
+        "wall": "plaster"
+      },
+      "children": [
+        {
+          "id": "door-1",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 1
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lamp-1",
+      "kind": "lamp",
+      "at": [
+        8.01,
+        0,
+        30.12
+      ]
+    },
+    {
+      "id": "house-2",
+      "kind": "house",
+      "at": [
+        27.48,
+        0,
+        22.34
+      ],
+      "rot": -2.253,
+      "props": {
+        "width": 5.8,
+        "depth": 3.9,
+        "roof": "shingle",
+        "wall": "brick"
+      },
+      "children": [
+        {
+          "id": "door-2",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 2
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "house-3",
+      "kind": "house",
+      "at": [
+        35.62,
+        0,
+        1.93
+      ],
+      "rot": -1.625,
+      "props": {
+        "width": 5.7,
+        "depth": 5,
+        "roof": "tile",
+        "wall": "ashlar"
+      },
+      "children": [
+        {
+          "id": "door-3",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 3
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lamp-3",
+      "kind": "lamp",
+      "at": [
+        30.23,
+        0,
+        1.64
+      ]
+    },
+    {
+      "id": "house-4",
+      "kind": "house",
+      "at": [
+        30.56,
+        0,
+        -19.77
+      ],
+      "rot": -0.997,
+      "props": {
+        "width": 4.7,
+        "depth": 4,
+        "roof": "tile",
+        "wall": "brick"
+      },
+      "children": [
+        {
+          "id": "door-4",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 4
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "house-5",
+      "kind": "house",
+      "at": [
+        12.09,
+        0,
+        -31.32
+      ],
+      "rot": -0.368,
+      "props": {
+        "width": 4.7,
+        "depth": 4.7,
+        "roof": "tile",
+        "wall": "brick"
+      },
+      "children": [
+        {
+          "id": "door-5",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 5
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lamp-5",
+      "kind": "lamp",
+      "at": [
+        10.14,
+        0,
+        -26.28
+      ]
+    },
+    {
+      "id": "house-6",
+      "kind": "house",
+      "at": [
+        -9.03,
+        0,
+        -33.96
+      ],
+      "rot": 0.26,
+      "props": {
+        "width": 6.1,
+        "depth": 4.6,
+        "roof": "shingle",
+        "wall": "plaster"
+      },
+      "children": [
+        {
+          "id": "door-6",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 6
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "house-7",
+      "kind": "house",
+      "at": [
+        -26.96,
+        0,
+        -21.92
+      ],
+      "rot": 0.888,
+      "props": {
+        "width": 4.8,
+        "depth": 4,
+        "roof": "shingle",
+        "wall": "plaster"
+      },
+      "children": [
+        {
+          "id": "door-7",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 7
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lamp-7",
+      "kind": "lamp",
+      "at": [
+        -22.77,
+        0,
+        -18.51
+      ]
+    },
+    {
+      "id": "house-8",
+      "kind": "house",
+      "at": [
+        -34.12,
+        0,
+        -1.85
+      ],
+      "rot": 1.517,
+      "props": {
+        "width": 5.6,
+        "depth": 4.2,
+        "roof": "thatch",
+        "wall": "ashlar"
+      },
+      "children": [
+        {
+          "id": "door-8",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 8
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "house-9",
+      "kind": "house",
+      "at": [
+        -30.84,
+        0,
+        19.95
+      ],
+      "rot": 2.145,
+      "props": {
+        "width": 5.5,
+        "depth": 4.8,
+        "roof": "tile",
+        "wall": "ashlar"
+      },
+      "children": [
+        {
+          "id": "door-9",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 9
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lamp-9",
+      "kind": "lamp",
+      "at": [
+        -26.3,
+        0,
+        17.01
+      ]
+    },
+    {
+      "id": "house-10",
+      "kind": "house",
+      "at": [
+        -12.21,
+        0,
+        31.64
+      ],
+      "rot": 2.773,
+      "props": {
+        "width": 5.4,
+        "depth": 4.6,
+        "roof": "shingle",
+        "wall": "ashlar"
+      },
+      "children": [
+        {
+          "id": "door-10",
+          "kind": "address",
+          "at": [
+            0,
+            0,
+            3.2
+          ],
+          "props": {
+            "number": 10
+          },
+          "tags": [
+            "address"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "road-1",
+      "kind": "road",
+      "at": [
+        5.79,
+        0,
+        25.35
+      ],
+      "rot": 1.795,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-2",
+      "kind": "road",
+      "at": [
+        16.21,
+        0,
+        20.33
+      ],
+      "rot": 2.244,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-3",
+      "kind": "road",
+      "at": [
+        23.43,
+        0,
+        11.28
+      ],
+      "rot": 2.693,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-4",
+      "kind": "road",
+      "at": [
+        26,
+        0,
+        0
+      ],
+      "rot": 3.142,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-5",
+      "kind": "road",
+      "at": [
+        23.43,
+        0,
+        -11.28
+      ],
+      "rot": 3.59,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-6",
+      "kind": "road",
+      "at": [
+        16.21,
+        0,
+        -20.33
+      ],
+      "rot": 4.039,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-7",
+      "kind": "road",
+      "at": [
+        5.79,
+        0,
+        -25.35
+      ],
+      "rot": 4.488,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-8",
+      "kind": "road",
+      "at": [
+        -5.79,
+        0,
+        -25.35
+      ],
+      "rot": 4.937,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-9",
+      "kind": "road",
+      "at": [
+        -16.21,
+        0,
+        -20.33
+      ],
+      "rot": 5.386,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-10",
+      "kind": "road",
+      "at": [
+        -23.43,
+        0,
+        -11.28
+      ],
+      "rot": 5.834,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-11",
+      "kind": "road",
+      "at": [
+        -26,
+        0,
+        0
+      ],
+      "rot": 6.283,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-12",
+      "kind": "road",
+      "at": [
+        -23.43,
+        0,
+        11.28
+      ],
+      "rot": 6.732,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-13",
+      "kind": "road",
+      "at": [
+        -16.21,
+        0,
+        20.33
+      ],
+      "rot": 7.181,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "road-14",
+      "kind": "road",
+      "at": [
+        -5.79,
+        0,
+        25.35
+      ],
+      "rot": 7.63,
+      "props": {
+        "length": 12.2,
+        "width": 4.2
+      }
+    },
+    {
+      "id": "spoke-1",
+      "kind": "road",
+      "at": [
+        9.9,
+        0,
+        9.9
+      ],
+      "rot": 0.785,
+      "props": {
+        "length": 22,
+        "width": 2.8
+      }
+    },
+    {
+      "id": "spoke-2",
+      "kind": "road",
+      "at": [
+        9.9,
+        0,
+        -9.9
+      ],
+      "rot": 2.356,
+      "props": {
+        "length": 22,
+        "width": 2.8
+      }
+    },
+    {
+      "id": "spoke-3",
+      "kind": "road",
+      "at": [
+        -9.9,
+        0,
+        -9.9
+      ],
+      "rot": 3.927,
+      "props": {
+        "length": 22,
+        "width": 2.8
+      }
+    },
+    {
+      "id": "spoke-4",
+      "kind": "road",
+      "at": [
+        -9.9,
+        0,
+        9.9
+      ],
+      "rot": 5.498,
+      "props": {
+        "length": 22,
+        "width": 2.8
+      }
+    },
+    {
+      "id": "way-0",
+      "kind": "waypoint",
+      "at": [
+        0,
+        0,
+        26.7
+      ],
+      "props": {
+        "order": 0
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-1",
+      "kind": "waypoint",
+      "at": [
+        13.1,
+        0,
+        22.69
+      ],
+      "props": {
+        "order": 1
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-2",
+      "kind": "waypoint",
+      "at": [
+        23.35,
+        0,
+        13.48
+      ],
+      "props": {
+        "order": 2
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-3",
+      "kind": "waypoint",
+      "at": [
+        26.97,
+        0,
+        0
+      ],
+      "props": {
+        "order": 3
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-4",
+      "kind": "waypoint",
+      "at": [
+        22.6,
+        0,
+        -13.05
+      ],
+      "props": {
+        "order": 4
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-5",
+      "kind": "waypoint",
+      "at": [
+        13.33,
+        0,
+        -23.09
+      ],
+      "props": {
+        "order": 5
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-6",
+      "kind": "waypoint",
+      "at": [
+        0,
+        0,
+        -24.97
+      ],
+      "props": {
+        "order": 6
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-7",
+      "kind": "waypoint",
+      "at": [
+        -13.02,
+        0,
+        -22.55
+      ],
+      "props": {
+        "order": 7
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-8",
+      "kind": "waypoint",
+      "at": [
+        -22.21,
+        0,
+        -12.82
+      ],
+      "props": {
+        "order": 8
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-9",
+      "kind": "waypoint",
+      "at": [
+        -26.47,
+        0,
+        0
+      ],
+      "props": {
+        "order": 9
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-10",
+      "kind": "waypoint",
+      "at": [
+        -22.61,
+        0,
+        13.05
+      ],
+      "props": {
+        "order": 10
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "way-11",
+      "kind": "waypoint",
+      "at": [
+        -13.27,
+        0,
+        22.98
+      ],
+      "props": {
+        "order": 11
+      },
+      "tags": [
+        "waypoint"
+      ]
+    },
+    {
+      "id": "tree-1",
+      "kind": "tree",
+      "at": [
+        -7.84,
+        0,
+        53.7
+      ],
+      "rot": 5.172,
+      "props": {
+        "species": "birch",
+        "height": 8.2
+      }
+    },
+    {
+      "id": "tree-2",
+      "kind": "tree",
+      "at": [
+        -54,
+        0,
+        -3.89
+      ],
+      "rot": 1.963,
+      "props": {
+        "species": "pine",
+        "height": 5
+      }
+    },
+    {
+      "id": "tree-3",
+      "kind": "tree",
+      "at": [
+        9.46,
+        0,
+        62.04
+      ],
+      "rot": 5.236,
+      "props": {
+        "species": "cedar",
+        "height": 5.1
+      }
+    },
+    {
+      "id": "tree-4",
+      "kind": "tree",
+      "at": [
+        -37.43,
+        0,
+        -40.42
+      ],
+      "rot": 4.504,
+      "props": {
+        "species": "maple",
+        "height": 6.4
+      }
+    },
+    {
+      "id": "tree-5",
+      "kind": "tree",
+      "at": [
+        -4.85,
+        0,
+        56.09
+      ],
+      "rot": 5.057,
+      "props": {
+        "species": "cedar",
+        "height": 9.2
+      }
+    },
+    {
+      "id": "tree-6",
+      "kind": "tree",
+      "at": [
+        48.97,
+        0,
+        41
+      ],
+      "rot": 3.185,
+      "props": {
+        "species": "birch",
+        "height": 5.8
+      }
+    },
+    {
+      "id": "tree-7",
+      "kind": "tree",
+      "at": [
+        28.31,
+        0,
+        -37.06
+      ],
+      "rot": 5.112,
+      "props": {
+        "species": "maple",
+        "height": 8.7
+      }
+    },
+    {
+      "id": "tree-8",
+      "kind": "tree",
+      "at": [
+        -53.52,
+        0,
+        -34.7
+      ],
+      "rot": 3.828,
+      "props": {
+        "species": "cedar",
+        "height": 9.8
+      }
+    },
+    {
+      "id": "tree-9",
+      "kind": "tree",
+      "at": [
+        3.18,
+        0,
+        -46.95
+      ],
+      "rot": 3.669,
+      "props": {
+        "species": "cedar",
+        "height": 9.3
+      }
+    },
+    {
+      "id": "tree-10",
+      "kind": "tree",
+      "at": [
+        50.39,
+        0,
+        19.98
+      ],
+      "rot": 3.002,
+      "props": {
+        "species": "birch",
+        "height": 5.9
+      }
+    },
+    {
+      "id": "tree-11",
+      "kind": "tree",
+      "at": [
+        51.66,
+        0,
+        -0.21
+      ],
+      "rot": 3,
+      "props": {
+        "species": "oak",
+        "height": 5
+      }
+    },
+    {
+      "id": "tree-12",
+      "kind": "tree",
+      "at": [
+        37.67,
+        0,
+        19.75
+      ],
+      "rot": 0.674,
+      "props": {
+        "species": "maple",
+        "height": 9.9
+      }
+    },
+    {
+      "id": "tree-13",
+      "kind": "tree",
+      "at": [
+        16.91,
+        0,
+        42.61
+      ],
+      "rot": 2.545,
+      "props": {
+        "species": "birch",
+        "height": 8.7
+      }
+    },
+    {
+      "id": "tree-14",
+      "kind": "tree",
+      "at": [
+        36.76,
+        0,
+        -33.77
+      ],
+      "rot": 4.973,
+      "props": {
+        "species": "cedar",
+        "height": 9
+      }
+    },
+    {
+      "id": "tree-15",
+      "kind": "tree",
+      "at": [
+        -11.16,
+        0,
+        -58.51
+      ],
+      "rot": 2.59,
+      "props": {
+        "species": "birch",
+        "height": 6.5
+      }
+    },
+    {
+      "id": "tree-16",
+      "kind": "tree",
+      "at": [
+        -10.07,
+        0,
+        -58.22
+      ],
+      "rot": 0.503,
+      "props": {
+        "species": "pine",
+        "height": 9.1
+      }
+    },
+    {
+      "id": "tree-17",
+      "kind": "tree",
+      "at": [
+        -52.2,
+        0,
+        27.59
+      ],
+      "rot": 2.701,
+      "props": {
+        "species": "pine",
+        "height": 9.6
+      }
+    },
+    {
+      "id": "tree-18",
+      "kind": "tree",
+      "at": [
+        49.95,
+        0,
+        -0.42
+      ],
+      "rot": 2.997,
+      "props": {
+        "species": "maple",
+        "height": 7
+      }
+    },
+    {
+      "id": "tree-19",
+      "kind": "tree",
+      "at": [
+        -8.61,
+        0,
+        53.44
+      ],
+      "rot": 2.741,
+      "props": {
+        "species": "pine",
+        "height": 7.7
+      }
+    },
+    {
+      "id": "tree-20",
+      "kind": "tree",
+      "at": [
+        59.2,
+        0,
+        -16.5
+      ],
+      "rot": 3.596,
+      "props": {
+        "species": "maple",
+        "height": 9.2
+      }
+    },
+    {
+      "id": "tree-21",
+      "kind": "tree",
+      "at": [
+        1.41,
+        0,
+        -51.59
+      ],
+      "rot": 4.384,
+      "props": {
+        "species": "maple",
+        "height": 7.8
+      }
+    },
+    {
+      "id": "tree-22",
+      "kind": "tree",
+      "at": [
+        -38.07,
+        0,
+        -25.05
+      ],
+      "rot": 4.356,
+      "props": {
+        "species": "pine",
+        "height": 8
+      }
+    },
+    {
+      "id": "tree-23",
+      "kind": "tree",
+      "at": [
+        -39.66,
+        0,
+        31.17
+      ],
+      "rot": 1.856,
+      "props": {
+        "species": "oak",
+        "height": 8.4
+      }
+    },
+    {
+      "id": "tree-24",
+      "kind": "tree",
+      "at": [
+        -62.82,
+        0,
+        -7.08
+      ],
+      "rot": 1.994,
+      "props": {
+        "species": "pine",
+        "height": 5.3
+      }
+    },
+    {
+      "id": "tree-25",
+      "kind": "tree",
+      "at": [
+        -61.3,
+        0,
+        -11.55
+      ],
+      "rot": 4.927,
+      "props": {
+        "species": "maple",
+        "height": 9.8
+      }
+    },
+    {
+      "id": "tree-26",
+      "kind": "tree",
+      "at": [
+        62.84,
+        0,
+        9.34
+      ],
+      "rot": 1.776,
+      "props": {
+        "species": "birch",
+        "height": 7
+      }
+    },
+    {
+      "id": "tree-27",
+      "kind": "tree",
+      "at": [
+        -57.19,
+        0,
+        -13.33
+      ],
+      "rot": 3.919,
+      "props": {
+        "species": "cedar",
+        "height": 8.1
+      }
+    },
+    {
+      "id": "tree-28",
+      "kind": "tree",
+      "at": [
+        -26.77,
+        0,
+        -39.82
+      ],
+      "rot": 5.227,
+      "props": {
+        "species": "birch",
+        "height": 5.7
+      }
+    },
+    {
+      "id": "tree-29",
+      "kind": "tree",
+      "at": [
+        -51.43,
+        0,
+        -8.96
+      ],
+      "rot": 3.516,
+      "props": {
+        "species": "birch",
+        "height": 9.4
+      }
+    },
+    {
+      "id": "tree-30",
+      "kind": "tree",
+      "at": [
+        -13.2,
+        0,
+        43.41
+      ],
+      "rot": 0.639,
+      "props": {
+        "species": "pine",
+        "height": 7.6
+      }
+    },
+    {
+      "id": "tree-31",
+      "kind": "tree",
+      "at": [
+        38.7,
+        0,
+        -48.47
+      ],
+      "rot": 5.386,
+      "props": {
+        "species": "birch",
+        "height": 9.5
+      }
+    },
+    {
+      "id": "tree-32",
+      "kind": "tree",
+      "at": [
+        51.99,
+        0,
+        -9.49
+      ],
+      "rot": 5.818,
+      "props": {
+        "species": "cedar",
+        "height": 9
+      }
+    },
+    {
+      "id": "tree-33",
+      "kind": "tree",
+      "at": [
+        53.66,
+        0,
+        -31.07
+      ],
+      "rot": 6.092,
+      "props": {
+        "species": "maple",
+        "height": 5
+      }
+    },
+    {
+      "id": "tree-34",
+      "kind": "tree",
+      "at": [
+        50.86,
+        0,
+        29.02
+      ],
+      "rot": 0.657,
+      "props": {
+        "species": "oak",
+        "height": 9.6
+      }
+    },
+    {
+      "id": "fence-1",
+      "kind": "fence",
+      "at": [
+        12.12,
+        0,
+        39.17
+      ],
+      "rot": -0.3,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-2",
+      "kind": "fence",
+      "at": [
+        36.26,
+        0,
+        19.13
+      ],
+      "rot": -1.085,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-3",
+      "kind": "fence",
+      "at": [
+        39.17,
+        0,
+        -12.12
+      ],
+      "rot": -1.871,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-4",
+      "kind": "fence",
+      "at": [
+        19.13,
+        0,
+        -36.26
+      ],
+      "rot": -2.656,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-5",
+      "kind": "fence",
+      "at": [
+        -12.12,
+        0,
+        -39.17
+      ],
+      "rot": -3.442,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-6",
+      "kind": "fence",
+      "at": [
+        -36.26,
+        0,
+        -19.13
+      ],
+      "rot": -4.227,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-7",
+      "kind": "fence",
+      "at": [
+        -39.17,
+        0,
+        12.12
+      ],
+      "rot": -5.012,
+      "props": {
+        "length": 6
+      }
+    },
+    {
+      "id": "fence-8",
+      "kind": "fence",
+      "at": [
+        -19.13,
+        0,
+        36.26
+      ],
+      "rot": -5.798,
+      "props": {
+        "length": 6
+      }
+    }
+  ]
+}

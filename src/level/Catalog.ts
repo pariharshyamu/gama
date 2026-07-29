@@ -164,9 +164,16 @@ export class Catalog {
     };
   }
 
-  /** Everything this catalog can place, for a palette. */
+  /**
+   * Everything this catalog can place, for a palette.
+   *
+   * In DEFINITION order, not alphabetical: a palette should read the way
+   * somebody wrote the catalog — buildings, then nature, then dressing —
+   * rather than scattering the groups by whichever kind happens to start
+   * with an early letter.
+   */
   list(): KindInfo[] {
-    return this.kinds.map((kind) => this.info(kind)!).filter(Boolean);
+    return [...this.factories.keys(), ...this.prefabs.keys()].map((kind) => this.info(kind)!);
   }
 
   /**

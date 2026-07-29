@@ -94,7 +94,8 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Getting started](docs/getting-started.md)
 - [The shell & templates](docs/shell.md) — the part of a game that is not the game
 - [Levels: prefabs & format](docs/levels.md) — a scene as data, and the round trip back
-- [The editor](docs/editor.md) — `Editor`: selection, snapped edits, add/duplicate/delete and an undo stack that merges a drag into one step
+- [The editor](docs/editor.md) — `Editor` + `gama3d/editor`: selection, snapped edits, undo that merges a drag into one step, and `mountEditor` for a whole tool in one call
+- [Using all three libraries](docs/workflow.md) — the catalog seam: how GAMA, SCENA and ANIMA compose into one game without importing each other
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
 - [Core](docs/core.md) — loop, fixed timestep, entities, events, pooling

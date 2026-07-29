@@ -5,6 +5,20 @@ import { createHud } from './hud';
 import { startRun, type Run } from './run';
 import { createSound } from './sound';
 import { buildVillage, type Village } from './village';
+import { villageFromLevel } from './level-village';
+import havenbrook from './levels/havenbrook.json';
+import type { LevelData } from 'gama3d';
+
+/**
+ * A level file, or the generator.
+ *
+ * `?level=havenbrook` loads the authored map that `editor.html` writes;
+ * anything else keeps the seeded village. The two return the same
+ * `Village`, so nothing below this line knows which one it got — which is
+ * the only honest way to have both.
+ */
+const LEVELS: Record<string, LevelData> = { havenbrook: havenbrook as LevelData };
+const authored = LEVELS[new URLSearchParams(location.search).get('level') ?? ''];
 import { createTownsfolk, type Townsfolk } from './townsfolk';
 
 /**
@@ -98,7 +112,9 @@ function buildRound(): void {
   const scene = game.world.scene;
   const { quality, length } = shell.settings;
 
-  village = buildVillage(scene, seed, quality);
+  village = authored
+    ? villageFromLevel(scene, authored, quality)
+    : buildVillage(scene, seed, quality);
   courier = createCourier(scene, game.input, seed);
   courier.reset(new Vector3(village.depot.x - 3, 0, village.depot.z + 3));
 

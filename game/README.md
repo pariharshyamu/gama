@@ -67,3 +67,27 @@ The whole game — three.js, the parts of all three libraries it touches, the
 village generator, every sound — is about **200 KB gzipped**. Tree-shaking
 does the work: importing one prop from SCENA costs 19 KB, not the 199 KB the
 full namespace would.
+
+## The level editor
+
+`editor.html` is a level editor for this game — palette, inspector, grid
+snapping, undo — built by pointing GAMA's `mountEditor` at `src/catalog.ts`:
+
+```bash
+npm run dev          # then open /editor.html
+```
+
+`src/catalog.ts` is the only file in this project that imports all three
+libraries. The editor draws its palette and its inspector from it, so it
+can place SCENA houses and stalls and ANIMA villagers without GAMA ever
+learning what any of those are. Saving downloads a level file; drop it in
+`src/levels/` and the game loads it with `?level=havenbrook`.
+
+The generated village is still there, and still the default. Both paths
+return the same `Village`, so nothing in `main.ts` knows which it got —
+`src/level-village.ts` reads the file, finding gameplay by tag (`address`,
+`depot`, `waypoint`) and everything else from the shape of what each
+factory returned (`obstacleRadius` → a blocker, `claim` → a light,
+`update` → something that animates).
+
+`node tools/verify.mjs` runs sixteen headless checks over both.

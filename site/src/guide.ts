@@ -18,6 +18,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'flight', title: 'Flight: the arcade model', playground: 'aviator' },
   { id: 'levels', title: 'Levels: prefabs & format', playground: 'level' },
   { id: 'editor', title: 'The editor' },
+  { id: 'workflow', title: 'Using all three libraries' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },
