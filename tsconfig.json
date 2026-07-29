@@ -11,7 +11,15 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noUnusedLocals": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    // The docs site imports the library by NAME, the way a consumer does.
+    // Point that at the source so the site is typechecked against what is
+    // in the tree rather than whatever was last built into dist.
+    "paths": {
+      "gama3d": ["src/index.ts"],
+      "gama3d/templates": ["src/templates.ts"]
+    }
   },
   "include": ["src", "tests", "examples", "site/src"]
 }

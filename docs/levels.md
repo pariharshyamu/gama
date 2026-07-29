@@ -115,8 +115,7 @@ bug is the thing that *uses* the feature, not the thing that tests it.
 
 ## What this is not
 
-Not an editor. It is the file format and the loader an editor would need —
+Not an editor — this is the file format and the loader an editor needs:
 `byId`, stable ids, an exact round trip, and unknown data that survives a
-save. The playground example is about eighty lines of picking and arrow
-keys on top of it, and that is roughly the honest distance from here to a
-real one.
+save. The editor itself is the next layer up, and it is real: see
+[the editor](./editor.md), or [open it](../editor.html).

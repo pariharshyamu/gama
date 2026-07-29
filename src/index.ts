@@ -339,6 +339,9 @@ export {
   type Factory,
   type DefineOptions,
   type Placed,
+  type PropField,
+  type KindInfo,
+  type PrefabOptions,
 } from './level/Catalog';
 export { Level, type LevelOptions, type LevelInstance } from './level/Level';
 export {
@@ -348,6 +351,9 @@ export {
   type CreateContext,
   type Vec3Tuple,
 } from './level/types';
+
+// The editor: selection, edits and undo over a live level
+export { Editor, type EditorOptions, type ChangeKind } from './editor/Editor';
 
 // The shell: the part of a game that is not the game
 export {

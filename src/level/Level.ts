@@ -29,13 +29,38 @@ export interface LevelOptions {
 }
 
 export interface LevelInstance {
+  /** Every live entity, roots and descendants, in file order. */
   objects: Placed[];
+  /** The level's own entity list — what a file actually contains. */
+  specs: EntitySpec[];
   byId(id: string): Placed | undefined;
   byTag(tag: string): Placed[];
+  /**
+   * Place a new entity in the level, at `index` or at the end.
+   *
+   * The index matters more than it looks: undoing a delete has to put the
+   * entity back where it was, or every undo shuffles the file and turns a
+   * one-line diff into a whole-file one.
+   *
+   * Returns null for a kind the catalog does not know — the spec is still
+   * added, because an editor that silently discards what it cannot draw is
+   * worse than one that shows a gap.
+   */
+  add(spec: EntitySpec, index?: number): Placed | null;
+  /** Take an entity out of the scene AND the level. */
+  remove(id: string): EntitySpec | null;
+  /** Where an entity sits in the file's entity list, or -1. */
+  indexOf(id: string): number;
   /** Read the LIVE transforms back out as data. */
   serialize(): LevelData;
   /** Detach everything this instance added. */
   dispose(): void;
+}
+
+/** One entry in file order: its spec, and the thing built from it (or not). */
+interface Slot {
+  spec: EntitySpec;
+  placed: Placed | null;
 }
 
 /** Files live in git; `0.30000000000000004` in a diff helps nobody. */
@@ -120,10 +145,15 @@ export class Level {
    * first time it loads it without a plugin registered.
    */
   instantiate(catalog: Catalog, parent: Object3D): LevelInstance {
-    const roots: Placed[] = [];
-    const flat: Placed[] = [];
-    const unknown: Array<{ index: number; spec: EntitySpec }> = [];
     const seed = this.seed;
+    const self = this;
+    // ORDER IS THE FILE'S ORDER. Keeping one array of slots — spec plus
+    // whatever was built from it, or null — is what makes add, remove and
+    // "an unknown kind stays put" all fall out for free. The first version
+    // kept two parallel lists and a cursor, which was correct only as long
+    // as nothing was ever inserted.
+    const slots: Slot[] = [];
+    let objects: Placed[] = [];
 
     const place = (spec: EntitySpec, into: Object3D, path: string, index: number): Placed | null => {
       const full = catalog.expand(spec);
@@ -150,47 +180,84 @@ export class Level {
         const made = place(child, built.object, `${id}/`, i);
         if (made) placed.children.push(made);
       });
-      flat.push(placed);
       return placed;
     };
 
-    this.entities.forEach((spec, index) => {
-      const placed = place(spec, parent, '', index);
-      if (placed) roots.push(placed);
-      else unknown.push({ index, spec });
-    });
+    const flatten = (): void => {
+      objects = [];
+      const walk = (placed: Placed): void => {
+        objects.push(placed);
+        for (const child of placed.children) walk(child);
+      };
+      for (const slot of slots) if (slot.placed) walk(slot.placed);
+    };
 
-    const self = this;
-    return {
-      objects: flat,
-      byId: (id) => flat.find((p) => p.id === id),
-      byTag: (tag) => flat.filter((p) => p.tags.includes(tag)),
+    this.entities.forEach((spec, index) => {
+      slots.push({ spec, placed: place(spec, parent, '', index) });
+    });
+    flatten();
+
+    const uniqueId = (wanted: string): string => {
+      let id = wanted;
+      while (slots.some((s) => s.spec.id === id)) id = `${id}_`;
+      return id;
+    };
+
+    const instance: LevelInstance = {
+      get objects() {
+        return objects;
+      },
+      get specs() {
+        return self.entities;
+      },
+      byId: (id) => objects.find((p) => p.id === id),
+      byTag: (tag) => objects.filter((p) => p.tags.includes(tag)),
+      indexOf: (id) => slots.findIndex((s) => s.spec.id === id),
+
+      add(spec: EntitySpec, index?: number): Placed | null {
+        const withId: EntitySpec = {
+          ...spec,
+          id: uniqueId(spec.id ?? `${spec.kind}-${slots.length}`),
+        };
+        const at = index === undefined ? slots.length : Math.max(0, Math.min(index, slots.length));
+        const placed = place(withId, parent, '', at);
+        slots.splice(at, 0, { spec: withId, placed });
+        self.entities.splice(at, 0, withId);
+        flatten();
+        return placed;
+      },
+
+      remove(id: string): EntitySpec | null {
+        const index = slots.findIndex((s) => s.placed?.id === id || s.spec.id === id);
+        if (index < 0) return null;
+        const [slot] = slots.splice(index, 1);
+        slot.placed?.object.removeFromParent();
+        const specIndex = self.entities.indexOf(slot.spec);
+        if (specIndex >= 0) self.entities.splice(specIndex, 1);
+        flatten();
+        return slot.spec;
+      },
 
       serialize(): LevelData {
-        const out: EntitySpec[] = [];
-        let cursor = 0;
-        for (let i = 0; i < self.entities.length; i++) {
-          const missing = unknown.find((u) => u.index === i);
-          // Verbatim: an entity nobody could build is still somebody's data.
-          if (missing) out.push(missing.spec);
-          else out.push(readBack(roots[cursor++], self.entities[i]));
-        }
         return clean({
           format: 'gama.level',
           version: LEVEL_VERSION,
           name: self.name,
           seed: self.seed,
           meta: self.meta,
-          entities: out,
+          // Verbatim when nobody could build it: an entity this build does
+          // not understand is still somebody's data.
+          entities: slots.map((s) => (s.placed ? readBack(s.placed, s.spec) : s.spec)),
         });
       },
 
       dispose() {
-        for (const placed of roots) placed.object.removeFromParent();
-        flat.length = 0;
-        roots.length = 0;
+        for (const slot of slots) slot.placed?.object.removeFromParent();
+        slots.length = 0;
+        objects = [];
       },
     };
+    return instance;
   }
 }
 

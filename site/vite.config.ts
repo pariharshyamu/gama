@@ -36,6 +36,17 @@ function stampVendorImports(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [stampVendorImports()],
+  resolve: {
+    // The editor page imports the library by NAME, exactly the way a user's
+    // app does — pointed at the source so the page is always built against
+    // the tree rather than whatever happens to be in dist.
+    alias: {
+      gama3d: resolve(here, '../src/index.ts'),
+    },
+    // One copy of three, always. Two of them and `instanceof Vector3` starts
+    // returning false across the seam.
+    dedupe: ['three'],
+  },
   build: {
     rollupOptions: {
       input: {
@@ -43,6 +54,7 @@ export default defineConfig({
         playground: resolve(here, 'playground.html'),
         guide: resolve(here, 'guide.html'),
         runner: resolve(here, 'runner.html'),
+        editor: resolve(here, 'editor.html'),
       },
     },
   },

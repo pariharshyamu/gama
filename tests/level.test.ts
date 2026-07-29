@@ -244,6 +244,34 @@ describe('Level', () => {
     );
   });
 
+  it('describes its kinds, so an editor can build a palette it knows nothing about', () => {
+    // Without this an editor has to hard-code the game's content, which is
+    // exactly the coupling the catalog exists to avoid.
+    const c = new Catalog()
+      .define('box', () => new Mesh(), {
+        label: 'Crate',
+        group: 'Props',
+        defaults: { color: 0xb98b46 },
+        fields: [{ key: 'color', type: 'color' }],
+      })
+      .define('lamp', () => new Object3D());
+    c.prefab('lit-corner', { kind: 'box', props: { height: 2.4 } }, { label: 'Lit corner' });
+
+    expect(c.info('box')).toMatchObject({ label: 'Crate', group: 'Props', prefab: false });
+    expect(c.info('lamp')!.label).toBe('lamp'); // a kind with no metadata still lists
+    expect(c.info('nothing')).toBeUndefined();
+
+    // A recipe inherits the fields of what it is a recipe FOR — those are
+    // the props it actually reaches — and its own props become defaults.
+    const recipe = c.info('lit-corner')!;
+    expect(recipe.prefab).toBe(true);
+    expect(recipe.group).toBe('Props');
+    expect(recipe.fields).toEqual([{ key: 'color', type: 'color' }]);
+    expect(recipe.defaults).toEqual({ color: 0xb98b46, height: 2.4 });
+
+    expect(c.list().map((k) => k.kind)).toEqual(['box', 'lamp', 'lit-corner']);
+  });
+
   it('dispose takes the level back out of the scene', () => {
     const root = new Group();
     const { c } = catalog();

@@ -41,9 +41,53 @@ export type Factory = (
   context: CreateContext
 ) => Object3D | { object: Object3D } | null | undefined;
 
+/**
+ * One tunable prop, described well enough for an editor to draw a control
+ * for it. Optional — a catalog works without any of this — but supplying it
+ * is what turns "a list of names" into a palette and an inspector, without
+ * the editor having to know a single thing about the game.
+ */
+export interface PropField {
+  key: string;
+  type: 'number' | 'color' | 'text' | 'boolean' | 'select';
+  label?: string;
+  /** Number fields. */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Select fields. */
+  options?: string[];
+  /** Shown when the placement does not set the prop. */
+  default?: unknown;
+}
+
 export interface DefineOptions {
   /** Merged under a placement's own props. */
   defaults?: Record<string, unknown>;
+  /** Human name for a palette. Defaults to the kind. */
+  label?: string;
+  /** Palette section — "Structures", "Nature", "Props". */
+  group?: string;
+  /** What an inspector may edit. */
+  fields?: PropField[];
+}
+
+export interface PrefabOptions {
+  label?: string;
+  group?: string;
+  /** Overrides the base kind's fields, when a recipe exposes different ones. */
+  fields?: PropField[];
+}
+
+/** Everything a catalog knows about one kind, for building a UI from. */
+export interface KindInfo {
+  kind: string;
+  label: string;
+  group?: string;
+  fields: PropField[];
+  defaults: Record<string, unknown>;
+  /** True when this name is a recipe rather than a factory. */
+  prefab: boolean;
 }
 
 /** A live entity, and the spec it came from. */
@@ -58,12 +102,12 @@ export interface Placed {
 }
 
 export class Catalog {
-  private readonly factories = new Map<string, { factory: Factory; defaults?: Record<string, unknown> }>();
-  private readonly prefabs = new Map<string, EntitySpec>();
+  private readonly factories = new Map<string, { factory: Factory; options: DefineOptions }>();
+  private readonly prefabs = new Map<string, { spec: EntitySpec; options: PrefabOptions }>();
 
   /** Teach the catalog how to build one kind of thing. */
   define(kind: string, factory: Factory, options: DefineOptions = {}): this {
-    this.factories.set(kind, { factory, defaults: options.defaults });
+    this.factories.set(kind, { factory, options });
     return this;
   }
 
@@ -74,8 +118,8 @@ export class Catalog {
   }
 
   /** Name a recipe: a spec that placements expand and override. */
-  prefab(name: string, spec: EntitySpec): this {
-    this.prefabs.set(name, spec);
+  prefab(name: string, spec: EntitySpec, options: PrefabOptions = {}): this {
+    this.prefabs.set(name, { spec, options });
     return this;
   }
 
@@ -88,6 +132,44 @@ export class Catalog {
   }
 
   /**
+   * What this catalog knows about a kind — enough to draw a palette button
+   * and an inspector row without the editor knowing what a "house" is.
+   *
+   * A prefab inherits the fields of whatever it is a recipe FOR, because
+   * that is what its props actually reach; its own props become the
+   * defaults shown when a placement does not override them.
+   */
+  info(kind: string): KindInfo | undefined {
+    const factory = this.factories.get(kind);
+    if (factory) {
+      return {
+        kind,
+        label: factory.options.label ?? kind,
+        group: factory.options.group,
+        fields: factory.options.fields ?? [],
+        defaults: factory.options.defaults ?? {},
+        prefab: false,
+      };
+    }
+    const recipe = this.prefabs.get(kind);
+    if (!recipe) return undefined;
+    const base = this.info(this.expand({ kind }).kind);
+    return {
+      kind,
+      label: recipe.options.label ?? kind,
+      group: recipe.options.group ?? base?.group,
+      fields: recipe.options.fields ?? base?.fields ?? [],
+      defaults: { ...base?.defaults, ...this.expand({ kind }).props },
+      prefab: true,
+    };
+  }
+
+  /** Everything this catalog can place, for a palette. */
+  list(): KindInfo[] {
+    return this.kinds.map((kind) => this.info(kind)!).filter(Boolean);
+  }
+
+  /**
    * Expand a placement through any prefab it names.
    *
    * The placement wins: its props are merged OVER the recipe's, and its
@@ -96,8 +178,9 @@ export class Catalog {
    * placement can add to a recipe without redefining it.
    */
   expand(spec: EntitySpec): EntitySpec {
-    const recipe = this.prefabs.get(spec.kind);
-    if (!recipe) return spec;
+    const entry = this.prefabs.get(spec.kind);
+    if (!entry) return spec;
+    const recipe = entry.spec;
     // Recipes may name other recipes; resolve to the bottom.
     const base = this.expand({ ...recipe, id: spec.id ?? recipe.id });
     return {
@@ -116,7 +199,7 @@ export class Catalog {
   build(spec: EntitySpec, context: CreateContext): { object: Object3D; source: unknown } | null {
     const entry = this.factories.get(spec.kind);
     if (!entry) return null;
-    const props = { ...entry.defaults, ...spec.props };
+    const props = { ...entry.options.defaults, ...spec.props };
     const made = entry.factory(props, context);
     if (!made) return null;
     const object = made instanceof Object3D ? made : (made as { object: Object3D }).object;

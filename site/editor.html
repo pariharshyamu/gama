@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GAMA — level editor</title>
+    <meta
+      name="description"
+      content="A working level editor built on GAMA's Catalog, Level and Editor: place, drag, tune and save a level file — the whole thing is about three hundred lines on top of the library."
+    />
+    <link rel="stylesheet" href="./src/editor.css" />
+  </head>
+  <body>
+    <div class="ed">
+      <header class="bar">
+        <a class="logo" href="./index.html">GA<span>MA</span></a>
+        <span class="title">Level editor</span>
+        <div class="tools">
+          <button data-act="new">New</button>
+          <button data-act="open">Open…</button>
+          <button data-act="save">Save</button>
+          <button data-act="copy">Copy</button>
+          <span class="sep"></span>
+          <button data-act="undo" id="undo">Undo</button>
+          <button data-act="redo" id="redo">Redo</button>
+          <span class="sep"></span>
+          <label
+            >Grid
+            <select id="snap">
+              <option value="0">free</option>
+              <option value="0.25">0.25</option>
+              <option value="0.5" selected>0.5</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+            </select>
+          </label>
+          <label
+            >Angle
+            <select id="angle">
+              <option value="0">free</option>
+              <option value="15" selected>15°</option>
+              <option value="45">45°</option>
+              <option value="90">90°</option>
+            </select>
+          </label>
+          <span class="spacer"></span>
+          <button data-act="reset">Sample level</button>
+          <button data-act="help">Keys</button>
+        </div>
+      </header>
+
+      <main>
+        <aside class="palette" id="palette"></aside>
+        <section class="stage">
+          <div id="viewport"></div>
+          <div class="hint" id="hint"></div>
+        </section>
+        <aside class="inspector" id="inspector"></aside>
+      </main>
+
+      <footer class="status" id="status"></footer>
+    </div>
+
+    <input type="file" id="file" accept="application/json,.json" hidden />
+
+    <dialog id="help">
+      <h3 style="margin: 0">Keys</h3>
+      <dl>
+        <dt><kbd>click</kbd></dt>
+        <dd>select · <kbd>shift</kbd> adds to the selection</dd>
+        <dt><kbd>drag</kbd></dt>
+        <dd>move the selection along the ground</dd>
+        <dt><kbd>right-drag</kbd> / <kbd>wheel</kbd></dt>
+        <dd>orbit · zoom</dd>
+        <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
+        <dd>pan the camera</dd>
+        <dt><kbd>arrows</kbd></dt>
+        <dd>nudge · <kbd>shift</kbd> for a fine step</dd>
+        <dt><kbd>Q</kbd> <kbd>E</kbd></dt>
+        <dd>rotate</dd>
+        <dt><kbd>[</kbd> <kbd>]</kbd></dt>
+        <dd>scale</dd>
+        <dt><kbd>G</kbd></dt>
+        <dd>drop to the ground</dd>
+        <dt><kbd>Tab</kbd></dt>
+        <dd>cycle through the level</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt>
+        <dd>duplicate</dd>
+        <dt><kbd>Del</kbd></dt>
+        <dd>delete</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></dt>
+        <dd>undo · redo</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt>
+        <dd>save the level file</dd>
+        <dt><kbd>Esc</kbd></dt>
+        <dd>put the palette down / deselect</dd>
+      </dl>
+      <p style="color: var(--dim)">
+        Everything you place is stored as a placement — a kind, a transform and a few
+        props — never as geometry. Your work is kept in this browser until you save it.
+      </p>
+      <form method="dialog"><button style="margin-top: 6px">Close</button></form>
+    </dialog>
+
+    <script type="module" src="./src/editor-app.ts"></script>
+  </body>
+</html>
