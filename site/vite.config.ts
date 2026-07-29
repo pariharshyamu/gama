@@ -41,6 +41,7 @@ export default defineConfig({
     // app does — pointed at the source so the page is always built against
     // the tree rather than whatever happens to be in dist.
     alias: {
+      'gama3d/editor': resolve(here, '../src/editor.ts'),
       gama3d: resolve(here, '../src/index.ts'),
     },
     // One copy of three, always. Two of them and `instanceof Vector3` starts

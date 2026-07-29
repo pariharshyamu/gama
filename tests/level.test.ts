@@ -272,6 +272,56 @@ describe('Level', () => {
     expect(c.list().map((k) => k.kind)).toEqual(['box', 'lamp', 'lit-corner']);
   });
 
+  it('frees what an entity allocated when it leaves the level', () => {
+    // Found by pointing the editor at a real procedural generator: one
+    // house is six geometries and five materials, all freshly made, and
+    // `setProps` rebuilds the entity on every drag of a slider. Twenty
+    // drags was twenty houses of memory nobody could get back.
+    const freed: string[] = [];
+    const spy = () => {
+      const geometry = { dispose: () => freed.push('geometry') };
+      const material = {
+        map: { isTexture: true, dispose: () => freed.push('texture') },
+        dispose: () => freed.push('material'),
+      };
+      return Object.assign(new Mesh(), { geometry, material });
+    };
+    const c = new Catalog().define('spy', spy);
+    const live = level([{ id: 'a', kind: 'spy' }, { id: 'b', kind: 'spy' }]).instantiate(
+      c,
+      new Group()
+    );
+
+    live.remove('a');
+    expect(freed).toEqual(['geometry', 'texture', 'material']);
+    live.dispose();
+    expect(freed).toHaveLength(6); // and the rest of the level with it
+  });
+
+  it('leaves resources alone when the factory claims them', () => {
+    // A factory handing out shared or cached things says so by having its
+    // own dispose — and then nothing else is touched.
+    const seen: string[] = [];
+    const shared = { dispose: () => seen.push('geometry') };
+    const c = new Catalog().define('cached', () => ({
+      object: Object.assign(new Mesh(), { geometry: shared, material: shared }),
+      dispose: () => seen.push('the factory'),
+    }));
+    const live = level([{ kind: 'cached' }]).instantiate(c, new Group());
+    live.dispose();
+    expect(seen).toEqual(['the factory']);
+  });
+
+  it('can be told not to free anything at all', () => {
+    const freed: string[] = [];
+    const c = new Catalog().define('spy', () =>
+      Object.assign(new Mesh(), { geometry: { dispose: () => freed.push('g') } })
+    );
+    const live = level([{ kind: 'spy' }]).instantiate(c, new Group(), { release: false });
+    live.dispose();
+    expect(freed).toEqual([]);
+  });
+
   it('dispose takes the level back out of the scene', () => {
     const root = new Group();
     const { c } = catalog();

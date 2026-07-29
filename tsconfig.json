@@ -18,6 +18,7 @@
     // in the tree rather than whatever was last built into dist.
     "paths": {
       "gama3d": ["src/index.ts"],
+      "gama3d/editor": ["src/editor.ts"],
       "gama3d/templates": ["src/templates.ts"]
     }
   },

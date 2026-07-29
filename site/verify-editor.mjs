@@ -102,11 +102,11 @@ const shot = await page.screenshot({ path: join(OUT, 'editor.png'), timeout: 300
 check('screenshot has content', shot.length > 40000, `${(shot.length / 1024) | 0} kB png`);
 
 // ---- 3. place from the palette --------------------------------------------
-const box = await page.locator('#viewport canvas').boundingBox();
+const box = await page.locator('.ed-viewport canvas').boundingBox();
 const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
-await page.locator('.palette button[data-kind="barrel"]').click();
-const armed = await page.locator('.palette button[data-kind="barrel"]').getAttribute('aria-pressed');
+await page.locator('.ed-palette button[data-kind="barrel"]').click();
+const armed = await page.locator('.ed-palette button[data-kind="barrel"]').getAttribute('aria-pressed');
 check('palette arms a kind', armed === 'true');
 
 await page.mouse.click(centre.x + 90, centre.y + 60);
@@ -134,7 +134,7 @@ check('a whole drag is one undo step', dragged.historyLength === before + 1, `${
 check('the drag was a move', dragged.undo === 'Move', String(dragged.undo));
 
 // ---- 5. the keyboard -------------------------------------------------------
-await page.locator('#viewport canvas').click({ position: { x: 5, y: 5 } });
+await page.locator('.ed-viewport canvas').click({ position: { x: 5, y: 5 } });
 await page.keyboard.press('Tab');
 const cycled = await page.evaluate(() => window.editorDebug().selection);
 check('Tab selects something', cycled.length === 1, cycled.join(','));

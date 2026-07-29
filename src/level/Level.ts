@@ -53,8 +53,26 @@ export interface LevelInstance {
   indexOf(id: string): number;
   /** Read the LIVE transforms back out as data. */
   serialize(): LevelData;
-  /** Detach everything this instance added. */
+  /** Detach everything this instance added, and free what it allocated. */
   dispose(): void;
+}
+
+export interface InstantiateOptions {
+  /**
+   * Free GPU resources when an entity leaves the level. Default true.
+   *
+   * An editor rebuilds an entity on every prop change, so this is not an
+   * optimisation — a house from a procedural generator is a handful of
+   * fresh geometries and materials, and twenty drags of a slider is twenty
+   * houses' worth of memory nobody can get back.
+   *
+   * Ownership is decided by the factory: if what it returned has its own
+   * `dispose()`, that is called and nothing else is touched. Otherwise the
+   * object is traversed and its geometries, materials and their textures
+   * are freed. A factory that hands out SHARED or cached resources must
+   * supply a `dispose()` (even an empty one) or pass `release: false`.
+   */
+  release?: boolean;
 }
 
 /** One entry in file order: its spec, and the thing built from it (or not). */
@@ -144,9 +162,14 @@ export class Level {
    * alternative is a game that quietly deletes half of somebody's level the
    * first time it loads it without a plugin registered.
    */
-  instantiate(catalog: Catalog, parent: Object3D): LevelInstance {
+  instantiate(
+    catalog: Catalog,
+    parent: Object3D,
+    options: InstantiateOptions = {}
+  ): LevelInstance {
     const seed = this.seed;
     const self = this;
+    const freeing = options.release !== false;
     // ORDER IS THE FILE'S ORDER. Keeping one array of slots — spec plus
     // whatever was built from it, or null — is what makes add, remove and
     // "an unknown kind stays put" all fall out for free. The first version
@@ -232,6 +255,7 @@ export class Level {
         if (index < 0) return null;
         const [slot] = slots.splice(index, 1);
         slot.placed?.object.removeFromParent();
+        if (slot.placed && freeing) release(slot.placed);
         const specIndex = self.entities.indexOf(slot.spec);
         if (specIndex >= 0) self.entities.splice(specIndex, 1);
         flatten();
@@ -252,13 +276,64 @@ export class Level {
       },
 
       dispose() {
-        for (const slot of slots) slot.placed?.object.removeFromParent();
+        for (const slot of slots) {
+          slot.placed?.object.removeFromParent();
+          if (slot.placed && freeing) release(slot.placed);
+        }
         slots.length = 0;
         objects = [];
       },
     };
     return instance;
   }
+}
+
+/**
+ * Free what one entity allocated.
+ *
+ * Ownership is the factory's to claim. If what it returned has a
+ * `dispose()`, that is the whole answer and nothing else is touched —
+ * which is how a factory handing out shared or cached resources says
+ * "not yours to free". Otherwise the object is traversed, because the
+ * common case is a generator that allocated everything it returned, and
+ * an editor that rebuilds an entity per slider drag leaks it all.
+ */
+function release(placed: Placed): void {
+  for (const child of placed.children) release(child);
+
+  const source = placed.source as { dispose?: () => void } | null;
+  if (source && typeof source.dispose === 'function') {
+    source.dispose();
+    return;
+  }
+  placed.object.traverse((node) => {
+    const mesh = node as Object3D & {
+      geometry?: { dispose?: () => void };
+      material?: Disposable | Disposable[];
+    };
+    mesh.geometry?.dispose?.();
+    const material = mesh.material;
+    if (Array.isArray(material)) material.forEach(releaseMaterial);
+    else if (material) releaseMaterial(material);
+  });
+}
+
+interface Disposable {
+  dispose?: () => void;
+  uniforms?: Record<string, { value?: unknown }>;
+  [key: string]: unknown;
+}
+
+/** A material, and the textures it generated to go with it. */
+function releaseMaterial(material: Disposable): void {
+  const free = (value: unknown): void => {
+    const texture = value as { isTexture?: boolean; dispose?: () => void } | null;
+    if (texture?.isTexture) texture.dispose?.();
+  };
+  for (const value of Object.values(material)) free(value);
+  // Shader materials keep theirs one level further down.
+  for (const uniform of Object.values(material.uniforms ?? {})) free(uniform?.value);
+  material.dispose?.();
 }
 
 /** Give every entity a stable id, keeping any it already had. */
