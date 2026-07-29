@@ -2529,6 +2529,200 @@ window.dogfightDebug = () => ({
 
 game.start();`,
   },
+  {
+    id: 'level',
+    title: 'Levels: prefabs & the round trip',
+    group: 'Core',
+    code: `// A LEVEL, AND A LITTLE EDITOR. The scene on the left is built from the
+// JSON on the right — and the JSON on the right is re-read from the scene
+// every time you move something. That round trip is the whole feature:
+// an editor is only possible if save(load(x)) gives back x.
+// Click to select · arrows move · Q/E turn · +/− scale · Tab cycles.
+// Note entity "old-statue": no factory is registered for its kind, so it
+// cannot be built — and it is still in the file, untouched, after a save.
+import { BoxGeometry, Color, ConeGeometry, CylinderGeometry, Group, HemisphereLight,
+         Mesh, MeshStandardMaterial, PlaneGeometry, Raycaster, SphereGeometry,
+         Vector2 } from 'three';
+import { Catalog, Game, Level } from 'gama3d';
+
+const game = new Game();
+const scene = game.world.scene;
+game.camera.position.set(11, 10, 14);
+game.camera.lookAt(0, 0.5, 0);
+
+const paint = (color) => new MeshStandardMaterial({ color, roughness: 0.75 });
+scene.background = new Color(0x2c3a47); // no sky in this example; not a void either
+const ground = new Mesh(new PlaneGeometry(40, 40), paint(0x46533f));
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+scene.add(new HemisphereLight(0xbfd4e8, 0x33402f, 1.5));
+
+// ---- The catalog: the bridge from a NAME in a file to a thing in the
+// world. GAMA cannot import SCENA, so it has no idea what a "crate" is
+// until the game says so. Any factory works — these return raw meshes;
+// SCENA props and ANIMA rigs return { object } and drop in unchanged.
+const catalog = new Catalog()
+  .define('crate', (props) => {
+    const m = new Mesh(new BoxGeometry(1.2, 1.2, 1.2), paint(props.color ?? 0xb98b46));
+    m.position.y = 0.6;
+    return m;
+  })
+  .define('pillar', (props) => {
+    const h = props.height ?? 3;
+    const m = new Mesh(new CylinderGeometry(0.42, 0.5, h, 10), paint(0xcfc6b4));
+    m.position.y = h / 2;
+    return m;
+  })
+  .define('tree', (props, ctx) => {
+    const g = new Group();
+    const trunk = new Mesh(new CylinderGeometry(0.16, 0.22, 1.5, 7), paint(0x6b4b32));
+    trunk.position.y = 0.75;
+    const leaf = new Mesh(new ConeGeometry(1.1, 2.4, 8), paint(props.color ?? 0x3f7a45));
+    leaf.position.y = 2.3;
+    g.add(trunk, leaf);
+    g.name = 'tree-' + ctx.seed;
+    return g;
+  })
+  .define('lamp', () => {
+    const g = new Group();
+    const post = new Mesh(new CylinderGeometry(0.07, 0.09, 2.6, 6), paint(0x3a3f45));
+    post.position.y = 1.3;
+    const bulb = new Mesh(new SphereGeometry(0.22, 10, 8),
+      new MeshStandardMaterial({ color: 0xffe6a8, emissive: 0xffcc66, emissiveIntensity: 1.4 }));
+    bulb.position.y = 2.7;
+    g.add(post, bulb);
+    return g;
+  });
+
+// A PREFAB is a recipe, not a blob: a named spec that a placement can
+// override. Storing baked geometry would be larger, would go stale the
+// moment the generator improved, and would throw the seed away.
+catalog.prefab('lit-corner', {
+  kind: 'pillar',
+  props: { height: 2.4 },
+  children: [{ kind: 'lamp', at: [0, 0, 1.4] }],
+});
+
+// ---- The file. Hand-written, hand-editable, and small because defaults
+// are omitted and numbers are rounded on the way out.
+const FILE = {
+  format: 'gama.level',
+  version: 1,
+  name: 'Yard',
+  seed: 20,
+  entities: [
+    { id: 'c1', kind: 'crate', at: [-2, 0, 2] },
+    { id: 'c2', kind: 'crate', at: [-0.6, 0, 3.4], rot: 0.6, props: { color: 0x9c6b3f } },
+    { id: 'p1', kind: 'lit-corner', at: [4, 0, -3] },
+    { id: 't1', kind: 'tree', at: [-6, 0, -4] },
+    { id: 't2', kind: 'tree', at: [6, 0, 5], scale: 1.4 },
+    { id: 'old-statue', kind: 'statue', at: [0, 0, -6], props: { pose: 'triumphant' } },
+  ],
+};
+
+const level = Level.parse(FILE);
+const live = level.instantiate(catalog, scene);
+
+// ---- The editor.
+const panel = document.createElement('pre');
+panel.style.cssText = 'position:fixed;top:0;right:0;width:min(38vw,340px);height:100vh;' +
+  'overflow:auto;margin:0;padding:14px;background:rgba(12,16,22,.88);color:#cfe3ff;' +
+  'font:11px/1.5 ui-monospace,Menlo,monospace;border-left:1px solid #ffffff22;' +
+  'backdrop-filter:blur(8px);white-space:pre-wrap;';
+document.body.appendChild(panel);
+
+const help = document.createElement('div');
+help.style.cssText = 'position:fixed;left:14px;bottom:14px;color:#eaf1f8;' +
+  'font:13px/1.6 system-ui;text-shadow:0 1px 4px #000a;';
+document.body.appendChild(help);
+
+let picked = 0;
+// Roots only: a prefab's child lamp moves with its pillar, so selecting it
+// separately would be a lie about what the file says.
+const pickable = live.objects.filter((p) => !p.id.includes('/'));
+// Remember each mesh's authored emissive before anything tints it.
+for (const o of pickable) {
+  o.object.traverse((c) => {
+    if (c.isMesh && c.material?.emissive) c.userData.baseEmissive = c.material.emissive.getHex();
+  });
+}
+const ray = new Raycaster();
+const pointer = new Vector2();
+
+const refresh = () => {
+  const data = live.serialize();
+  panel.textContent = JSON.stringify(data, null, 2);
+  const p = pickable[picked];
+  help.innerHTML = 'selected <b>' + p.id + '</b> (' + p.kind + ')  ·  ' +
+    'click / Tab to select · arrows move · Q E turn · + − scale';
+  // Highlight by tinting the selection's own materials — cloned on first
+  // touch, because these factories share one material per colour and a
+  // shared material tints every crate in the yard at once.
+  for (const o of pickable) {
+    o.object.traverse((c) => {
+      if (!c.isMesh) return;
+      if (!c.userData.own) { c.material = c.material.clone(); c.userData.own = true; }
+      const on = o === p;
+      c.material.emissive.setHex(on ? 0x2b5cff : c.userData.baseEmissive ?? 0x000000);
+      c.material.emissiveIntensity = on ? 0.55 : 1;
+    });
+  }
+};
+
+addEventListener('pointerdown', (e) => {
+  if (e.clientX > innerWidth - Math.min(innerWidth * 0.38, 340)) return; // the panel
+  pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(pointer, game.camera);
+  for (const hit of ray.intersectObjects(pickable.map((p) => p.object), true)) {
+    const index = pickable.findIndex((p) => {
+      let node = hit.object;
+      while (node) { if (node === p.object) return true; node = node.parent; }
+      return false;
+    });
+    if (index >= 0) { picked = index; refresh(); return; }
+  }
+});
+
+addEventListener('keydown', (e) => {
+  const o = pickable[picked].object;
+  const step = e.shiftKey ? 0.05 : 0.25;
+  const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0],
+                  ArrowUp: [0, -step], ArrowDown: [0, step] };
+  if (moves[e.code]) { o.position.x += moves[e.code][0]; o.position.z += moves[e.code][1]; }
+  else if (e.code === 'KeyQ') o.rotation.y += 0.1;
+  else if (e.code === 'KeyE') o.rotation.y -= 0.1;
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') o.scale.multiplyScalar(1.1);
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') o.scale.multiplyScalar(1 / 1.1);
+  else if (e.code === 'Tab') picked = (picked + 1) % pickable.length;
+  else return;
+  e.preventDefault();
+  refresh();
+});
+
+refresh();
+game.start();
+
+window.levelDebug = () => {
+  const data = live.serialize();
+  return {
+    built: live.objects.length,
+    inFile: data.entities.length,
+    // The unknown kind could not be built, and is still in the file.
+    keptUnknown: data.entities.some((e) => e.kind === 'statue'),
+    selected: pickable[picked].id,
+    selectedAt: data.entities.find((e) => e.id === pickable[picked].id).at,
+    selectedRot: data.entities.find((e) => e.id === pickable[picked].id).rot,
+    json: JSON.stringify(data).length,
+    // Where each root sits on screen, 0..1 across the canvas. An editor
+    // wants this for gizmos and labels; here it lets a test click exactly.
+    spots: pickable.map((p) => {
+      const v = p.object.position.clone().project(game.camera);
+      return { id: p.id, x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
+    }),
+    draws: game.renderer.info.render.calls,
+  };
+};`,
+  },
 ];
 
 

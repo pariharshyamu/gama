@@ -333,6 +333,22 @@ export {
   type CheckpointRunOptions,
 } from './gameplay/CheckpointRun';
 
+// Levels: prefabs, placements, and the round trip
+export {
+  Catalog,
+  type Factory,
+  type DefineOptions,
+  type Placed,
+} from './level/Catalog';
+export { Level, type LevelOptions, type LevelInstance } from './level/Level';
+export {
+  LEVEL_VERSION,
+  type EntitySpec,
+  type LevelData,
+  type CreateContext,
+  type Vec3Tuple,
+} from './level/types';
+
 // The shell: the part of a game that is not the game
 export {
   Shell,
