@@ -20,6 +20,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'editor', title: 'The editor' },
   { id: 'workflow', title: 'Using all three libraries' },
   { id: 'assets', title: 'The asset pipeline', playground: 'assets' },
+  { id: 'net', title: 'Networking', playground: 'net' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
   { id: 'react', title: 'React (r3f bindings)' },

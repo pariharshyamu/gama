@@ -2875,6 +2875,228 @@ window.assetDebug = () => ({
   chime: library.audio('ui/chime')?.duration ?? null,
 });`,
   },
+  {
+    id: 'net',
+    title: 'Multiplayer: prediction & interpolation',
+    group: 'Core',
+    code: `// AUTHORITATIVE MULTIPLAYER, ALL IN ONE TAB. There is a real server here —
+// it owns every entity and runs the only copy of the rules — plus two real
+// clients, each on its own simulated link. Turn the latency up.
+//
+// SOLID = what the client draws.  WIREFRAME = where the server actually is.
+// Blue is you (predicted, so it runs AHEAD of the server). Orange is the
+// other player (interpolated, so it runs BEHIND). Untick either box to see
+// what the mechanism was buying you.
+import { AmbientLight, BoxGeometry, CapsuleGeometry, CylinderGeometry, Color,
+         DirectionalLight, EdgesGeometry, Group, LineBasicMaterial, LineSegments,
+         Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
+import { Game } from 'gama3d';
+import { Link, NetClient, NetServer } from 'gama3d/net';
+
+// ---- the rules. ONE function, run by the server and by every client. -----
+// The server runs it to be right; a client runs it to not wait 100 ms to
+// find out. That is the whole of prediction.
+const move = (state, input, dt) => {
+  const speed = 7;
+  state.x += (input?.x ?? 0) * speed * dt;
+  state.z += (input?.z ?? 0) * speed * dt;
+  const edge = 9;
+  state.x = Math.max(-edge, Math.min(edge, state.x));
+  state.z = Math.max(-edge, Math.min(edge, state.z));
+  if (input?.x || input?.z) state.yaw = Math.atan2(input.x, input.z);
+};
+
+// ---- the server ----------------------------------------------------------
+const server = new NetServer({ apply: move, tickRate: 30, sendRate: 12 });
+server.onJoin = (client) => {
+  const at = client.id === 'p1' ? [-4, 2] : [4, -2];
+  server.spawn(client.id, { x: at[0], z: at[1], yaw: 0 }, {
+    owner: client.id,
+    meta: { name: client.id === 'p1' ? 'you' : 'them' },
+  });
+};
+
+// ---- two links, two clients ---------------------------------------------
+const mine = new Link({ latency: 90, jitter: 20, loss: 0.02, seed: 3 });
+const theirs = new Link({ latency: 60, jitter: 10, seed: 11 });
+server.accept(mine.server, 'p1');
+server.accept(theirs.server, 'p2');
+
+const me = new NetClient(mine.client, { apply: move, angleFields: ['yaw'], interpolationDelay: 140 });
+const them = new NetClient(theirs.client, { apply: move, angleFields: ['yaw'] });
+
+// ---- the scene ----------------------------------------------------------
+const game = new Game();
+const scene = game.world.scene;
+scene.background = new Color(0x0d1219);
+game.camera.position.set(0, 15, 15);
+game.camera.lookAt(0, 0.5, -1.5);
+scene.add(new AmbientLight(0xbcd0e6, 1.5));
+const sun = new DirectionalLight(0xffffff, 1.6);
+sun.position.set(8, 20, 10);
+scene.add(sun);
+
+const floor = new Mesh(new PlaneGeometry(22, 22),
+  new MeshStandardMaterial({ color: 0x27313f, roughness: 1 }));
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+for (let i = -10; i <= 10; i += 2) {
+  for (const [a, b] of [[[i, -10], [i, 10]], [[-10, i], [10, i]]]) {
+    const line = new Mesh(new BoxGeometry(Math.abs(b[0] - a[0]) || 0.04, 0.01, Math.abs(b[1] - a[1]) || 0.04),
+      new MeshStandardMaterial({ color: 0x334357 }));
+    line.position.set((a[0] + b[0]) / 2, 0.012, (a[1] + b[1]) / 2);
+    scene.add(line);
+  }
+}
+
+const HUES = { p1: 0x4d8dff, p2: 0xff9a4d };
+const bodies = new Map();
+const ghosts = new Map();
+
+function bodyFor(id) {
+  let body = bodies.get(id);
+  if (body) return body;
+  const group = new Group();
+  const colour = HUES[id] ?? 0xcccccc;
+  const capsule = new Mesh(new CapsuleGeometry(0.5, 1, 6, 12),
+    new MeshStandardMaterial({ color: colour, roughness: 0.5 }));
+  capsule.position.y = 1;
+  const nose = new Mesh(new CylinderGeometry(0.001, 0.22, 0.7, 8),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.5 }));
+  nose.rotation.x = Math.PI / 2;
+  nose.position.set(0, 1, 0.6);
+  group.add(capsule, nose);
+  scene.add(group);
+  bodies.set(id, group);
+  return group;
+}
+
+/** A wireframe box at the server's real position: the truth, for comparison. */
+function ghostFor(id) {
+  let ghost = ghosts.get(id);
+  if (ghost) return ghost;
+  const edges = new LineSegments(new EdgesGeometry(new BoxGeometry(1.3, 2.1, 1.3)),
+    new LineBasicMaterial({ color: HUES[id] ?? 0xffffff, transparent: true, opacity: 0.9 }));
+  edges.position.y = 1;
+  const group = new Group();
+  group.add(edges);
+  scene.add(group);
+  ghosts.set(id, group);
+  return group;
+}
+
+// ---- the controls -------------------------------------------------------
+const panel = document.createElement('div');
+panel.style.cssText = 'position:fixed;inset:auto 0 0 0;padding:8px 12px;background:#0b0e14e6;' +
+  'color:#dbe4f0;font:11px/1.5 ui-monospace,Menlo,monospace;border-top:1px solid #262d3b;' +
+  'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 16px;white-space:nowrap';
+panel.innerHTML =
+  '<label>lag <input id=lat type=range min=0 max=300 step=10 value=90 style="width:78px"> <b id=latv>90</b>ms</label>' +
+  '<label>jitter <input id=jit type=range min=0 max=120 step=5 value=20 style="width:64px"> <b id=jitv>20</b>ms</label>' +
+  '<label>loss <input id=los type=range min=0 max=30 step=1 value=2 style="width:64px"> <b id=losv>2</b>%</label>' +
+  '<label><input id=pred type=checkbox checked> predict my own moves</label>' +
+  '<label><input id=interp type=checkbox checked> interpolate the other player</label>' +
+  '<label><input id=drive type=checkbox checked> auto-drive (or use arrow keys)</label>' +
+  '<div id=r1 style="grid-column:1/-1;white-space:normal;color:#8fa8c8"></div>';
+document.body.appendChild(panel);
+const $ = (id) => document.getElementById(id);
+
+const bind = (slider, readout, set) => {
+  const apply = () => { $(readout).textContent = $(slider).value; set(Number($(slider).value)); };
+  $(slider).addEventListener('input', apply);
+  apply();
+};
+bind('lat', 'latv', (v) => { mine.latency = v; });
+bind('jit', 'jitv', (v) => { mine.jitter = v; });
+bind('los', 'losv', (v) => { mine.loss = v / 100; });
+$('pred').addEventListener('change', () => { me.predict = $('pred').checked; });
+$('interp').addEventListener('change', () => { me.interpolate = $('interp').checked; });
+
+// ---- input --------------------------------------------------------------
+const held = new Set();
+addEventListener('keydown', (e) => {
+  if (e.code.startsWith('Arrow')) { held.add(e.code); e.preventDefault(); }
+});
+addEventListener('keyup', (e) => held.delete(e.code));
+
+let clock = 0;
+game.onUpdate((time) => {
+  const dt = Math.min(0.05, time.delta);
+  clock += dt;
+
+  // You: arrow keys, or a figure-of-eight so the demo shows itself.
+  let ax = (held.has('ArrowRight') ? 1 : 0) - (held.has('ArrowLeft') ? 1 : 0);
+  let az = (held.has('ArrowDown') ? 1 : 0) - (held.has('ArrowUp') ? 1 : 0);
+  if (!ax && !az && $('drive').checked) {
+    ax = Math.cos(clock * 1.3);
+    az = Math.cos(clock * 2.1) * 0.8;
+  }
+  me.setInput({ x: ax, z: az });
+  // Them: a bot, circling the other way.
+  them.setInput({ x: Math.cos(-clock * 1.5 + 2), z: Math.sin(-clock * 1.5 + 2) });
+
+  // The links carry packets; the server and the clients each run their own
+  // clock. Nothing here shares state — it all goes over the wire.
+  mine.advance(dt);
+  theirs.advance(dt);
+  server.update(dt);
+  me.update(dt);
+  them.update(dt);
+
+  // Draw the world as MY client believes it to be.
+  for (const view of me.entities) {
+    const body = bodyFor(view.id);
+    body.position.set(view.state.x, 0, view.state.z);
+    body.rotation.y = view.state.yaw ?? 0;
+  }
+  // …and the server's truth alongside it.
+  for (const id of server.ids) {
+    const truth = server.state(id);
+    const ghost = ghostFor(id);
+    ghost.position.set(truth.x, 0, truth.z);
+  }
+
+  const lead = leadOf('p1');
+  const behind = leadOf('p2');
+  // Distance from the wireframe, either way round: with prediction on you
+  // are ahead of it, with prediction off you sit on it.
+  $('r1').innerHTML =
+    \`rtt <b>\${me.rtt.toFixed(0)}</b>ms · unacked <b>\${me.pending}</b> · server queue \` +
+    \`<b>\${me.serverQueue}</b> · rate ×<b>\${me.rateScale.toFixed(2)}</b> · corrections \` +
+    \`<b>\${me.corrections}</b> · dropped <b>\${mine.dropped}</b>/<b>\${mine.sent}</b>\` +
+    \` &nbsp;&nbsp;→ &nbsp;you are <b>\${lead.toFixed(2)}</b>m from your own wireframe,\` +
+    \` they are <b>\${behind.toFixed(2)}</b>m from theirs\`;
+});
+
+/** Distance between what my client draws and where the server really is. */
+function leadOf(id) {
+  const view = me.entities.find((e) => e.id === id);
+  const truth = server.state(id);
+  if (!view || !truth) return 0;
+  return Math.hypot(view.state.x - truth.x, view.state.z - truth.z);
+}
+
+game.start();
+
+window.netDebug = () => ({
+  ready: me.ready && them.ready,
+  players: me.entities.length,
+  mine: me.entities.filter((e) => e.mine).length,
+  rtt: Math.round(me.rtt),
+  pending: me.pending,
+  serverQueue: me.serverQueue,
+  corrections: me.corrections,
+  dropped: mine.dropped,
+  sent: mine.sent,
+  bytesIn: me.bytesIn,
+  // The two numbers the demo exists to show: prediction runs ahead of the
+  // server, interpolation runs behind it.
+  leadOwn: Number(leadOf('p1').toFixed(3)),
+  lagOther: Number(leadOf('p2').toFixed(3)),
+  serverTick: server.tick,
+  draws: game.renderer.info.render.calls,
+});`,
+  },
 ];
 
 

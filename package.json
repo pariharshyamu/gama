@@ -1,6 +1,6 @@
 {
   "name": "gama3d",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "description": "GAMA — Gaming And Motion Agent: a 3D game development library built on top of three.js, focused on game loops, entities, steering-based motion agents, animation, cameras and input.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,6 +31,11 @@
       "types": "./dist/editor.d.ts",
       "import": "./dist/editor.js",
       "require": "./dist/editor.cjs"
+    },
+    "./net": {
+      "types": "./dist/net.d.ts",
+      "import": "./dist/net.js",
+      "require": "./dist/net.cjs"
     }
   },
   "files": [
@@ -39,7 +44,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/rapier.ts src/react.tsx src/templates.ts src/editor.ts --format esm,cjs --dts --sourcemap --clean",
+    "build": "tsup src/index.ts src/rapier.ts src/react.tsx src/templates.ts src/editor.ts src/net.ts --format esm,cjs --dts --sourcemap --clean",
     "dev": "vite examples/basic",
     "dev:flock": "vite examples/flock",
     "dev:navmesh": "vite examples/navmesh",
@@ -59,7 +64,9 @@
     "verify:playgrounds": "npm run site:build && node site/verify-playgrounds.mjs",
     "verify:editor": "npm run site:build && node site/verify-editor.mjs",
     "assets": "node scripts/assets.mjs site/public/assets --out site/public/assets/manifest.json",
-    "assets:check": "node scripts/assets.mjs site/public/assets --out site/public/assets/manifest.json --check"
+    "assets:check": "node scripts/assets.mjs site/public/assets --out site/public/assets/manifest.json --check",
+    "net:server": "node scripts/net-server.mjs",
+    "net:check": "npm run build && node scripts/net-check.mjs"
   },
   "repository": {
     "type": "git",

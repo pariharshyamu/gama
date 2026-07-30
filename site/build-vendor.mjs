@@ -55,6 +55,25 @@ await build({
   ],
 });
 
+// Net bundle: no three at all, so it stands alone. A separate file for the
+// same reason it is a separate entry point — a playground example that never
+// opens a socket should not download the netcode.
+await build({
+  entryPoints: [join(root, 'src/net.ts')],
+  bundle: true,
+  format: 'esm',
+  minify: true,
+  outfile: join(pub, 'vendor', 'net.js'),
+  plugins: [
+    {
+      name: 'externals',
+      setup(builder) {
+        builder.onResolve({ filter: /^three$/ }, () => ({ path: 'three', external: true }));
+      },
+    },
+  ],
+});
+
 // three r185 SPLIT ITS BUILD: three.module.js is no longer the whole
 // library, it imports the bulk of it from ./three.core.js alongside. Copy
 // only the one and the browser 404s the other, and the entire playground

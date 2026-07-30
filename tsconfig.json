@@ -19,6 +19,7 @@
     "paths": {
       "gama3d": ["src/index.ts"],
       "gama3d/editor": ["src/editor.ts"],
+      "gama3d/net": ["src/net.ts"],
       "gama3d/templates": ["src/templates.ts"]
     }
   },

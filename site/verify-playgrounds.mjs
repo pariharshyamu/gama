@@ -237,6 +237,8 @@ for (const id of list) {
   let audioBad = false;
   let assets = null;
   let assetsBad = false;
+  let net = null;
+  let netBad = false;
   const inner = page.frames().find((f) => f !== page.mainFrame());
   if (inner) {
     try {
@@ -254,6 +256,20 @@ for (const id of list) {
         typeof window.assetDebug === 'function' ? window.assetDebug() : null
       );
     } catch { /* ditto */ }
+    try {
+      net = await inner.evaluate(() =>
+        typeof window.netDebug === 'function' ? window.netDebug() : null
+      );
+    } catch { /* ditto */ }
+    if (net) {
+      // A multiplayer demo that renders two capsules because the netcode
+      // fell back to reading the server's state directly is not a demo.
+      // Prediction must run AHEAD of the server and interpolation BEHIND it,
+      // and packets must actually have been dropped and survived.
+      netBad =
+        !net.ready || net.players !== 2 || net.mine !== 1 ||
+        !(net.leadOwn > 0.05) || !(net.lagOther > 0.05) || !(net.serverTick > 30);
+    }
     if (assets) {
       // Thirty-six crates and six lamps out of TWO loaded models: if the
       // geometry count scales with placements, instancing is not sharing.
@@ -263,24 +279,26 @@ for (const id of list) {
   }
 
   const blank = !pix.ok || (pix.flattest > 0.985 && pix.stdev < 1.5);
-  rows.push({ id, blank, audioBad, assetsBad, errs: errs.length, banner, ...pix });
-  const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : assetsBad ? 'ASSET' : errs.length ? 'errs ' : '  ok ';
+  rows.push({ id, blank, audioBad, assetsBad, netBad, errs: errs.length, banner, ...pix });
+  const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : assetsBad ? 'ASSET'
+    : netBad ? ' NET ' : errs.length ? 'errs ' : '  ok ';
   console.log(
     `${flag} ${id.padEnd(16)} distinct ${String(pix.distinct ?? 0).padStart(5)}` +
     ` flattest ${String(pix.flattest ?? 1).padStart(5)} stdev ${String(pix.stdev ?? 0).padStart(6)}` +
     ` mean ${String(pix.mean ?? 0).padStart(5)}` +
     (audio ? `  AUDIO: ${JSON.stringify(audio).slice(0, 180)}` : '') +
     (assets ? `  ASSETS: ${JSON.stringify(assets).slice(0, 220)}` : '') +
+    (net ? `  NET: ${JSON.stringify(net).slice(0, 260)}` : '') +
     (pix.why ? `  WHY: ${pix.why}` : '') +
     (banner ? `  BANNER: ${banner}` : '') +
     (errs.length ? `\n        ${errs.slice(0, 3).join('\n        ')}` : '')
   );
-  if (blank || banner || audioBad || assetsBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
+  if (blank || banner || audioBad || assetsBad || netBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
   await page.close();
   await context.close();
 }
 
-const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.assetsBad || r.errs);
+const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.assetsBad || r.netBad || r.errs);
 console.log(`\n${rows.length - bad.length}/${rows.length} render something.`);
 if (bad.length) console.log('PROBLEMS:', bad.map((r) => r.id).join(', '));
 await browser.close();
