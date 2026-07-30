@@ -126,6 +126,13 @@ export {
   type HoverControllerOptions,
   type HoverControls,
 } from './controllers/HoverController';
+export {
+  RailController,
+  type RailControllerOptions,
+  type RailLine,
+  type ScheduledStop,
+  type RailPhase,
+} from './controllers/RailController';
 export { FollowCamera, type FollowCameraOptions } from './camera/FollowCamera';
 export { ChaseCamera, type ChaseCameraOptions } from './camera/ChaseCamera';
 export { OrbitRig, type OrbitRigOptions, type PointerLookInput } from './camera/OrbitRig';

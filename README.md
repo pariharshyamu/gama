@@ -118,6 +118,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [Platformer](docs/platformer.md) — `PlatformerController`: gravity, coyote time, jump buffering, variable height, moving-platform carry — and the coin-run payoff demo
 - [Light as gameplay](docs/light.md) — `Illumination` (the how-lit-am-I field over structural sources), `Flashlight` (battery, gutter, cone reveal test), `MoodGrade` (lerped lighting moods per game state)
 - [Flight](docs/flight.md) — `FlightController`: arcade-honest fixed-wing flight (bank-to-turn, stall, taxi/takeoff/touchdown events) bridging to SCENA airframes via `aircraftInput`
+- [Rail](docs/rail.md) — `RailController`: the vehicle that does not steer. A schedule, a stopping curve, honest ETAs, and an overrun you can read — driving a scalar along anything with a `length`
 - [Physics](docs/physics.md) — the optional rapier adapter: rigid bodies & character controller
 - [React](docs/react.md) — the optional react-three-fiber bindings: `<Entity>`, `useComponent`, flock hooks
 
@@ -310,6 +311,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Light as gameplay: `Illumination` field (structural sources, live litness, pure math), `Flashlight` (battery drama, seeded gutter, cone reveal with angular slack), `MoodGrade` (structural rig targets, seamless interrupted blends)
 - [x] Flight: `FlightController` (throttle→speed→lift, bank-to-turn, stall as a state, taxi/rotate/flare/touchdown with sink-rate events, `apply()` + `aircraftInput` bridges)
 - [x] Hover: `HoverController` (collective/cyclic/pedals, rotor spool inertia, seeded hover breath, sink-rate touchdowns, `helicopterInput` bridge) + `rotorVoicing`/`RotorSound` (blade-pass tremolo — the wop-wop is amplitude, not pitch)
+- [x] Rail: `RailController` (position is one scalar; the `√(2·brake·remaining)` stopping curve, exact landing at any step size, run-through when a mark was booked inside the braking distance, loop-aware schedules, ETAs that integrate the curve they drive)
 - [x] Dialogue: conversations as data (`Dialogue`, `defineDialogue`) with a JSON condition/effect vocabulary chosen so `lintDialogue` can statically find dangling links, unreachable nodes, strandable choice lists and undeclared variables; hidden vs locked choices, save/restore mid-line, exact `counts`
 - [x] Air combat: `Missiles` (lead pursuit under a hard turn-rate limit with speed-bleed — evadability as physics; seeded one-chance flare seduction; pooled instanced) + `LockOn` (cone/range/time, no credit for past devotion)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)

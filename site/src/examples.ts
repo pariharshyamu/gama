@@ -3325,6 +3325,229 @@ window.dialogueDebug = () => ({
   draws: game.renderer.info.render.calls,
 });`,
   },
+  {
+    id: 'railway',
+    title: 'Railway: the driver',
+    group: 'Gameplay',
+    code: `// A train is the one vehicle that does not steer. Its entire
+// position is ONE NUMBER — how far along the line — so the driver's
+// job is not "where do I go" but "how fast, and can I still stop in
+// time". RailController owns that number and the schedule.
+//
+// The track below is the EXAMPLE'S OWN, built from a curve and a
+// cumulative length table, because the controller wants nothing from
+// a track but its length. Watch the readout: the train starts braking
+// a long way out, because at line speed it needs ~100 m to stop.
+import { Game, RailController, Hud } from 'gama3d';
+import { Mesh, InstancedMesh, MeshStandardMaterial, BoxGeometry,
+         CylinderGeometry, CatmullRomCurve3, TubeGeometry, Group,
+         Object3D, Vector3 } from 'three';
+${scene(0, 56, 112, 11)}
+
+// A low fill from the camera's side: the prelude lights for a single prop
+// at the origin, and this is a 120 m oval.
+const fill = new DirectionalLight(0xbcd0e8, 0.5);
+fill.position.set(-30, 26, 60);
+game.world.scene.add(fill);
+
+const hud = new Hud();
+
+// ── The line ────────────────────────────────────────────────────────
+// Resampled to EQUAL ARC LENGTH once, up front. A curve's parameter is
+// not distance — on a bend it covers far less ground per unit t than
+// on a straight — so a train driven on t would speed up and slow down
+// on every corner for no reason at all.
+const ROUTE = [
+  new Vector3(-38, 0, -30), new Vector3(0, 0, -37), new Vector3(38, 0, -30),
+  new Vector3(50, 0, 0), new Vector3(38, 0, 30), new Vector3(0, 0, 37),
+  new Vector3(-38, 0, 30), new Vector3(-50, 0, 0),
+];
+const curve = new CatmullRomCurve3(ROUTE, true, 'catmullrom', 0.5);
+curve.arcLengthDivisions = 2000;
+const N = 480;
+const spaced = curve.getSpacedPoints(N);
+const cum = [0];
+for (let i = 1; i <= N; i++) cum.push(cum[i - 1] + spaced[i].distanceTo(spaced[i - 1]));
+const LENGTH = cum[N];
+
+// Binary search the table: distance in, place out.
+const at = (d, out) => {
+  const x = ((d % LENGTH) + LENGTH) % LENGTH;
+  let lo = 1, hi = N;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < x) lo = mid + 1; else hi = mid; }
+  const span = Math.max(1e-6, cum[lo] - cum[lo - 1]);
+  return out.copy(spaced[lo - 1]).lerp(spaced[lo], (x - cum[lo - 1]) / span);
+};
+
+const UP = new Vector3(0, 1, 0);
+const railMat = new MeshStandardMaterial({ color: 0x99a4b0, roughness: 0.45, metalness: 0.65 });
+for (const gauge of [0.75, -0.75]) {
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const p = spaced[i];
+    const t = spaced[(i + 1) % N].clone().sub(p).normalize();
+    pts.push(p.clone().add(t.cross(UP).multiplyScalar(gauge)).setY(0.16));
+  }
+  game.world.scene.add(new Mesh(new TubeGeometry(new CatmullRomCurve3(pts, true), 320, 0.085, 4, true), railMat));
+}
+
+// One InstancedMesh, whatever the length. A Mesh each would be 160
+// draw calls for something nobody looks at directly.
+const SLEEPERS = Math.floor(LENGTH / 2.4);
+const sleepers = new InstancedMesh(new BoxGeometry(2.9, 0.16, 0.44),
+  new MeshStandardMaterial({ color: 0x4a3d31, roughness: 0.95 }), SLEEPERS);
+const dummy = new Object3D();
+const pos = new Vector3(), ahead = new Vector3();
+for (let i = 0; i < SLEEPERS; i++) {
+  const d = (i / SLEEPERS) * LENGTH;
+  at(d, pos); at(d + 0.6, ahead);
+  dummy.position.copy(pos).setY(0.08);
+  dummy.rotation.y = Math.atan2(ahead.x - pos.x, ahead.z - pos.z);
+  dummy.updateMatrix();
+  sleepers.setMatrixAt(i, dummy.matrix);
+}
+const ground = new Mesh(new BoxGeometry(240, 0.04, 200),
+  new MeshStandardMaterial({ color: 0x2f3d2c }));
+ground.position.y = 0.02; // above the prelude's grid, which it replaces
+game.world.scene.add(ground, sleepers);
+
+// ── The train ───────────────────────────────────────────────────────
+const paint = (c, r = 0.6) => new MeshStandardMaterial({ color: c, roughness: r });
+const ROOF = paint(0x9aa3ab, 0.78);
+const WHEEL = paint(0x1b1f24, 0.8);
+const build = (len, colour, loco) => {
+  const g = new Group();
+  const body = new Mesh(new BoxGeometry(3, 3.1, len), paint(colour));
+  body.position.y = 2.1;
+  const roof = new Mesh(new BoxGeometry(3.1, 0.32, len - 0.4), ROOF);
+  roof.position.y = 3.75;
+  g.add(body, roof);
+  if (loco) {
+    const cab = new Mesh(new BoxGeometry(3.1, 1.5, 3.6), paint(0x3a3f47));
+    cab.position.set(0, 4.2, -len / 2 + 2.4);
+    const stack = new Mesh(new CylinderGeometry(0.42, 0.52, 1.3, 10), paint(0x22262b));
+    stack.position.set(0, 4.4, len / 2 - 1.8);
+    g.add(cab, stack);
+  }
+  const wheels = [];
+  for (const z of [-len * 0.34, len * 0.34]) {
+    for (const x of [-1.32, 1.32]) {
+      const w = new Mesh(new CylinderGeometry(0.62, 0.62, 0.24, 12), WHEEL);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.62, z);
+      wheels.push(w);
+      g.add(w);
+    }
+  }
+  return { group: g, len, wheels };
+};
+const CONSIST = [build(15, 0x7d2b2b, true), build(16, 0x2f4f6f), build(16, 0x2f4f6f)];
+for (const v of CONSIST) game.world.scene.add(v.group);
+
+// A vehicle on a curve does not face the way the track faces under its
+// middle: it is a rigid body on two bogies and faces the CHORD between
+// them. Two extra samples per carriage, and it is the difference
+// between a train and boxes shrink-wrapped to a spline.
+const front = new Vector3(), back = new Vector3(), chord = new Vector3();
+const place = (d) => {
+  let cursor = 0;
+  for (const v of CONSIST) {
+    const centre = d - cursor - v.len / 2;
+    at(centre + v.len * 0.34, front);
+    at(centre - v.len * 0.34, back);
+    v.group.position.lerpVectors(back, front, 0.5).setY(0);
+    chord.subVectors(front, back).normalize();
+    v.group.rotation.y = Math.atan2(chord.x, chord.z);
+    // Wheels roll by DISTANCE, not by time. A wheel spun on a timer
+    // slips every time the train changes speed — rail foot skate.
+    for (const w of v.wheels) w.rotation.x = -d / 0.62;
+    cursor += v.len + 1.2;
+  }
+};
+
+// ── The platforms ───────────────────────────────────────────────────
+const lateral = new Vector3();
+const platform = (mark, colour) => {
+  const c = new Vector3(), a = new Vector3(), m = new Vector3();
+  at(mark - HALF_DECK, c); at(mark - HALF_DECK + 1, a);
+  const yaw = Math.atan2(a.x - c.x, a.z - c.z);
+  lateral.set(-Math.cos(yaw), 0, Math.sin(yaw));
+  const deck = new Mesh(new BoxGeometry(8, 1.05, 52), paint(0x565c64, 0.95));
+  deck.position.copy(c).addScaledVector(lateral, 6.2).setY(0.54);
+  deck.rotation.y = yaw;
+  // The stopping mark: where the train's FRONT should come to rest.
+  at(mark, m);
+  const stripe = new Mesh(new BoxGeometry(8.4, 0.08, 1.1), paint(colour, 0.5));
+  stripe.position.copy(m).addScaledVector(lateral, 6.2).setY(1.06);
+  stripe.rotation.y = yaw;
+  game.world.scene.add(deck, stripe);
+};
+// A platform is a STRAIGHT 52 m box, so it belongs on a straight stretch of
+// line — put one on a bend and it juts off tangentially, which is exactly why
+// real platforms are built on the straight. The flat runs on this oval are at
+// its ends, so the deck is centred there and the stop mark is at the far end
+// of it: the mark is where the train's FRONT comes to rest.
+const HALF_DECK = 26;
+const STOPS = [
+  { at: Math.round(LENGTH * 0.625) + HALF_DECK, dwell: 11, name: 'HAVENBROOK' },
+  { at: Math.round(LENGTH * 0.125) + HALF_DECK, dwell: 11, name: 'ASHFORD' },
+];
+platform(STOPS[0].at, 0xfbbf24);
+platform(STOPS[1].at, 0x38bdf8);
+
+// ── The driver ──────────────────────────────────────────────────────
+// Takes { length, loop } — a shape, not a package. SCENA's createTrack
+// fits it exactly, and this hand-rolled table fits it just as well.
+const driver = new RailController({ length: LENGTH, loop: true }, {
+  topSpeed: 9, accel: 0.5, brake: 0.6, distance: 40,
+});
+driver.schedule(STOPS);
+
+let arrivals = 0;
+let worstOverrun = 0;
+driver.onArrive((stop, overrun) => {
+  arrivals++;
+  worstOverrun = Math.max(worstOverrun, overrun);
+  hud.banner(stop.name, 1.8);
+});
+driver.onDepart((stop) => hud.caption('Away from ' + stop.name));
+
+game.onUpdate((t) => {
+  // Stepped by hand rather than added to a GameObject, because the
+  // controller moves nothing itself — it owns a number, and placing
+  // the train is the game's job.
+  driver.step(t.delta);
+  place(driver.distance);
+
+  const next = driver.nextStop;
+  const eta = next ? driver.etaTo(next.at) : Infinity;
+  hud.objective(next ? 'NEXT  ' + next.name + '  in ' +
+    (Number.isFinite(eta) ? eta.toFixed(0) + ' s' : '—') : 'NO BOOKED STOPS');
+  hud.prompt(driver.state.toUpperCase() + '  ·  ' + driver.speed.toFixed(1) +
+    ' m/s  ·  needs ' + driver.stoppingDistance.toFixed(0) + ' m to stop' +
+    (next ? '  ·  ' + Math.max(0, next.at - driver.distance).toFixed(0) + ' m to run' : ''));
+  hud.update(t.delta);
+});
+
+window.railDebug = () => {
+  const next = driver.nextStop;
+  const eta = next ? driver.etaTo(next.at) : Infinity;
+  return {
+    state: driver.state,
+    distance: Number(driver.distance.toFixed(2)),
+    speed: Number(driver.speed.toFixed(2)),
+    stoppingDistance: Number(driver.stoppingDistance.toFixed(1)),
+    lineLength: Number(LENGTH.toFixed(1)),
+    next: next ? next.name : null,
+    eta: Number.isFinite(eta) ? Number(eta.toFixed(1)) : -1,
+    arrivals,
+    worstOverrun: Number(worstOverrun.toFixed(3)),
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();`,
+  },
 ];
 
 

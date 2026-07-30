@@ -16,6 +16,69 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.45.0] — 2026-07-30
+
+### Added
+
+- **`RailController`** — the vehicle class that does not steer. Everything else
+  in GAMA picks a direction and integrates it; a train's entire position is one
+  number, so the controller's job is *"how fast, and can I still stop in
+  time"*. It owns `distance` and moves nothing: placing the train is the game's
+  job, which is what keeps it free of geometry.
+- **The `RailLine` handshake** — `{ length, loop? }`, a shape rather than a
+  package. SCENA's `createTrack` satisfies it, and so does a hand-rolled
+  cumulative-length table; the new `railway` playground builds its own from a
+  `CatmullRomCurve3` precisely to show GAMA is not reaching for SCENA.
+- `schedule()` / `onArrive` / `onDepart` / `nextStop` / `dwellRemaining`,
+  `emergencyStop()` / `resume()`, and `etaTo()` — which integrates the same
+  stopping curve `step` drives, stops at every booked stop in between, adds
+  their dwell, and adds whatever is left of the one the train is standing in.
+- `railway` playground example and [docs/rail.md](docs/rail.md).
+- **A `railDebug()` gate in `verify:playgrounds`**, plus a per-example settle
+  time — see below for why both were needed.
+
+### Fixed / learned
+
+Four defects, three of which the tests as first written did not catch:
+
+- **The arrival rule, not the brake law.** An earlier version arrived on
+  `distance ≥ target && speed < 0.05` with the final step clamped, which is a
+  train that reaches the platform and then **shivers in place for 2.4 seconds**
+  at 10 Hz while its speed bleeds off against the clamp. Measured, then fixed
+  by landing in one step. The `√(2·brake·remaining)` ceiling was written as the
+  cure and then *measured against the bang-bang alternative in the same
+  harness*: they land identically and the residual differs by less than half a
+  metre per second either way. The claim in the module doc was corrected rather
+  than kept — the ceiling is the closed form of the same rule, not an
+  improvement on it.
+- **A clamp that fabricated physics.** "Never move past the mark" brought a
+  train at line speed to a stand in **10 m** while `stoppingDistance` reported
+  302 — the one thing this module says a train must never do. A stop booked
+  inside the braking distance now runs through and brakes to a stand beyond,
+  reporting the overrun.
+- **A tolerance that got worse the faster the frame rate.** Telling a real
+  landing from a fabricated one was first done with a per-step distance
+  tolerance. A smaller `dt` bought a *tighter* tolerance for a gap an earlier
+  long frame had already opened. Found in the browser, not here: a train 0.39 m
+  short at 1.11 m/s ran straight through HAVENBROOK, and because a loop line
+  wraps the gap, the station became a lap away and the train accelerated off to
+  go round again. Replaced with a question about the approach — *was this train
+  ever able to stop for this mark?* — which mentions `dt` nowhere.
+- **Two tests that passed for the wrong reason.** "Lands exactly" and "reports
+  zero overrun" both passed because the arrival block was snapping the train
+  *backwards* onto the mark. Every claim in this release was then re-checked by
+  re-injecting the defect it describes; five such mutations are recorded in the
+  test names.
+
+And one about gates rather than code: `verify:playgrounds` reported **ok** for
+a railway whose `distance` was `NaN` — the example passed `game.onUpdate`'s
+`Time` where a number was wanted — because a static track renders perfectly
+well. "Renders something" is not "works". The verifier now reads `railDebug()`
+and fails the row on a non-finite distance, no arrivals, or an overrun at a
+booked stop; the same probe would have caught the missed station too. Six
+seconds is enough to judge a particle burst and not enough to judge a train, so
+settle time is now a property of the example.
+
 ## [0.44.0] — 2026-07-30
 
 ### Added
