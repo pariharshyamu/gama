@@ -1,0 +1,65 @@
+{
+  "format": "gama.assets",
+  "version": 1,
+  "assets": {
+    "ruins/broken-arch": {
+      "url": "ruins/broken-arch.gltf",
+      "type": "model",
+      "bytes": 6456,
+      "hash": "30ec6542",
+      "group": "ruins"
+    },
+    "ruins/moss": {
+      "url": "ruins/moss.png",
+      "type": "texture",
+      "bytes": 6500,
+      "hash": "2743f943",
+      "group": "ruins"
+    },
+    "ruins/statue": {
+      "url": "ruins/statue.gltf",
+      "type": "model",
+      "bytes": 8874,
+      "hash": "7a738512",
+      "group": "ruins"
+    },
+    "town/crate": {
+      "url": "town/crate.gltf",
+      "type": "model",
+      "bytes": 4328,
+      "hash": "c54520ec",
+      "group": "town"
+    },
+    "town/lamp": {
+      "url": "town/lamp.gltf",
+      "type": "model",
+      "bytes": 5411,
+      "hash": "8a15c05d",
+      "group": "town"
+    },
+    "town/planks": {
+      "url": "town/planks.png",
+      "type": "texture",
+      "bytes": 2154,
+      "hash": "ad8aa2e3",
+      "group": "town"
+    },
+    "ui/chime": {
+      "url": "ui/chime.wav",
+      "type": "audio",
+      "bytes": 22094,
+      "hash": "e95eb293",
+      "group": "ui"
+    }
+  },
+  "meta": {
+    "source": "site/public/assets",
+    "count": 7,
+    "bytes": 55817,
+    "groups": {
+      "ruins": 21830,
+      "town": 11893,
+      "ui": 22094
+    }
+  }
+}

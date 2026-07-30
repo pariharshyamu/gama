@@ -1,4 +1,5 @@
 import { Object3D } from 'three';
+import { claimsOwnership, releaseObject } from '../core/release';
 import type { Catalog, Placed } from './Catalog';
 import { LEVEL_VERSION, type EntitySpec, type LevelData, type Vec3Tuple } from './types';
 
@@ -289,51 +290,19 @@ export class Level {
 }
 
 /**
- * Free what one entity allocated.
+ * Free what one entity allocated, deepest first.
  *
- * Ownership is the factory's to claim. If what it returned has a
- * `dispose()`, that is the whole answer and nothing else is touched —
- * which is how a factory handing out shared or cached resources says
- * "not yours to free". Otherwise the object is traversed, because the
- * common case is a generator that allocated everything it returned, and
- * an editor that rebuilds an entity per slider drag leaks it all.
+ * Children go before their parent so a child whose factory claims ownership
+ * gets its own `dispose()` called, rather than having its geometry freed out
+ * from under it by the parent's traversal.
  */
 function release(placed: Placed): void {
   for (const child of placed.children) release(child);
-
-  const source = placed.source as { dispose?: () => void } | null;
-  if (source && typeof source.dispose === 'function') {
-    source.dispose();
+  if (claimsOwnership(placed.source)) {
+    placed.source.dispose();
     return;
   }
-  placed.object.traverse((node) => {
-    const mesh = node as Object3D & {
-      geometry?: { dispose?: () => void };
-      material?: Disposable | Disposable[];
-    };
-    mesh.geometry?.dispose?.();
-    const material = mesh.material;
-    if (Array.isArray(material)) material.forEach(releaseMaterial);
-    else if (material) releaseMaterial(material);
-  });
-}
-
-interface Disposable {
-  dispose?: () => void;
-  uniforms?: Record<string, { value?: unknown }>;
-  [key: string]: unknown;
-}
-
-/** A material, and the textures it generated to go with it. */
-function releaseMaterial(material: Disposable): void {
-  const free = (value: unknown): void => {
-    const texture = value as { isTexture?: boolean; dispose?: () => void } | null;
-    if (texture?.isTexture) texture.dispose?.();
-  };
-  for (const value of Object.values(material)) free(value);
-  // Shader materials keep theirs one level further down.
-  for (const uniform of Object.values(material.uniforms ?? {})) free(uniform?.value);
-  material.dispose?.();
+  releaseObject(placed.object);
 }
 
 /** Give every entity a stable id, keeping any it already had. */

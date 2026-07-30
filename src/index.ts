@@ -166,8 +166,30 @@ export {
   type InteractableOptions,
 } from './interaction/mechanism';
 
-// Assets & audio
+// Assets: the pipeline — a manifest, a library, groups, and instancing
 export { Assets } from './assets/Assets';
+export {
+  AssetLibrary,
+  type AssetLoader,
+  type AssetLibraryOptions,
+  type AssetProgress,
+  type PlacedAsset,
+} from './assets/AssetLibrary';
+export {
+  defaultLoaders,
+  openAssets,
+  type DefaultLoaderOptions,
+} from './assets/loaders';
+export {
+  MANIFEST_VERSION,
+  defineManifest,
+  parseManifest,
+  type AssetManifest,
+  type AssetEntry,
+  type AssetType,
+  type AssetKey,
+} from './assets/manifest';
+export { releaseObject, releaseMaterial, claimsOwnership } from './core/release';
 export {
   AudioManager,
   type PlayOptions,

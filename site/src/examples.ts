@@ -2723,6 +2723,158 @@ window.levelDebug = () => {
   };
 };`,
   },
+  {
+    id: 'assets',
+    title: 'Assets: a manifest, groups & instancing',
+    group: 'Core',
+    code: `// AN ASSET PIPELINE. Every model, texture and sound here is a real file
+// fetched over HTTP, described by a manifest that scripts/assets.mjs
+// generated: keys, types, byte sizes, content hashes, groups.
+//
+// Watch the bar. It is weighted by BYTES from the manifest, so it is honest
+// from the first frame instead of counting files and lying about the last
+// 40%. Then: "town" is loaded up front, "ruins" only when you ask, and
+// releasing it frees the geometry — the counter proves it.
+import { AmbientLight, DirectionalLight, Fog, Color, Mesh, MeshStandardMaterial,
+         PlaneGeometry, RepeatWrapping, SRGBColorSpace, Vector3 } from 'three';
+import { Catalog, Game, Level, openAssets } from 'gama3d';
+
+const game = new Game();
+const scene = game.world.scene;
+scene.background = new Color(0x121821);
+scene.fog = new Fog(0x121821, 40, 90);
+game.camera.position.set(0, 9, 16);
+game.camera.lookAt(0, 1.2, 0);
+scene.add(new AmbientLight(0xbfd4e8, 1.4));
+const sun = new DirectionalLight(0xfff0d8, 2.2);
+sun.position.set(12, 18, 8);
+scene.add(sun);
+
+// ---- the loading bar, byte-weighted -----------------------------------
+const ui = document.createElement('div');
+ui.style.cssText = 'position:fixed;inset:auto 0 0 0;padding:14px 18px;background:#0b0e14dd;' +
+  'color:#dbe4f0;font:13px/1.6 ui-monospace,Menlo,monospace;border-top:1px solid #262d3b';
+ui.innerHTML =
+  '<div id="line">reading the manifest…</div>' +
+  '<div style="height:6px;background:#1d2531;border-radius:3px;margin:8px 0 10px;overflow:hidden">' +
+  '<div id="bar" style="height:100%;width:0;background:#4d8dff;transition:width .1s"></div></div>' +
+  '<button id="ruins">Load the ruins</button> <button id="drop" disabled>Release them</button>' +
+  ' <span id="mem" style="color:#8593a8"></span>';
+document.body.appendChild(ui);
+const $ = (id) => document.getElementById(id);
+
+const kb = (n) => (n / 1024).toFixed(1) + ' kB';
+const memo = () => {
+  const m = game.renderer.info.memory;
+  $('mem').textContent = \`· \${m.geometries} geometries, \${m.textures} textures in the driver\`;
+};
+
+// ---- open the library --------------------------------------------------
+// One fetch for the manifest; the base defaults to the directory it sat in,
+// so no key in this file carries a path.
+const library = await openAssets('./assets/manifest.json');
+
+library.onProgress = (p) => {
+  $('bar').style.width = (p.fraction * 100).toFixed(1) + '%';
+  $('line').textContent = p.fraction < 1
+    ? \`loading \${p.current ?? ''} — \${kb(p.bytesLoaded)} of \${kb(p.bytesTotal)} (\${(p.fraction * 100) | 0}%)\`
+    : \`\${p.loaded} assets, \${kb(p.bytesTotal)}\`;
+};
+
+// The whole point of a manifest: the cost is known BEFORE the request.
+$('line').textContent = \`town is \${kb(library.weightOf('town'))} across \` +
+  \`\${library.resolve('town').length} files — loading…\`;
+await library.load('town', 'ui/chime');
+
+// ---- the ground uses a loaded texture ---------------------------------
+const planks = library.texture('town/planks');
+planks.wrapS = planks.wrapT = RepeatWrapping;
+planks.repeat.set(12, 12);
+planks.colorSpace = SRGBColorSpace;
+const ground = new Mesh(new PlaneGeometry(70, 70), new MeshStandardMaterial({ map: planks }));
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// ---- a level file that places LOADED MODELS ---------------------------
+// \`library.factory(key)\` is a Catalog factory, so a level file can place a
+// glTF exactly the way it places a procedural prop. Forty crates are one
+// geometry: the clones share it, and the factory's dispose is a no-op so
+// deleting one placement cannot blank the others.
+const catalog = new Catalog()
+  .define('crate', library.factory('town/crate'), { label: 'Crate', group: 'Town' })
+  .define('lamp', library.factory('town/lamp'), { label: 'Lamp', group: 'Town' });
+
+const entities = [];
+for (let i = 0; i < 36; i++) {
+  const a = (i / 36) * Math.PI * 2;
+  const r = 6 + (i % 4) * 1.6;
+  entities.push({
+    id: 'crate-' + i,
+    kind: 'crate',
+    at: [+(Math.sin(a) * r).toFixed(2), (i % 3) * 1.02, +(Math.cos(a) * r).toFixed(2)],
+    rot: +(a * 2).toFixed(3),
+  });
+}
+for (let i = 0; i < 6; i++) {
+  const a = (i / 6) * Math.PI * 2 + 0.3;
+  entities.push({ id: 'lamp-' + i, kind: 'lamp', at: [+(Math.sin(a) * 14).toFixed(2), 0, +(Math.cos(a) * 14).toFixed(2)] });
+}
+const live = Level.parse({ format: 'gama.level', version: 1, name: 'Yard', seed: 4, entities })
+  .instantiate(catalog, scene);
+memo();
+
+// ---- a group loaded on demand, and released again ---------------------
+let ruins = null;
+$('ruins').onclick = async () => {
+  $('ruins').disabled = true;
+  await library.load('ruins');
+  const statue = library.instance('ruins/statue');
+  statue.position.set(0, 0, 0);
+  const archA = library.instance('ruins/broken-arch');
+  archA.position.set(-9, 0, -9);
+  const archB = library.instance('ruins/broken-arch');
+  archB.position.set(9, 0, -9);
+  archB.rotation.y = 0.6;
+  ruins = [statue, archA, archB];
+  scene.add(...ruins);
+  $('drop').disabled = false;
+  memo();
+};
+
+$('drop').onclick = () => {
+  for (const object of ruins ?? []) object.removeFromParent();
+  ruins = null;
+  // The clones came from the library, so THIS is what frees the geometry.
+  const freed = library.release('ruins');
+  $('line').textContent = 'released: ' + freed.join(', ');
+  $('ruins').disabled = false;
+  $('drop').disabled = true;
+  setTimeout(memo, 100); // the driver drops them on the next frame
+};
+
+game.onUpdate((t) => {
+  const spin = t.elapsed * 0.12;
+  game.camera.position.set(Math.sin(spin) * 20, 9.5, Math.cos(spin) * 20);
+  game.camera.lookAt(0, 1.4, 0);
+});
+game.start();
+setInterval(memo, 500);
+
+window.assetDebug = () => ({
+  keys: library.keys.length,
+  groups: library.groups,
+  townBytes: library.weightOf('town'),
+  loaded: library.keys.filter((k) => library.isLoaded(k)),
+  placed: live.objects.length,
+  // One geometry per distinct model, however many placements there are.
+  geometries: game.renderer.info.memory.geometries,
+  textures: game.renderer.info.memory.textures,
+  triangles: game.renderer.info.render.triangles,
+  draws: game.renderer.info.render.calls,
+  ruinsLoaded: library.isLoaded('ruins/statue'),
+  chime: library.audio('ui/chime')?.duration ?? null,
+});`,
+  },
 ];
 
 

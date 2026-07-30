@@ -24,6 +24,10 @@
  *   - if an example's iframe defines `audioDebug()`, its numbers are printed
  *     and an all-zero energy report fails the row: sound is part of what
  *     "renders something" means here.
+ *   - same for `assetDebug()`: a pipeline example that quietly fell back to
+ *     procedural geometry because every fetch 404'd still draws a scene, so
+ *     the row is judged on what actually loaded and on whether instancing
+ *     shared its geometry.
  *
  * Usage:  node site/verify-playgrounds.mjs [id ...]
  */
@@ -231,6 +235,8 @@ for (const id of list) {
   // and silence must fail the row the same way a blank frame does.
   let audio = null;
   let audioBad = false;
+  let assets = null;
+  let assetsBad = false;
   const inner = page.frames().find((f) => f !== page.mainFrame());
   if (inner) {
     try {
@@ -241,26 +247,40 @@ for (const id of list) {
     if (audio && typeof audio.offlineRms === 'number') {
       audioBad = !(audio.offlineRms > 1e-4) || !(audio.offlinePeak > 1e-3);
     }
+    // Same idea for assets: a pipeline example that renders a scene it
+    // built procedurally, because every fetch 404'd, is not passing.
+    try {
+      assets = await inner.evaluate(() =>
+        typeof window.assetDebug === 'function' ? window.assetDebug() : null
+      );
+    } catch { /* ditto */ }
+    if (assets) {
+      // Thirty-six crates and six lamps out of TWO loaded models: if the
+      // geometry count scales with placements, instancing is not sharing.
+      assetsBad =
+        !(assets.loaded?.length >= 3) || !(assets.placed > 30) || !(assets.geometries < 12);
+    }
   }
 
   const blank = !pix.ok || (pix.flattest > 0.985 && pix.stdev < 1.5);
-  rows.push({ id, blank, audioBad, errs: errs.length, banner, ...pix });
-  const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : errs.length ? 'errs ' : '  ok ';
+  rows.push({ id, blank, audioBad, assetsBad, errs: errs.length, banner, ...pix });
+  const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : assetsBad ? 'ASSET' : errs.length ? 'errs ' : '  ok ';
   console.log(
     `${flag} ${id.padEnd(16)} distinct ${String(pix.distinct ?? 0).padStart(5)}` +
     ` flattest ${String(pix.flattest ?? 1).padStart(5)} stdev ${String(pix.stdev ?? 0).padStart(6)}` +
     ` mean ${String(pix.mean ?? 0).padStart(5)}` +
     (audio ? `  AUDIO: ${JSON.stringify(audio).slice(0, 180)}` : '') +
+    (assets ? `  ASSETS: ${JSON.stringify(assets).slice(0, 220)}` : '') +
     (pix.why ? `  WHY: ${pix.why}` : '') +
     (banner ? `  BANNER: ${banner}` : '') +
     (errs.length ? `\n        ${errs.slice(0, 3).join('\n        ')}` : '')
   );
-  if (blank || banner || audioBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
+  if (blank || banner || audioBad || assetsBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
   await page.close();
   await context.close();
 }
 
-const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.errs);
+const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.assetsBad || r.errs);
 console.log(`\n${rows.length - bad.length}/${rows.length} render something.`);
 if (bad.length) console.log('PROBLEMS:', bad.map((r) => r.id).join(', '));
 await browser.close();

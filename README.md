@@ -95,6 +95,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [The shell & templates](docs/shell.md) — the part of a game that is not the game
 - [Levels: prefabs & format](docs/levels.md) — a scene as data, and the round trip back
 - [The editor](docs/editor.md) — `Editor` + `gama3d/editor`: selection, snapped edits, undo that merges a drag into one step, and `mountEditor` for a whole tool in one call
+- [The asset pipeline](docs/assets.md) — a generated manifest (keys, byte sizes, groups, hashes), `AssetLibrary` (byte-weighted progress, shared instances, reference-counted release) and a `--check` gate
 - [Using all three libraries](docs/workflow.md) — the catalog seam: how GAMA, SCENA and ANIMA compose into one game without importing each other
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
