@@ -15,7 +15,15 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Playwright from wherever it is — it is not a dependency of this package. */
+/**
+ * Playwright from wherever it is.
+ *
+ * Normally the devDependency, which is what makes this script runnable on a
+ * fresh clone and in CI. The rest of the chain is for environments that ship
+ * a global one instead — and every path's error is kept, because a diagnosis
+ * built on the last failure in a fallback chain is a diagnosis of the
+ * backstop.
+ */
 const pw = await (async () => {
   const tries = [
     process.env.PLAYWRIGHT,

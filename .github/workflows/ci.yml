@@ -1,0 +1,137 @@
+# The gates, on every push.
+#
+# The doctrine in this repo is that the thing which finds the bug is the thing
+# which USES the feature, so a CI that ran `npm test` and stopped would be a
+# lie by omission: it would pass while the playground rendered black, while
+# the editor's raycast missed, while the netcode dropped a handshake. Every
+# check that has ever caught something here runs below.
+#
+# Four jobs, in two waves. `check` is the fast one and everything else waits
+# for it, so a syntax error costs ninety seconds rather than four parallel
+# browser installs.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first. Nobody wants the results
+# of the commit they already replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Chromium is installed explicitly per job; nothing here should reach for a
+  # browser during `npm ci`.
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+jobs:
+  check:
+    name: typecheck, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # The manifest is generated, and a generated file that drifts from its
+      # source is worse than no manifest: it names assets that are not there.
+      - run: npm run assets:check
+
+  net:
+    name: netcode over real sockets
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # `net:check` starts the reference server in its own process and connects
+      # two clients over real WebSockets. The unit tests run a whole server and
+      # two clients with no sockets at all, which is what makes them
+      # deterministic and exactly what they cannot prove.
+      - run: npm run net:check
+
+  bench:
+    name: perf counters
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # `--counters-only`: the exact counters gate, the timings are printed.
+      # Counters are integers about behaviour and mean the same thing on every
+      # machine. The calibration-relative times are a first-order correction
+      # that has been validated against one container's drift and nothing else,
+      # and failing a build on an unvalidated cross-machine claim is the exact
+      # failure mode docs/perf.md is about. Read the numbers in the log; when
+      # there is enough data across runners to know what they are worth, drop
+      # the flag.
+      - run: node bench/run.mjs --counters-only
+
+  browser:
+    name: playgrounds, editor, game, render budgets
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Chromium only. The suite never touches Firefox or WebKit, and
+      # --with-deps is what supplies the system libraries a bare runner lacks.
+      - run: npx playwright install --with-deps chromium
+      # Builds the library, the vendor bundles, the site, and the game — the
+      # game is a separate npm project depending on PUBLISHED gama3d, so this
+      # step also checks the published package still assembles a real game.
+      - run: npm run site:build
+
+      # Does every example actually draw? A canvas existing and gl.getError()
+      # being zero are both true of a completely blank frame; only measuring
+      # the screenshot answers the question.
+      - run: node site/verify-playgrounds.mjs
+      # The editor driven for real: select, drag, snap, undo, reload.
+      - run: node site/verify-editor.mjs
+      # And the game played: deliveries, crowd, HUD, the whole shell.
+      - run: node game/tools/verify.mjs
+      # Draw calls, triangles, resident geometries and textures. Frame TIME
+      # under SwiftShader is meaningless; what the renderer was asked to do is
+      # a property of the scene and compares exactly.
+      - run: npm run bench:render
+
+      # The screenshots are the evidence. On a failure they are the difference
+      # between "something is wrong" and seeing the black frame.
+      - name: upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            .playground-shots/
+          if-no-files-found: ignore
+          retention-days: 14

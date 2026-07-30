@@ -1,5 +1,8 @@
 # GAMA — Gaming And Motion Agent
 
+[![CI](https://github.com/pariharshyamu/gama/actions/workflows/ci.yml/badge.svg)](https://github.com/pariharshyamu/gama/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/gama3d.svg)](https://www.npmjs.com/package/gama3d)
+
 **GAMA** is a 3D game development library built on top of [three.js](https://threejs.org). It gives you the pieces three.js deliberately leaves out — a game loop, entities and components, input, cameras, tweening, gameplay collisions — and its signature feature: **motion agents**, a composable steering-behavior system for bringing NPCs, enemies, flocks and companions to life.
 
 three.js renders. **GAMA makes it a game.**
@@ -325,6 +328,14 @@ npm run verify:editor        # the editor driven for real, 20 checks
 npm run net:check            # two clients over real WebSockets, 10 checks
 npm run perf                 # timing + exact counters + render budgets
 ```
+
+All of the above run in CI on every push
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — a pipeline that ran
+`npm test` and stopped would pass while the playground rendered black, while
+the editor's raycast missed, and while the netcode dropped a handshake. Each of
+those was a real bug, and none of them was found by a unit test.
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

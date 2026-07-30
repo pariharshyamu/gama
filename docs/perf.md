@@ -147,6 +147,22 @@ across eight clients removed, for five extra packets and 3.3 kB over a
 thirty-second simulation. That trade is obviously worth making, and *knowing
 the numbers* is the difference between deciding and assuming.
 
+## In CI
+
+CI runs `node bench/run.mjs --counters-only` and the full `bench:render`.
+
+The asymmetry is deliberate. The counters are integers about behaviour, so they
+mean the same thing on a laptop and on a shared runner, and they gate. The
+calibration-relative times are a **first-order** correction for machine speed
+that has been validated against this one container's drift and nowhere else —
+so CI prints them and does not fail on them. Failing somebody's build on an
+unvalidated cross-machine claim is the exact thing this page argues against.
+When there is enough data across runners to know what the ratio is worth, drop
+the flag.
+
+`bench:render` gates fully: draw calls and geometry counts are properties of the
+scene, not of the machine.
+
 ## When a failure is correct
 
 Re-record and **say why in the commit message**. A baseline diff with no

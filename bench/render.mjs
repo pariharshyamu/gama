@@ -28,6 +28,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** Playwright: the devDependency first, a global one as a fallback. */
 const pw = await (async () => {
   const tries = [
     process.env.PLAYWRIGHT,
@@ -42,7 +43,7 @@ const pw = await (async () => {
       /* next */
     }
   }
-  throw new Error('no playwright found');
+  throw new Error(`no playwright found; tried ${tries.join(', ')}`);
 })();
 const { chromium } = pw;
 

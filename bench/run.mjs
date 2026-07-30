@@ -5,6 +5,7 @@
  *   npm run bench              compare against bench/baseline.json
  *   npm run bench:update       record a new baseline
  *   node bench/run.mjs --only flock-200 --json
+ *   node bench/run.mjs --counters-only     gate counters, report times (CI)
  *
  * ## Why this is shaped the way it is
  *
@@ -54,6 +55,19 @@ const value = (flag, fallback) => {
 const update = has('update');
 const asJson = has('json');
 const only = value('only', null);
+/**
+ * Report timings but never fail on them. What CI uses.
+ *
+ * The counters are exact integers about behaviour, so they mean the same thing
+ * on every machine and gate everywhere. The times are ratios to a calibration
+ * case, which is a first-order correction for machine speed and NOT a
+ * validated one — it has been measured across this container's own drift and
+ * nowhere else. Failing somebody's build on an unvalidated cross-machine
+ * claim is precisely the behaviour this file argues against, so CI prints the
+ * timings and gates the counters. Drop the flag once there is data from
+ * enough machines to know what the ratio is really worth.
+ */
+const countersOnly = has('counters-only');
 const SAMPLES = Number(value('samples', '9'));
 /** How much slower than baseline is a failure. Wide on purpose — see above. */
 const SLOWER = Number(value('tolerance', '1.5'));
@@ -191,7 +205,7 @@ for (const [name, m] of Object.entries(measured)) {
   if (was.checksum !== null && m.checksum !== null && was.checksum !== m.checksum) {
     problems.push(`${name}: checksum ${was.checksum} → ${m.checksum} (the simulation moved)`);
   }
-  if (name === 'calibrate') continue;
+  if (name === 'calibrate' || countersOnly) continue;
 
   // A case's band is the tolerance OR its own recorded noise, whichever is
   // wider. `level-roundtrip` allocates six thousand meshes and disposes
@@ -225,7 +239,10 @@ if (problems.length) {
   );
   process.exit(1);
 }
-console.log(`bench: ${Object.keys(measured).length} cases, no regressions ✓`);
+console.log(
+  `bench: ${Object.keys(measured).length} cases, no regressions ✓` +
+    (countersOnly ? ' (counters gated, timings reported only)' : '')
+);
 
 // ---- printing --------------------------------------------------------------
 
