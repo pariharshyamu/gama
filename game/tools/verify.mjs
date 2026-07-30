@@ -127,9 +127,22 @@ await page.screenshot({ path: join(OUT, 'game-editor-selected.png'), timeout: 60
 
 const tidy = await page.evaluate(() => window.editorStress(15));
 console.log('\nrelease on ', tidy);
+
+// Close the first editor before opening the second.
+//
+// Nothing below touches `page` again, and leaving it open left its render
+// loop competing for the CPU with the page we are about to wait on. On a
+// two-core runner that was enough to push a cold editor — 103 entities, 114
+// objects, software rasteriser — past the 30 s this used to allow, while it
+// finished comfortably on a larger machine. It failed in CI having passed
+// locally, twice, which is precisely the class of difference CI exists to
+// find. The timeout is now 60 s, matching the screenshot timeouts in this
+// file, because the cost here is a slow machine rather than a wrong answer.
+await page.close();
+
 const leakPage = watch(await browser.newPage({ viewport: { width: 900, height: 600 } }));
 await leakPage.goto(`${BASE}/editor.html?leak=1`, { waitUntil: 'networkidle' });
-await leakPage.waitForFunction(() => typeof window.editorStress === 'function', { timeout: 30000 });
+await leakPage.waitForFunction(() => typeof window.editorStress === 'function', { timeout: 60000 });
 await leakPage.waitForTimeout(5000);
 const leaky = await leakPage.evaluate(() => window.editorStress(15));
 console.log('release off', leaky, '\n');
