@@ -126,12 +126,18 @@ jobs:
 
       # The screenshots are the evidence. On a failure they are the difference
       # between "something is wrong" and seeing the black frame.
+      #
+      # `include-hidden-files` is not optional: the shot directory is
+      # `.playground-shots`, upload-artifact excludes dotfiles by default, and
+      # the first CI run uploaded NOTHING while reporting success —
+      # "No files were found with the provided path". An empty artifact that
+      # looks like a full one is worse than no artifact.
       - name: upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots
-          path: |
-            .playground-shots/
-          if-no-files-found: ignore
+          path: .playground-shots/
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 14
