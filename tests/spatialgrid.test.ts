@@ -45,6 +45,37 @@ describe('SpatialGrid', () => {
     expect(result).toHaveLength(2);
   });
 
+  it('separates cells that pack near each other, including negatives', () => {
+    // Cell coordinates are packed into one number instead of an "x,y,z"
+    // string. A packing collision would silently merge two cells — agents
+    // teleporting into each other's neighbour lists — so this walks a block
+    // straddling the origin and checks every cell stays distinct.
+    const grid = new SpatialGrid(1);
+    const agents: MotionAgent[] = [];
+    for (let x = -2; x <= 2; x++)
+      for (let y = -2; y <= 2; y++)
+        for (let z = -2; z <= 2; z++) agents.push(agentAt(x + 0.5, y + 0.5, z + 0.5));
+    grid.rebuild(agents);
+    expect(grid.cellCount).toBe(agents.length); // 125 cells, 125 agents, no merging
+
+    // And a query in the middle of that block finds exactly its own cell.
+    const one = grid.neighbors(new Vector3(0.5, 0.5, 0.5), 0.1);
+    expect(one).toHaveLength(1);
+    expect(one[0].position.x).toBeCloseTo(0.5);
+  });
+
+  it('finds neighbours a long way from the origin', () => {
+    // Packing is finite. At cellSize 5 the safe box is ±163,840 units; a
+    // world well inside it must still work exactly.
+    const grid = new SpatialGrid(5);
+    const a = agentAt(50_000, 0, -50_000);
+    const b = agentAt(50_003, 0, -50_000);
+    const far = agentAt(-50_000, 0, 50_000);
+    grid.rebuild([a, b, far]);
+    const found = grid.neighbors(a.position, 4);
+    expect(new Set(found)).toEqual(new Set([a, b]));
+  });
+
   it('counts the work a query did, not just what it found', () => {
     // The distinction is the entire point. A 1-unit grid queried at radius 2
     // sweeps a 5×5×5 block — 125 cells — to return one agent. `found` cannot

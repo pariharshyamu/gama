@@ -210,6 +210,8 @@ game.onUpdate(() => grid.rebuild(flock));
 agent.addBehavior(new Separation(grid.near(agent, 5), 1.5), 1.8);
 ```
 
+Measured — `npm run bench:throughput` — the grid overtakes a plain array at around **500 agents** (1000 agents: 8.8 ms/frame vs 25.7; 2000: 19.8 vs 91.9). Below that the array is faster and simpler, and the docs [say so](docs/motion.md#when-it-is-worth-it-measured) rather than assuming the fancy structure wins.
+
 ### Navigation
 
 Point-to-point movement through a level is one call — `NavMesh` runs A* over

@@ -3,7 +3,8 @@
 ```bash
 npm run bench                 # timing + exact counters, in Node
 npm run bench:render          # render budgets, in headless Chromium
-npm run perf                  # both
+npm run perf                  # both — the gates
+npm run bench:throughput      # how many agents fit in a frame (not a gate)
 npm run bench:update          # re-record after an intended change
 npm run bench:render:update
 ```
@@ -130,6 +131,39 @@ FAIL  playground/assets: geometries 5 → 85 (exact)
 no screenshot and no unit test would ever have noticed — forty-two crates
 quietly stopped being five geometries and became eighty-five. This is exactly
 the class of regression the render gate exists for.
+
+## The question a gate cannot answer
+
+A regression gate asks *did this get worse*. It is completely blind to code
+that was always slow, because the baseline was recorded from that same slow
+code. `npm run bench:throughput` asks the other question — **how many can you
+actually have** — in absolute milliseconds, and it is deliberately not a gate:
+a number that means something concrete has to be allowed to be
+machine-specific.
+
+The first time it ran it found that `SpatialGrid`, the library's headline
+scaling feature, was **2× slower than comparing every agent to every other
+one** at 400 agents — the size of the flock example — and did not break even
+until about 1300. The cause was `"x,y,z"` string keys: a concatenation and a
+string hash per agent per rebuild, and per cell per query, so a query sweeping
+27 cells built 27 strings to do 27 lookups. Packing the coordinates into one
+integer made it 2.5× faster at every size and moved the crossover to ~500.
+
+Two things worth taking from that. The gates could never have caught it —
+both versions were exactly as fast as the recorded baseline. And the docs were
+confidently wrong ("for hundreds, use the spatial hash") because nobody had
+asked the absolute question. **A perf suite with only regression gates is
+half a perf suite.**
+
+The fix is also the cleanest demonstration of why the counters exist:
+
+```
+flock-200      2.8× faster   cellsVisited 2304000  tested 493539  found 251052
+spatial-grid   2.5× faster   cellsVisited 1415560  tested 437720  found 209540
+```
+
+Every counter identical to the baseline, every time halved. That is proof, not
+hope, that the optimisation changed the cost and not the behaviour.
 
 ## It also catches improvements
 

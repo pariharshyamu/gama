@@ -206,15 +206,28 @@ export interface Flock {
 }
 
 /**
+ * Below this, neighbours come from a plain array instead of the grid.
+ *
+ * The spatial hash is not free — it trades a per-agent rebuild every frame
+ * for fewer comparisons — and a small flock does not have enough comparisons
+ * to pay for the rebuild. Measured (`npm run bench:throughput`): at 100
+ * agents an array costs 0.30 ms a frame and the grid 0.78 ms; they cross over
+ * around 500. The default flock is 100, so using the grid unconditionally
+ * made the common case more than twice as slow in the name of scaling.
+ */
+const GRID_WORTH_IT = 500;
+
+/**
  * A complete boid flock in one call: cones, MotionAgents with the classic
- * separation/alignment/cohesion trio + wander + containment, and a
- * SpatialGrid rebuilt once per frame for near-O(n) neighbor queries.
+ * separation/alignment/cohesion trio + wander + containment, and — only when
+ * the count justifies it — a SpatialGrid rebuilt once per frame.
  */
 export function createFlock(game: GameContext, options: FlockOptions = {}): Flock {
   const count = options.count ?? 100;
   const bounds =
     options.bounds ?? new Box3(new Vector3(-18, 1, -18), new Vector3(18, 12, 18));
   const grid = new SpatialGrid(5);
+  const useGrid = count >= GRID_WORTH_IT;
   const agents: MotionAgent[] = [];
   const objects: GameObject[] = [];
   const size = bounds.getSize(new Vector3());
@@ -235,7 +248,7 @@ export function createFlock(game: GameContext, options: FlockOptions = {}): Floc
       new MotionAgent({ maxSpeed: options.maxSpeed ?? 6, maxForce: 18 })
     );
     agent.velocity.set(Math.random() - 0.5, 0, Math.random() - 0.5).setLength(3);
-    const neighbors = grid.near(agent, 5);
+    const neighbors = useGrid ? grid.near(agent, 5) : () => agents;
     agent.addBehavior(new Wander(), 0.6);
     agent.addBehavior(new Separation(neighbors, 1.4), 1.8);
     agent.addBehavior(new Alignment(neighbors, 4), 1);
@@ -246,7 +259,8 @@ export function createFlock(game: GameContext, options: FlockOptions = {}): Floc
     objects.push(boid);
   }
 
-  const stopRebuild = game.onUpdate(() => grid.rebuild(agents));
+  // No rebuild when nothing queries it — that rebuild IS the grid's cost.
+  const stopRebuild = useGrid ? game.onUpdate(() => grid.rebuild(agents)) : () => {};
 
   return {
     objects,

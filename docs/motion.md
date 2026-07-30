@@ -54,7 +54,8 @@ class Gravity implements SteeringBehavior {
 ## Flocking at scale: SpatialGrid
 
 The flocking behaviors take a `Neighbors` source (`() => Iterable<MotionAgent>`).
-A plain array works for dozens of agents; for hundreds, use the spatial hash:
+A plain array is genuinely fine up to a few hundred agents — see the numbers
+below before reaching for this. Past that, the spatial hash:
 
 ```ts
 const grid = new SpatialGrid(5);              // cell size ≈ largest query radius
@@ -68,6 +69,32 @@ agent.addBehavior(new Cohesion(neighbors, 5), 0.7);
 
 The query radius passed to `near` should be ≥ each behavior's own radius —
 behaviors filter further themselves. See `examples/flock` for 400 boids.
+
+### When it is worth it, measured
+
+`npm run bench:throughput`, on one container — read the shape, not the
+absolute milliseconds:
+
+| agents | plain array | SpatialGrid | |
+|---|---|---|---|
+| 100 | 0.30 ms | 0.78 ms | array wins |
+| 250 | 1.42 ms | 2.00 ms | array wins |
+| 500 | 5.05 ms | 4.52 ms | grid, barely |
+| 1000 | 25.67 ms | 8.83 ms | grid, 2.9× |
+| 2000 | 91.89 ms | 19.78 ms | grid, 4.6× |
+| 4000 | — | 45.42 ms | |
+
+**Under ~500 agents an array is faster and simpler.** The grid is not free: it
+trades a per-agent rebuild every frame for fewer comparisons, and below a few
+hundred agents there are not enough comparisons to pay for the rebuild. This
+page used to say "for hundreds, use the spatial hash", which was wrong, and
+was only discovered by measuring the absolute cost rather than watching it for
+regressions.
+
+The other half of that story: the grid keyed its cells with `"x,y,z"` strings,
+so a query sweeping 27 cells built 27 strings to do 27 lookups. Packing the
+coordinates into one integer made it 2.5× faster at every size and moved the
+crossover from ~1300 agents to ~500. Both numbers above are after that fix.
 
 ### Checking that it is actually helping
 

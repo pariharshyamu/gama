@@ -16,6 +16,45 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.42.0] — 2026-07-30
+
+### Added
+
+- **`npm run bench:throughput`** — absolute milliseconds per frame against
+  agent count, deliberately *not* a gate. A regression gate asks "did this get
+  worse" and is blind to code that was always slow, because the baseline came
+  from that same slow code. This asks how many you can actually have.
+
+### Fixed
+
+- **`SpatialGrid` was slower than brute force below ~1300 agents.** It keyed
+  cells with `"x,y,z"` strings — a concatenation and a string hash per agent
+  per rebuild, and per cell per query, so a query sweeping 27 cells built 27
+  strings to do 27 lookups. At 400 agents, the size of the shipped flock
+  example, the "fast" broadphase was 2× slower than comparing every agent to
+  every other one. Coordinates now pack into one integer: 2.5× faster at every
+  size, and the crossover moved to ~500 agents.
+
+  | agents | plain array | grid before | grid after |
+  |---|---|---|---|
+  | 100 | 0.30 ms | 2.04 ms | 0.78 ms |
+  | 500 | 5.05 ms | 10.98 ms | 4.52 ms |
+  | 1000 | 25.67 ms | 23.45 ms | 8.83 ms |
+  | 2000 | 91.89 ms | 50.18 ms | 19.78 ms |
+
+  The exact counters are the proof this changed cost and not behaviour:
+  `cellsVisited`, `tested` and `found` are byte-identical across the fix.
+
+- **`createFlock` used the grid at its own default size.** The default is 100
+  boids, which is the pessimal case — the template now uses a plain array
+  below 500 agents and skips the per-frame rebuild entirely.
+
+### Changed
+
+- The docs said "for hundreds, use the spatial hash". They now publish the
+  measured crossover and say an array is faster and simpler below ~500 agents.
+  Better asymptotics are not the same thing as faster.
+
 ## [0.41.1] — 2026-07-30
 
 ### Added
@@ -52,6 +91,7 @@ Two gaps between this file and the registry, stated rather than papered over:
   `rebuild()`, so reading them at the end of a frame describes that frame.
   `cellsVisited / queries` says whether `cellSize` is sane; `tested / found`
   says how selective the cells are.
+
 ### Fixed
 
 - **The netcode's input buffer was steered up to from empty, never primed.**

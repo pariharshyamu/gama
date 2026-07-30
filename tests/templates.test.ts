@@ -245,4 +245,37 @@ describe('createFlock', () => {
     step(1 / 60); // world reaps destroyed objects
     expect(world.objects).toHaveLength(0);
   });
+
+  it('only pays for the grid when the count justifies it', () => {
+    // The spatial hash costs a rebuild per agent per frame and saves
+    // comparisons; measured, it does not break even until around 500 agents.
+    // A 100-boid flock — the default — using it unconditionally was more than
+    // twice as slow as a plain array, so small flocks skip it entirely.
+    const small = stubGame();
+    const smallFlock = createFlock(small.game, { count: 20 });
+    small.step(0.1);
+    expect(smallFlock.grid.stats.queries).toBe(0); // never consulted
+    expect(smallFlock.grid.cellCount).toBe(0); // never even rebuilt
+
+    // …and it still flocks, which is the point: the strategy changed, the
+    // behaviour did not.
+    smallFlock.objects.forEach((boid, i) => boid.position.set(i * 0.05, 5, 0));
+    small.step(2);
+    let minDistance = Infinity;
+    for (let i = 0; i < smallFlock.objects.length; i++)
+      for (let j = i + 1; j < smallFlock.objects.length; j++)
+        minDistance = Math.min(
+          minDistance,
+          smallFlock.objects[i].position.distanceTo(smallFlock.objects[j].position)
+        );
+    expect(minDistance).toBeGreaterThan(0.4);
+    smallFlock.dispose();
+
+    const big = stubGame();
+    const bigFlock = createFlock(big.game, { count: 500 });
+    big.step(0.1);
+    expect(bigFlock.grid.stats.queries).toBeGreaterThan(0);
+    expect(bigFlock.grid.cellCount).toBeGreaterThan(0);
+    bigFlock.dispose();
+  });
 });
