@@ -305,6 +305,32 @@ export {
   type LintSeverity,
   type LintOptions,
 } from './dialogue/lint';
+// Determinism, measured. A replay is the seed plus the inputs — a few hundred
+// bytes for a whole run — and playing one back re-runs the simulation. The
+// per-tick checksum is what turns "it should reproduce" into a number.
+export {
+  Recorder,
+  TapeReader,
+  replay,
+  parseReplay,
+  REPLAY_VERSION,
+  type ReplayTape,
+  type ReplayFrame,
+  type RecorderOptions,
+  type ReplayOptions,
+  type ReplayResult,
+  type Divergence,
+} from './replay/Replay';
+export {
+  worldChecksum,
+  checksumOf,
+  type ChecksumSource,
+  type ChecksumOptions,
+} from './replay/checksum';
+// Seeded randomness. GAMA had seeds everywhere — `Level` carries one, a
+// `Catalog` factory receives one — and nothing to spend them on, so the flock
+// template reached for `Math.random` and became unreplayable.
+export { Rng } from './core/random';
 export {
   Recipe,
   type RecipeOptions,

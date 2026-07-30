@@ -101,6 +101,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [The asset pipeline](docs/assets.md) — a generated manifest (keys, byte sizes, groups, hashes), `AssetLibrary` (byte-weighted progress, shared instances, reference-counted release) and a `--check` gate
 - [Networking](docs/net.md) — `gama3d/net`: an authoritative server, client-side prediction, reconciliation, entity interpolation, delta snapshots, and a simulated link that makes all of it testable without a socket
 - [Dialogue](docs/dialogue.md) — conversations as JSON so `lintDialogue` can read them: dangling links, unreachable lines and misspelt variables found before a player finds them; hidden vs locked choices, mid-conversation saves, exact counters
+- [Replay & determinism](docs/replay.md) — a run is its seed plus its inputs, a few hundred bytes: `Recorder`, `replay`, and a per-tick `worldChecksum` that names the FIRST tick two runs disagree on. It found that `createFlock` could not be replayed at all — `Math.random` in the scatter *and* in every boid's `Wander` — and brought GAMA a seeded `Rng` to fix it with
 - [The perf gate](docs/perf.md) — `npm run perf`: calibration-relative timing with honest noise handling, exact work counters, render budgets in headless Chromium — and the deliberate regressions it was made to fail on
 - [Using all three libraries](docs/workflow.md) — the catalog seam: how GAMA, SCENA and ANIMA compose into one game without importing each other
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
@@ -317,7 +318,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 
 ```bash
 npm install
-npm test          # 465 vitest unit tests, no browser
+npm test          # 524 vitest unit tests, no browser
 npm run typecheck
 npm run build     # tsup → dist (ESM + CJS + d.ts)
 npm run dev       # vite dev server for examples/basic

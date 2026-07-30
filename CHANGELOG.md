@@ -16,6 +16,49 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.44.0] — 2026-07-30
+
+### Added
+
+- **Replay** — `Recorder`, `replay`, `TapeReader`, `parseReplay` (versioned,
+  with migrations, like `Level` and `Dialogue`). A run is its seed plus its
+  inputs — a few hundred bytes, because only ticks where the input *changed*
+  are stored — and playing it back re-runs the simulation. That is a regression
+  test made of real play, a ghost, a demo, and a spectator, all one mechanism.
+
+- **`worldChecksum`** — the whole world folded into one unsigned 32-bit
+  integer, so two runs can be compared per tick and the **first** tick they
+  disagree on can be named. That tick is the bug; everything after it is
+  consequence, which is why `replay` stops there instead of listing four
+  hundred of them. `precision` for cross-machine comparison (and the honest
+  warning that it then cannot see drift below the quantum), `deep` for state
+  three.js knows nothing about.
+
+- **`Rng`** — mulberry32, seeded, with the seed mixed before first use so that
+  seeds 1, 2, 3 do not start with three near-identical values. GAMA had seeds
+  everywhere — `Level` carries one, `Catalog` hands one to every factory — and
+  no generator behind them.
+
+### Fixed
+
+- **`createFlock` could not be replayed at all.** It scattered its boids with
+  `Math.random` and gave every one a `Wander` reading `Math.random` too, so the
+  same tape built a different flock every run. It takes `seed` now. Half the
+  fix is a trap and the tests say so: seeding the scatter alone leaves a flock
+  reproducible for exactly **one tick**, because `Wander` advances its angle by
+  a random step every tick — re-injecting the unseeded `Wander` alone fails
+  exactly one test.
+
+### Also
+
+- A determinism test that was measuring nothing, recorded because it was more
+  convincing than the bug. It stepped the world with `world.fixedUpdate(0.02)`;
+  `World.fixedUpdate` takes a `Time`, not a number, and `MotionAgent`
+  integrates in `update` — so it typechecked nowhere, ran fine under vitest,
+  and moved nothing at all. Every assertion passed on a world that never
+  changed. The suite now opens with a guard asserting the flock travels and
+  nothing has gone to `NaN`.
+
 ## [0.43.0] — 2026-07-30
 
 ### Added

@@ -1,4 +1,5 @@
 import { Box3, ConeGeometry, Mesh, MeshStandardMaterial, Vector3, type Object3D } from 'three';
+import { Rng } from '../core/random';
 import {
   Alignment,
   Arrive,
@@ -196,6 +197,15 @@ export interface FlockOptions {
   /** Extra behaviors per boid (e.g. Flee from a predator). */
   extraBehaviors?: (agent: MotionAgent) => void;
   name?: string;
+  /**
+   * Seed for the scatter and the wander. Default 1.
+   *
+   * It used to be `Math.random`, which meant a flock could not be replayed,
+   * saved, or reproduced from a bug report — the same tape built a different
+   * flock every run. Found by `tests/replay.test.ts`, which is the kind of
+   * defect a per-tick checksum exists to make visible.
+   */
+  seed?: number;
 }
 
 export interface Flock {
@@ -227,6 +237,7 @@ export function createFlock(game: GameContext, options: FlockOptions = {}): Floc
   const bounds =
     options.bounds ?? new Box3(new Vector3(-18, 1, -18), new Vector3(18, 12, 18));
   const grid = new SpatialGrid(5);
+  const rng = new Rng(options.seed ?? 1);
   const useGrid = count >= GRID_WORTH_IT;
   const agents: MotionAgent[] = [];
   const objects: GameObject[] = [];
@@ -240,16 +251,18 @@ export function createFlock(game: GameContext, options: FlockOptions = {}): Floc
     mesh.rotation.x = Math.PI / 2;
     boid.add(mesh);
     boid.position.set(
-      bounds.min.x + Math.random() * size.x,
-      bounds.min.y + Math.random() * size.y,
-      bounds.min.z + Math.random() * size.z
+      bounds.min.x + rng.next() * size.x,
+      bounds.min.y + rng.next() * size.y,
+      bounds.min.z + rng.next() * size.z
     );
     const agent = boid.addComponent(
       new MotionAgent({ maxSpeed: options.maxSpeed ?? 6, maxForce: 18 })
     );
-    agent.velocity.set(Math.random() - 0.5, 0, Math.random() - 0.5).setLength(3);
+    agent.velocity.set(rng.next() - 0.5, 0, rng.next() - 0.5).setLength(3);
     const neighbors = useGrid ? grid.near(agent, 5) : () => agents;
-    agent.addBehavior(new Wander(), 0.6);
+    // The wander's own stream, from the same generator: seeding the scatter
+    // alone would make a flock reproducible for exactly one tick.
+    agent.addBehavior(new Wander(3, 1.5, 4, rng.stream), 0.6);
     agent.addBehavior(new Separation(neighbors, 1.4), 1.8);
     agent.addBehavior(new Alignment(neighbors, 4), 1);
     agent.addBehavior(new Cohesion(neighbors, 5), 0.7);
