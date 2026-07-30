@@ -23,7 +23,7 @@ Times are stored as **ratios to a calibration case**: a fixed lump of
 arithmetic with no library in it. A laptop at half the speed of the recording
 machine scores the same ratio, so the baseline is portable.
 
-Four decisions, every one of them forced by a measurement that went wrong
+Five decisions, every one of them forced by a measurement that went wrong
 first:
 
 **Calibration is re-measured inside every sample, not once up front.** This
