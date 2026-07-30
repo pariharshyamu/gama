@@ -16,6 +16,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'platformer', title: 'Platformer: jump physics', playground: 'coinrun' },
   { id: 'light', title: 'Light as gameplay', playground: 'stealth' },
   { id: 'flight', title: 'Flight: the arcade model', playground: 'aviator' },
+  { id: 'dialogue', title: 'Dialogue: conversations as data', playground: 'dialogue' },
   { id: 'levels', title: 'Levels: prefabs & format', playground: 'level' },
   { id: 'editor', title: 'The editor' },
   { id: 'workflow', title: 'Using all three libraries' },

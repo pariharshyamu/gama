@@ -246,7 +246,9 @@ for (const id of list) {
   let assets = null;
   let assetsBad = false;
   let net = null;
+  let dialogue = null;
   let netBad = false;
+  let dialogueBad = false;
   const inner = page.frames().find((f) => f !== page.mainFrame());
   if (inner) {
     try {
@@ -269,6 +271,32 @@ for (const id of list) {
         typeof window.netDebug === 'function' ? window.netDebug() : null
       );
     } catch { /* ditto */ }
+    // Dialogue is the one example whose subject is not pixels at all: it is a
+    // graph walk. So the check WALKS it — pick the option that asks his name,
+    // confirm the second visit no longer offers it — rather than looking at
+    // the frame, which would be just as bright either way.
+    try {
+      dialogue = await inner.evaluate(async () => {
+        if (typeof window.dialogueDebug !== 'function') return null;
+        const at = () => window.dialogueDebug();
+        const before = at();
+        const buttons = () => [...document.querySelectorAll('button')];
+        const click = (label) => {
+          const button = buttons().find((b) => b.textContent.includes(label) && !b.disabled);
+          if (button) button.click();
+          return !!button;
+        };
+        const asked = click("Who's asking?");
+        await new Promise((r) => setTimeout(r, 60));
+        const named = at();
+        click('Continue');
+        await new Promise((r) => setTimeout(r, 60));
+        const back = at();
+        // Second time around the name option is gone: `toldName` gates it.
+        const offeredAgain = buttons().some((b) => b.textContent.includes("Who's asking?"));
+        return { before, named, back, asked, offeredAgain };
+      });
+    } catch { /* ditto */ }
     if (net) {
       // A multiplayer demo that renders two capsules because the netcode
       // fell back to reading the server's state directly is not a demo.
@@ -277,6 +305,22 @@ for (const id of list) {
       netBad =
         !net.ready || net.players !== 2 || net.mine !== 1 ||
         !(net.leadOwn > 0.05) || !(net.lagOther > 0.05) || !(net.serverTick > 30);
+    }
+    if (dialogue) {
+      const { before, named, back, asked, offeredAgain } = dialogue;
+      dialogueBad =
+        // The lint must be clean, and every node reachable — an unreachable
+        // line is content nobody will ever see.
+        before.lintErrors !== 0 ||
+        before.lintNodes !== before.lintReachable ||
+        // Three coins: the pay option is SHOWN and DISABLED — locked, not
+        // hidden, so the price is visible. The sneak route is hidden entirely.
+        before.coins !== 3 || before.locked !== 1 || before.shown !== 4 ||
+        !asked ||
+        // Entering `name` set the flag, via an effect on the node.
+        named.at !== 'name' || named.paid !== false ||
+        back.at !== 'hail' || back.lines < 3 || back.choices !== 1 ||
+        offeredAgain;
     }
     if (assets) {
       // Thirty-six crates and six lamps out of TWO loaded models: if the
@@ -287,9 +331,9 @@ for (const id of list) {
   }
 
   const blank = !pix.ok || (pix.flattest > 0.985 && pix.stdev < 1.5);
-  rows.push({ id, blank, audioBad, assetsBad, netBad, errs: errs.length, banner, ...pix });
+  rows.push({ id, blank, audioBad, assetsBad, netBad, dialogueBad, errs: errs.length, banner, ...pix });
   const flag = blank ? 'BLANK' : banner ? 'ERROR' : audioBad ? 'MUTE ' : assetsBad ? 'ASSET'
-    : netBad ? ' NET ' : errs.length ? 'errs ' : '  ok ';
+    : netBad ? ' NET ' : dialogueBad ? 'TALK ' : errs.length ? 'errs ' : '  ok ';
   console.log(
     `${flag} ${id.padEnd(16)} distinct ${String(pix.distinct ?? 0).padStart(5)}` +
     ` flattest ${String(pix.flattest ?? 1).padStart(5)} stdev ${String(pix.stdev ?? 0).padStart(6)}` +
@@ -297,16 +341,19 @@ for (const id of list) {
     (audio ? `  AUDIO: ${JSON.stringify(audio).slice(0, 180)}` : '') +
     (assets ? `  ASSETS: ${JSON.stringify(assets).slice(0, 220)}` : '') +
     (net ? `  NET: ${JSON.stringify(net).slice(0, 260)}` : '') +
+    (dialogue ? `  TALK: ${JSON.stringify(dialogue.back).slice(0, 240)}` : '') +
     (pix.why ? `  WHY: ${pix.why}` : '') +
     (banner ? `  BANNER: ${banner}` : '') +
     (errs.length ? `\n        ${errs.slice(0, 3).join('\n        ')}` : '')
   );
-  if (blank || banner || audioBad || assetsBad || netBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
+  if (blank || banner || audioBad || assetsBad || netBad || dialogueBad || errs.length) await page.screenshot({ path: `${OUT}/pg-${id}.png` });
   await page.close();
   await context.close();
 }
 
-const bad = rows.filter((r) => r.blank || r.banner || r.audioBad || r.assetsBad || r.netBad || r.errs);
+const bad = rows.filter(
+  (r) => r.blank || r.banner || r.audioBad || r.assetsBad || r.netBad || r.dialogueBad || r.errs
+);
 console.log(`\n${rows.length - bad.length}/${rows.length} render something.`);
 if (bad.length) console.log('PROBLEMS:', bad.map((r) => r.id).join(', '));
 await browser.close();

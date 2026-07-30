@@ -265,6 +265,46 @@ export {
   type BroadcastAlert,
 } from './gameplay/Attention';
 export { Queue, type QueueOptions } from './gameplay/Queue';
+
+// Dialogue — a conversation as data. Conditions and effects are JSON rather
+// than functions so `lintDialogue` can read them; presentation is the caller's.
+export {
+  Dialogue,
+  type DialogueLine,
+  type PresentedChoice,
+  type DialogueOptions,
+  type DialogueCounts,
+  type DialogueState,
+} from './dialogue/Dialogue';
+export {
+  defineDialogue,
+  parseDialogue,
+  DIALOGUE_VERSION,
+  type DialogueScript,
+  type DialogueNode,
+  type DialogueChoice,
+  type ParseOptions as DialogueParseOptions,
+} from './dialogue/script';
+// `Condition` is already taken — it is the behavior tree's node class. The
+// dialogue vocabulary is prefixed rather than renamed internally, so the
+// module reads naturally and the public surface stays unambiguous.
+export {
+  evaluate as evaluateCondition,
+  apply as applyEffects,
+  type Condition as DialogueCondition,
+  type Effect as DialogueEffect,
+  type DialogueValue,
+  type Vars as DialogueVars,
+  type Predicates as DialoguePredicates,
+} from './dialogue/conditions';
+export {
+  lintDialogue,
+  formatLint,
+  type LintReport,
+  type LintFinding,
+  type LintSeverity,
+  type LintOptions,
+} from './dialogue/lint';
 export {
   Recipe,
   type RecipeOptions,

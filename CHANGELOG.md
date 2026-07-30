@@ -16,6 +16,50 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.43.0] — 2026-07-30
+
+### Added
+
+- **Dialogue** — a conversation as data. `Dialogue`, `defineDialogue`,
+  `parseDialogue` (versioned, with migrations, like `Level`), and a JSON
+  condition/effect vocabulary: `is`/`not`/`all`/`any`/`eq`/`ne`/`gte`/`lt` plus
+  `{ pred: name }` resolved against predicates you register — the same seam
+  `Catalog` uses for level kinds. Effects are `set`, `inc`, `emit`.
+
+  The conditions are data rather than functions *so that they can be read*,
+  which is what makes the next item possible.
+
+- **`lintDialogue`** — the payoff. Dangling links, empty lines, unknown
+  predicates and **variables read but never written or declared** are errors;
+  unreachable nodes, strandable choice lists, unread variables and duplicated
+  choice text are warnings. `counts.nodes !== counts.reachable` is a bug, which
+  makes it a gate rather than a report.
+
+- **Hidden vs locked choices.** A failing `if` hides a choice; add `locked` and
+  it shows greyed. A hidden choice keeps a secret, a locked one teaches — both
+  are wanted, and a system with only one forces authors to fake the other.
+
+- **Mid-conversation save.** `toJSON()` is `{ at, vars, visited }`, straight
+  into a `SaveSlot`. `restore` deliberately does not re-fire the entering
+  effects — they ran before the save, and replaying them would double every
+  `inc` on each load.
+
+- **`counts`** — exact `{ lines, choices, events }`, so a conversation is
+  testable as a walk. The playground example is verified in CI by *walking* it:
+  click the option that asks his name, advance, assert the option is gone.
+
+- A playground example — a bridge toll you can actually negotiate, with a live
+  lint report — and [docs/dialogue.md](docs/dialogue.md).
+
+### Notes
+
+Two things found while building the demo, both documented rather than hidden.
+Indices must resolve against the **presented** choice list, not the authored
+array — the two differ the moment a condition filters anything, and a test pins
+it. And the obvious "hidden option plus locked hint carrying the same
+condition" idiom is a trap: when the condition passes, both rows appear and the
+hint leads nowhere. One choice, locked, is the answer.
+
 ## [0.42.0] — 2026-07-30
 
 ### Added

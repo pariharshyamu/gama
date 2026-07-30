@@ -3097,6 +3097,234 @@ window.netDebug = () => ({
   draws: game.renderer.info.render.calls,
 });`,
   },
+  {
+    id: 'dialogue',
+    title: 'Dialogue: a conversation as data',
+    group: 'Core',
+    code: `// A CONVERSATION AS DATA. The script below is JSON — no functions in it —
+// which is what lets lintDialogue() read it and tell you about a dangling
+// link or a misspelt variable before a player ever finds one.
+//
+// Try: pay the toll with too few coins (the option is HIDDEN), watch the
+// locked hint that tells you what you need, ask his name twice (the second
+// time the option is gone), then SAVE mid-conversation and reload.
+import { AmbientLight, BoxGeometry, CapsuleGeometry, Color, CylinderGeometry,
+         DirectionalLight, Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
+import { Game, Dialogue, defineDialogue, lintDialogue } from 'gama3d';
+
+// ---- the content. Data, not code. ----------------------------------------
+const script = defineDialogue({
+  version: 1,
+  start: 'hail',
+  // Declared variables. Anything read but not declared and never written is
+  // a typo, and the linter says so — that is what the JSON buys.
+  vars: { coins: 3, toldName: false, paid: false },
+  nodes: {
+    hail: {
+      speaker: 'Keeper',
+      text: 'Toll for the bridge. Five coins.',
+      choices: [
+        // ONE choice, locked rather than hidden: greyed out when you cannot
+        // afford it, so the price is visible instead of secret. A locked twin
+        // of a hidden option looks tempting and is a trap — when the
+        // condition passes, BOTH rows appear and one of them goes nowhere.
+        { text: 'Here you are. (5 coins)', to: 'paid', locked: true,
+          if: { gte: ['coins', 5] },
+          do: [{ inc: ['coins', -5] }, { set: ['paid', true] }, { emit: 'paid-toll' }] },
+        // Hidden, not locked: he should not advertise the shortcut.
+        { text: 'Slip past while he yawns.', to: 'sneak', if: { gte: ['coins', 99] } },
+        { text: "Who's asking?", to: 'name', if: { not: { is: 'toldName' } } },
+        { text: 'What is on the other side?', to: 'other' },
+        { text: 'I will go around.', tag: 'leave' },
+      ],
+    },
+    name: {
+      speaker: 'Keeper',
+      text: 'The keeper. Same as yesterday, same as tomorrow.',
+      do: [{ set: ['toldName', true] }],
+      to: 'hail',
+    },
+    other: {
+      speaker: 'Keeper',
+      text: 'Havenbrook. Bread, a well, and people who pay their tolls.',
+      to: 'hail',
+    },
+    paid: {
+      speaker: 'Keeper',
+      text: 'Mind the third plank. It remembers the river.',
+      do: [{ emit: 'crossed' }],
+    },
+    // Unreachable in practice at three coins — and the linter counts it as
+    // reachable because reachability ignores conditions, which is the honest
+    // answer: the link exists, whether or not a player can satisfy it.
+    sneak: {
+      speaker: 'Keeper',
+      text: '...I can hear you, you know.',
+      to: 'hail',
+    },
+  },
+});
+
+// ---- the lint. This runs at load; in a real project it is a CI step. -----
+const report = lintDialogue(script);
+
+const game = new Game();
+game.world.scene.background = new Color(0x1b2432);
+game.world.scene.add(new AmbientLight(0xffffff, 0.55));
+const sun = new DirectionalLight(0xffe6bd, 1.5);
+sun.position.set(6, 12, 5);
+game.world.scene.add(sun);
+game.camera.position.set(0.2, 2.9, 7.6);
+game.camera.lookAt(0, 1.5, -1.6);
+
+const water = new Mesh(new PlaneGeometry(60, 60),
+  new MeshStandardMaterial({ color: 0x1d3b52, roughness: 0.25, metalness: 0.35 }));
+water.rotation.x = -Math.PI / 2;
+game.world.scene.add(water);
+
+// A bridge, a keeper, and you.
+for (let i = 0; i < 7; i++) {
+  const plank = new Mesh(new BoxGeometry(3.2, 0.16, 0.7),
+    new MeshStandardMaterial({ color: i === 2 ? 0x7c4a2d : 0x9a6b43, roughness: 0.9 }));
+  plank.position.set(0, 0.9, -1.2 - i * 0.85);
+  game.world.scene.add(plank);
+}
+for (const side of [-1.5, 1.5]) {
+  const rail = new Mesh(new CylinderGeometry(0.07, 0.07, 6.4, 6),
+    new MeshStandardMaterial({ color: 0x6b4a30, roughness: 0.95 }));
+  rail.rotation.x = Math.PI / 2;
+  rail.position.set(side, 1.5, -3.8);
+  game.world.scene.add(rail);
+}
+const keeper = new Mesh(new CapsuleGeometry(0.42, 1.0, 6, 12),
+  new MeshStandardMaterial({ color: 0xc98f5a, roughness: 0.7 }));
+keeper.position.set(-0.9, 1.72, -0.4);
+game.world.scene.add(keeper);
+const you = new Mesh(new CapsuleGeometry(0.4, 0.95, 6, 12),
+  new MeshStandardMaterial({ color: 0x60a5fa, roughness: 0.7 }));
+you.position.set(1.1, 1.68, 1.6);
+game.world.scene.add(you);
+
+// ---- presentation is entirely the caller's ------------------------------
+const ui = document.createElement('div');
+ui.style.cssText = 'position:absolute;left:12px;right:12px;bottom:12px;font:13px/1.5 ' +
+  'system-ui,sans-serif;color:#e8eef6;background:rgba(12,18,28,.86);border:1px solid ' +
+  '#2b3a4d;border-radius:10px;padding:12px 14px;max-width:640px;margin:0 auto';
+document.body.appendChild(ui);
+
+const purse = document.createElement('div');
+purse.style.cssText = 'position:absolute;top:12px;left:12px;font:12px/1.6 system-ui,' +
+  'sans-serif;color:#cfe0f5;background:rgba(12,18,28,.86);border:1px solid #2b3a4d;' +
+  'border-radius:8px;padding:8px 10px';
+document.body.appendChild(purse);
+
+let events = [];
+let talk = null;
+
+function render() {
+  const line = talk.line;
+  purse.innerHTML = '<b>coins</b> ' + talk.vars.coins +
+    ' &nbsp; <b>lines</b> ' + talk.counts.lines +
+    ' &nbsp; <b>choices</b> ' + talk.counts.choices +
+    '<br><span style="opacity:.7">lint: ' + report.counts.nodes + ' nodes, ' +
+    report.counts.reachable + ' reachable, ' + report.errors + ' errors</span>' +
+    (events.length ? '<br><span style="color:#86efac">emitted: ' + events.join(', ') + '</span>' : '');
+
+  if (!line) {
+    ui.innerHTML = '<div style="opacity:.75">— the conversation is over —</div>';
+    const again = document.createElement('button');
+    again.textContent = 'Talk again';
+    again.style.cssText = 'margin-top:8px;font:12px system-ui;padding:5px 10px;' +
+      'background:#1f2f43;color:#e8eef6;border:1px solid #3a4f68;border-radius:6px;cursor:pointer';
+    again.onclick = () => { begin(3); };
+    ui.appendChild(again);
+    return;
+  }
+
+  ui.innerHTML = '<div style="color:#fbbf24;font-weight:600">' + (line.speaker || '-') +
+    '</div><div style="margin:4px 0 10px">' + line.text + '</div>';
+
+  const choices = talk.choices;
+  if (choices.length === 0) {
+    const next = document.createElement('button');
+    next.textContent = 'Continue';
+    next.style.cssText = 'font:12px system-ui;padding:5px 10px;background:#1f2f43;' +
+      'color:#e8eef6;border:1px solid #3a4f68;border-radius:6px;cursor:pointer';
+    next.onclick = () => { talk.advance(); render(); };
+    ui.appendChild(next);
+  }
+  for (const choice of choices) {
+    const button = document.createElement('button');
+    button.textContent = (choice.enabled ? '> ' : 'x ') + choice.text;
+    button.disabled = !choice.enabled;
+    button.style.cssText = 'display:block;width:100%;text-align:left;margin:3px 0;' +
+      'font:12px system-ui;padding:6px 9px;border-radius:6px;cursor:' +
+      (choice.enabled ? 'pointer' : 'not-allowed') + ';background:' +
+      (choice.enabled ? '#1f2f43' : '#171f2b') + ';color:' +
+      (choice.enabled ? '#e8eef6' : '#7b8798') + ';border:1px solid ' +
+      (choice.enabled ? '#3a4f68' : '#252f3d');
+    button.onclick = () => { talk.choose(choice.index); render(); };
+    ui.appendChild(button);
+  }
+}
+
+function begin(coins) {
+  events = [];
+  talk = new Dialogue(script, {
+    vars: { coins: coins },
+    onEvent: (name) => { events.push(name); },
+  });
+  talk.start();
+  render();
+}
+begin(3);
+
+// Controls: change the purse to watch conditions gate, and prove the save.
+const tools = document.createElement('div');
+tools.style.cssText = 'position:absolute;top:12px;right:12px;display:flex;gap:6px';
+for (const [label, fn] of [
+  ['coins 3', () => begin(3)],
+  ['coins 7', () => begin(7)],
+  ['save + reload', () => {
+    const saved = JSON.parse(JSON.stringify(talk.toJSON()));
+    talk = new Dialogue(script, { onEvent: (name) => { events.push(name); } });
+    talk.restore(saved);
+    render();
+  }],
+]) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.style.cssText = 'font:12px system-ui;padding:5px 9px;background:#1f2f43;color:#e8eef6;' +
+    'border:1px solid #3a4f68;border-radius:6px;cursor:pointer';
+  b.onclick = fn;
+  tools.appendChild(b);
+}
+document.body.appendChild(tools);
+
+game.start();
+
+// The probe the verifier reads. Exact integers, so a conversation is testable
+// as a WALK rather than as a screenshot.
+window.dialogueDebug = () => ({
+  at: talk.line ? talk.line.id : null,
+  speaker: talk.line ? talk.line.speaker : null,
+  shown: talk.choices.length,
+  enabled: talk.choices.filter((c) => c.enabled).length,
+  locked: talk.choices.filter((c) => !c.enabled).length,
+  coins: talk.vars.coins,
+  paid: talk.vars.paid === true,
+  lines: talk.counts.lines,
+  choices: talk.counts.choices,
+  events: talk.counts.events,
+  emitted: events.slice(),
+  done: talk.done,
+  lintNodes: report.counts.nodes,
+  lintReachable: report.counts.reachable,
+  lintErrors: report.errors,
+  lintWarnings: report.warnings,
+  draws: game.renderer.info.render.calls,
+});`,
+  },
 ];
 
 

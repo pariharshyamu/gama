@@ -100,6 +100,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [The editor](docs/editor.md) — `Editor` + `gama3d/editor`: selection, snapped edits, undo that merges a drag into one step, and `mountEditor` for a whole tool in one call
 - [The asset pipeline](docs/assets.md) — a generated manifest (keys, byte sizes, groups, hashes), `AssetLibrary` (byte-weighted progress, shared instances, reference-counted release) and a `--check` gate
 - [Networking](docs/net.md) — `gama3d/net`: an authoritative server, client-side prediction, reconciliation, entity interpolation, delta snapshots, and a simulated link that makes all of it testable without a socket
+- [Dialogue](docs/dialogue.md) — conversations as JSON so `lintDialogue` can read them: dangling links, unreachable lines and misspelt variables found before a player finds them; hidden vs locked choices, mid-conversation saves, exact counters
 - [The perf gate](docs/perf.md) — `npm run perf`: calibration-relative timing with honest noise handling, exact work counters, render budgets in headless Chromium — and the deliberate regressions it was made to fail on
 - [Using all three libraries](docs/workflow.md) — the catalog seam: how GAMA, SCENA and ANIMA compose into one game without importing each other
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
@@ -308,6 +309,7 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 - [x] Light as gameplay: `Illumination` field (structural sources, live litness, pure math), `Flashlight` (battery drama, seeded gutter, cone reveal with angular slack), `MoodGrade` (structural rig targets, seamless interrupted blends)
 - [x] Flight: `FlightController` (throttle→speed→lift, bank-to-turn, stall as a state, taxi/rotate/flare/touchdown with sink-rate events, `apply()` + `aircraftInput` bridges)
 - [x] Hover: `HoverController` (collective/cyclic/pedals, rotor spool inertia, seeded hover breath, sink-rate touchdowns, `helicopterInput` bridge) + `rotorVoicing`/`RotorSound` (blade-pass tremolo — the wop-wop is amplitude, not pitch)
+- [x] Dialogue: conversations as data (`Dialogue`, `defineDialogue`) with a JSON condition/effect vocabulary chosen so `lintDialogue` can statically find dangling links, unreachable nodes, strandable choice lists and undeclared variables; hidden vs locked choices, save/restore mid-line, exact `counts`
 - [x] Air combat: `Missiles` (lead pursuit under a hard turn-rate limit with speed-bleed — evadability as physics; seeded one-chance flare seduction; pooled instanced) + `LockOn` (cone/range/time, no credit for past devotion)
 - [ ] Multi-layer navmesh generation (Recast-style voxelization)
 
