@@ -1,0 +1,96 @@
+{
+  "note": "Deterministic render counters. `exact` keys must match; `banded` keys are allowed a percentage drift because frustum culling moves with the camera.",
+  "band": 0.25,
+  "scenes": {
+    "playground/assets": {
+      "exact": [
+        "geometries",
+        "textures",
+        "placed",
+        "loaded"
+      ],
+      "banded": [
+        "draws",
+        "triangles"
+      ],
+      "counters": {
+        "geometries": 5,
+        "textures": 2,
+        "placed": 42,
+        "loaded": 4,
+        "draws": 81,
+        "triangles": 1074
+      }
+    },
+    "playground/level": {
+      "exact": [
+        "built",
+        "inFile"
+      ],
+      "banded": [
+        "draws"
+      ],
+      "counters": {
+        "built": 6,
+        "inFile": 6,
+        "draws": 10
+      }
+    },
+    "playground/net": {
+      "exact": [
+        "players",
+        "mine"
+      ],
+      "banded": [
+        "draws"
+      ],
+      "counters": {
+        "players": 2,
+        "mine": 1,
+        "draws": 29
+      }
+    },
+    "game/editor": {
+      "exact": [
+        "entities",
+        "built",
+        "kinds",
+        "addresses",
+        "waypoints",
+        "blockers"
+      ],
+      "banded": [
+        "draws",
+        "triangles",
+        "geometries",
+        "textures"
+      ],
+      "counters": {
+        "entities": 103,
+        "built": 114,
+        "kinds": 23,
+        "addresses": 10,
+        "waypoints": 12,
+        "blockers": 72,
+        "draws": 543,
+        "triangles": 18346,
+        "geometries": 529,
+        "textures": 2
+      }
+    },
+    "game/havenbrook": {
+      "exact": [
+        "houses"
+      ],
+      "banded": [
+        "draws",
+        "tris"
+      ],
+      "counters": {
+        "houses": 10,
+        "draws": 466,
+        "tris": 20706
+      }
+    }
+  }
+}

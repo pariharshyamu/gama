@@ -107,6 +107,13 @@ mispredicts every single time it happens. Measured against the reference
 server before this existed: a correction every few seconds from nothing but
 drift. After: zero.
 
+**And the buffer is primed, not steered up to.** The steering has ±15%
+authority on purpose — its job is drift, not cold-starting — so filling an
+empty buffer took about a second, and for that whole second a single late
+input still cost a correction. The first batch of inputs now goes out
+`bufferTarget` deep, so the client simply starts two server steps ahead, which
+is what having a buffer means.
+
 ## Corrections are visible or invisible, your choice
 
 `correction: 'smooth'` (default) keeps the error as a decaying offset, so a
@@ -156,6 +163,13 @@ Every one of these was measured, not reasoned about:
 - **A `bye` sent immediately before a disconnect was eaten** by the loopback
   closing its peer synchronously. Real sockets flush before they close, so now
   the hang-up travels over the link behind its data.
+- **The input buffer was steered up from empty rather than primed**, so for
+  the first second after a client started sending, one late input made the
+  server run dry and cost a correction. It showed up as `net:check` failing
+  about one run in eight with `1 / 1 corrections` — one misprediction on
+  *both* clients at the same instant, which is what pointed at the server's
+  buffer rather than at either client's prediction. An intermittent check is
+  worth chasing precisely because it is intermittent.
 - **The check harness passed a nominal 16 ms** while `setTimeout(16)` took 19,
   so the clients out-produced the server by 20% and the queue hit its cap.
   A game loop that assumes its own frame time makes exactly this mistake.

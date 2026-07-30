@@ -97,6 +97,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 - [The editor](docs/editor.md) — `Editor` + `gama3d/editor`: selection, snapped edits, undo that merges a drag into one step, and `mountEditor` for a whole tool in one call
 - [The asset pipeline](docs/assets.md) — a generated manifest (keys, byte sizes, groups, hashes), `AssetLibrary` (byte-weighted progress, shared instances, reference-counted release) and a `--check` gate
 - [Networking](docs/net.md) — `gama3d/net`: an authoritative server, client-side prediction, reconciliation, entity interpolation, delta snapshots, and a simulated link that makes all of it testable without a socket
+- [The perf gate](docs/perf.md) — `npm run perf`: calibration-relative timing with honest noise handling, exact work counters, render budgets in headless Chromium — and the deliberate regressions it was made to fail on
 - [Using all three libraries](docs/workflow.md) — the catalog seam: how GAMA, SCENA and ANIMA compose into one game without importing each other
 - [Characters](docs/characters.md) — templates: third-person/top-down players, guards, companions, flocks, locomotion
 - [Motion agents & steering](docs/motion.md) — behaviors, flocking at scale, avoidance, state machines, tuning
@@ -309,10 +310,20 @@ const gltf = await assets.gltf('models/hero.glb'); // cached; repeated calls are
 
 ```bash
 npm install
-npm test          # vitest unit tests (steering, tweens, world lifecycle)
+npm test          # 465 vitest unit tests, no browser
 npm run typecheck
 npm run build     # tsup → dist (ESM + CJS + d.ts)
 npm run dev       # vite dev server for examples/basic
+```
+
+And the things that need a browser or a socket, none of which a unit test can
+stand in for:
+
+```bash
+npm run verify:playgrounds   # every playground example, headless, pixel-checked
+npm run verify:editor        # the editor driven for real, 20 checks
+npm run net:check            # two clients over real WebSockets, 10 checks
+npm run perf                 # timing + exact counters + render budgets
 ```
 
 ## License

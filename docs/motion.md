@@ -69,6 +69,32 @@ agent.addBehavior(new Cohesion(neighbors, 5), 0.7);
 The query radius passed to `near` should be ≥ each behavior's own radius —
 behaviors filter further themselves. See `examples/flock` for 400 boids.
 
+### Checking that it is actually helping
+
+`cellSize` is the one number that decides whether the grid earns its keep, and
+guessing at it is easy. `grid.stats` says what the last frame's queries really
+cost:
+
+```ts
+game.onUpdate(() => {
+  // Last frame's numbers — read them BEFORE the rebuild zeroes them.
+  const { queries, cellsVisited, tested, found } = grid.stats;
+  if (queries) console.log(cellsVisited / queries, tested / found);
+  grid.rebuild(flock);
+});
+```
+
+- **`cellsVisited / queries`** — cells swept per query. A grid much finer than
+  the query radius sweeps a large block, most of it empty: radius 6 over
+  `cellSize` 1 is 2197 map lookups to answer one question.
+- **`tested / found`** — distance comparisons per neighbour returned. Climbing
+  means cells are too coarse and each one drags in agents that get rejected.
+
+Both are exact integers for a given scene, which makes them worth asserting in
+a performance test — see [the perf gate](perf.md). A broadphase that scans
+more cells to return the same neighbours is invisible in the result and obvious
+in `cellsVisited`.
+
 ## Obstacle avoidance
 
 ```ts

@@ -44,7 +44,7 @@ export {
 } from './motion/steering';
 export { Path } from './motion/Path';
 export { StateMachine, type State } from './motion/StateMachine';
-export { SpatialGrid } from './motion/SpatialGrid';
+export { SpatialGrid, type SpatialGridStats } from './motion/SpatialGrid';
 export { ObstacleAvoidance, Containment, type Obstacle } from './motion/avoidance';
 export { Harass, type HarassOptions } from './motion/harass';
 export { driveVehicle, type VehicleRunningGear } from './motion/driveVehicle';

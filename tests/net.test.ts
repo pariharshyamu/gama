@@ -242,6 +242,27 @@ describe('NetServer + NetClient', () => {
     expect(client.rateScale).toBeLessThan(1.16);
   });
 
+  it('primes the server buffer at join instead of steering up to it', () => {
+    // The steering above has ±15% authority on purpose — it corrects clock
+    // drift — which means filling an EMPTY buffer takes about a second. For
+    // that whole second one late input makes the server run dry, repeat the
+    // last one, and cost the client a correction. Over a real socket that
+    // showed up as roughly one run in eight taking exactly one misprediction,
+    // on both clients simultaneously.
+    //
+    // So the first batch of inputs goes out `bufferTarget` deep. The queue
+    // must be at target after the FIRST send, not after a second of ramping.
+    const { client, server, run } = world({ latency: 0 });
+    run(0.3);
+    expect(client.ready).toBe(true);
+    client.setInput({ x: 1, z: 0 });
+    client.update(1 / 60); // one frame — a sixtieth of a server step's worth
+    expect(client.pending).toBeGreaterThanOrEqual(2);
+    // And the depth is real: the server has them queued, not applied.
+    run(0.05);
+    expect(server.count).toBe(1);
+  });
+
   it('sends deltas, so a still world costs nothing', () => {
     const { link, run, client } = world({ latency: 0 });
     run(0.4);

@@ -289,6 +289,24 @@ export class NetClient<I = unknown> {
       this.id = message.id;
       this.tickRate = message.tickRate;
       this.ready = true;
+      // PRIME the server's input buffer instead of waiting for the rate
+      // steering to fill it.
+      //
+      // The steering below has deliberately small authority (±15%), because
+      // its job is correcting clock drift, not cold-starting. From an empty
+      // buffer that means about a second to reach `bufferTarget` — and for
+      // that whole second one late input makes the server run dry, repeat,
+      // and cost a correction. Measured over a real socket: roughly one run
+      // in eight took exactly one misprediction, on BOTH clients at once,
+      // which is what pointed at the server's buffer rather than either
+      // client's prediction.
+      //
+      // Seeding the accumulator makes the first `update` emit the target's
+      // worth of inputs at once. That is not cheating: each carries its own
+      // `dt` of one server step and is predicted locally, so the client
+      // simply starts `bufferTarget` steps ahead of the server, which is
+      // precisely what having a buffer means.
+      this.accumulator = this.bufferTarget / this.tickRate;
       this.onWelcome?.(message.id);
       return;
     }
