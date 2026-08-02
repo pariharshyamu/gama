@@ -56,6 +56,17 @@ Two gaps between this file and the registry, stated rather than papered over:
   that answers SSH; the smoke test needs the name on the certificate. Pointing
   the checks at the IP over HTTPS fails every one of them on a name mismatch
   that has nothing to do with the deploy that just ran.
+- **`.github/workflows/deploy.yml`** — the same deploy, from CI. It does not
+  reimplement any of it: the workflow runs `npm run site:deploy` the way a
+  laptop would, so what is tested by hand is what CI runs and there is no
+  second copy to drift. Provisioning and TLS are checkboxes on a manual
+  dispatch, since each is needed once. `typecheck` and the suite run before
+  anything uploads — `deploy.sh` catches a broken *build*, but a green site
+  serving a library that fails its own tests is not a successful deploy.
+  Concurrency is capped at one and never cancelled: two runs would race on
+  `current`. It picks HTTP or HTTPS for its smoke test by asking the server
+  rather than guessing, so the first run works before a certificate exists
+  and every run after it checks the real thing, with no flag to remember.
 
 ### Fixed
 

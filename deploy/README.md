@@ -106,6 +106,40 @@ address that answers SSH; the smoke test needs the name on the certificate.
 Point the checks at the IP over HTTPS and every one of them fails on a name
 mismatch that has nothing to do with the deploy that just ran.
 
+## Or let CI do it
+
+`.github/workflows/deploy.yml` runs all of the above from GitHub Actions —
+on push to the default branch, or on demand from the Actions tab with
+checkboxes for `provision` and `enable_tls`.
+
+It does not reimplement any of this. It runs `npm run site:deploy` exactly
+the way you would locally, so what you test by hand is what CI runs and there
+is no second copy of the logic to drift out of sync.
+
+Set up once:
+
+```sh
+ssh-keygen -t ed25519 -f ~/.ssh/gama_deploy -C "gama deploy" -N ""
+ssh-copy-id -i ~/.ssh/gama_deploy.pub root@103.39.133.227
+
+cat ~/.ssh/gama_deploy          # → secret DEPLOY_SSH_KEY
+ssh-keyscan -H 103.39.133.227   # → secret SSH_KNOWN_HOSTS
+```
+
+`SSH_KNOWN_HOSTS` is optional and you want it. Without it the workflow falls
+back to `ssh-keyscan` at run time, which trusts whatever key the host offers
+at that moment — fine on a network you trust, and exactly the check that
+would catch someone standing in the middle if you cannot be sure.
+
+The workflow decides HTTP vs HTTPS for its smoke test by asking the server
+rather than guessing, so the first run (before a certificate exists) checks
+over HTTP and every run afterwards over HTTPS, with no flag to remember.
+
+`typecheck` and the test suite run before anything is uploaded. `deploy.sh`
+already refuses to ship a build whose `index.html` names files that are not
+there, but that catches a broken *build* — a green site serving a library
+that fails its own tests is not a successful deploy either.
+
 ## The two configs, and why certbot does not write them
 
 ```

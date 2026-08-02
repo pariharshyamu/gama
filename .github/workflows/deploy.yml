@@ -1,0 +1,227 @@
+# Deploys the docs site + game to gama.playmeet.games, from CI rather than
+# from anybody's laptop.
+#
+# The mechanics are exactly the ones in deploy/ — this workflow does not
+# reimplement the deploy, it runs `npm run site:deploy` the same way you
+# would locally. Which means the thing that is tested when you run it by hand
+# is the thing CI runs, and there is no second copy of the logic to drift.
+#
+# ---------------------------------------------------------------- setup
+#
+# One secret is required. From a machine that can already reach the box:
+#
+#   ssh-keygen -t ed25519 -f ~/.ssh/gama_deploy -C "gama deploy" -N ""
+#   ssh-copy-id -i ~/.ssh/gama_deploy.pub root@103.39.133.227
+#
+# Then in Settings → Secrets and variables → Actions:
+#
+#   DEPLOY_SSH_KEY    (secret)   the PRIVATE key: cat ~/.ssh/gama_deploy
+#   SSH_KNOWN_HOSTS   (secret)   ssh-keyscan -H 103.39.133.227
+#                                 optional, strongly recommended — see below
+#   TLS_EMAIL         (secret)   optional; for Let's Encrypt expiry warnings
+#   DEPLOY_HOST       (variable) optional; defaults to 103.39.133.227
+#   DEPLOY_USER       (variable) optional; defaults to root
+#   SITE_DOMAIN       (variable) optional; defaults to gama.playmeet.games
+#
+# SSH_KNOWN_HOSTS is optional but you want it. Without it this workflow falls
+# back to `ssh-keyscan`, which trusts whatever key the host offers at that
+# moment — fine on a network you trust, and precisely the check that would
+# have caught someone standing in the middle if you do not.
+name: Deploy site
+
+on:
+  workflow_dispatch:
+    inputs:
+      provision:
+        description: 'Run bootstrap.sh first (needed once, on a fresh box)'
+        type: boolean
+        default: false
+      enable_tls:
+        description: 'Run enable-tls.sh after deploying (needed once)'
+        type: boolean
+        default: false
+      site_url:
+        description: 'Override the smoke-test URL (auto-detected if blank)'
+        type: string
+        default: ''
+  push:
+    # The repository default branch. Change this if the default changes —
+    # `on:` cannot read github.event.repository.default_branch, so it has to
+    # be spelled out.
+    branches: ['claude/gaming-motion-agent-threejs-wi01ad']
+    # Only what can actually change the built site. A commit touching only
+    # bench/ or tests/ produces byte-identical output, and the game build —
+    # which installs its own dependency tree from npm — is the slow part.
+    paths:
+      - 'src/**'
+      - 'site/**'
+      - 'game/**'
+      - 'docs/**'
+      - 'templates/**'
+      - 'deploy/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy.yml'
+
+# One deploy at a time, and never cancelled. Two concurrent runs would race
+# on `current`, and cancelling one mid-rsync leaves a half-written release
+# directory behind — harmless, since nothing points at it until the swap, but
+# there is no upside to allowing it either.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: build, ship, verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '103.39.133.227' }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER || 'root' }}
+      SITE_DOMAIN: ${{ vars.SITE_DOMAIN || 'gama.playmeet.games' }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail here, loudly, rather than 200 lines later inside ssh with
+      # "Permission denied (publickey)" and nothing pointing at the cause.
+      - name: Check the deploy key is configured
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::DEPLOY_SSH_KEY is not set. See the setup notes at the top of .github/workflows/deploy.yml"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The deploy gate. `npm run site:deploy` already refuses to ship a build
+      # whose index.html names files that are not there, but that only catches
+      # a broken BUILD — these catch broken CODE, and a green site serving a
+      # library that fails its own tests is not a successful deploy.
+      - name: typecheck + tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Install the SSH key
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          # printf, not echo: the key is multi-line and echo mangles it on
+          # some shells. Quoted, so nothing in it is word-split.
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if [ -n "$KNOWN" ]; then
+            printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+          else
+            echo "::warning::SSH_KNOWN_HOSTS is not set — trusting whatever host key ${DEPLOY_HOST} offers right now. Set the secret to: ssh-keyscan -H ${DEPLOY_HOST}"
+            ssh-keyscan -T 10 -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          # BatchMode so a missing host key or a passphrase-protected key
+          # FAILS instead of blocking on a prompt no one can answer — a
+          # hung runner burns 30 minutes to tell you nothing.
+          cat > ~/.ssh/config <<'CFG'
+          Host *
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          CFG
+          chmod 600 ~/.ssh/config
+
+      - name: Provision the server
+        if: inputs.provision
+        run: |
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -p $DEPLOY_PORT" \
+            deploy/ "$DEPLOY_USER@$DEPLOY_HOST:/tmp/gama-deploy/"
+          # `sudo -n env` and not a bare `sudo -n`: the environment
+          # assignments have to survive the privilege change, and `sudo -E`
+          # only preserves what sudoers already permits. As root the prefix is
+          # empty and the assignments sit in front of `bash` on their own,
+          # which is ordinary shell.
+          prefix=""
+          [ "$DEPLOY_USER" != "root" ] && prefix="sudo -n env"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "$prefix DEPLOY_USER='$DEPLOY_USER' bash /tmp/gama-deploy/bootstrap.sh"
+
+      # Which URL the smoke test should hit depends on whether TLS is on yet,
+      # and getting it wrong fails every check on a name mismatch that has
+      # nothing to do with the deploy. So: ask the server instead of guessing.
+      - name: Work out the smoke-test URL
+        id: url
+        env:
+          OVERRIDE: ${{ inputs.site_url }}
+        run: |
+          if [ -n "$OVERRIDE" ]; then
+            url="$OVERRIDE"; why="overridden by workflow input"
+          elif curl -fsS --max-time 15 -o /dev/null "https://$SITE_DOMAIN/healthz" 2>/dev/null; then
+            url="https://$SITE_DOMAIN"; why="HTTPS is live"
+          else
+            url="http://$DEPLOY_HOST"; why="HTTPS not answering yet — checking over HTTP"
+          fi
+          echo "site_url=$url" >> "$GITHUB_OUTPUT"
+          echo "$why → $url"
+
+      # The deploy itself. Identical to running it by hand; SKIP_BUILD is not
+      # set, so this builds the site and the game from this commit.
+      - name: Deploy
+        env:
+          SITE_URL: ${{ steps.url.outputs.site_url }}
+        # SSH_KEY is set here rather than in `env:` because it needs $HOME
+        # expanded by the shell, and `env:` values are interpolated by Actions
+        # before any shell sees them.
+        run: SSH_KEY="$HOME/.ssh/deploy_key" npm run site:deploy
+
+      - name: Enable HTTPS
+        if: inputs.enable_tls
+        env:
+          EMAIL: ${{ secrets.TLS_EMAIL }}
+        run: |
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -p $DEPLOY_PORT" \
+            deploy/ "$DEPLOY_USER@$DEPLOY_HOST:/tmp/gama-deploy/"
+          prefix=""
+          [ "$DEPLOY_USER" != "root" ] && prefix="sudo -n env"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "$prefix EMAIL='$EMAIL' DOMAIN='$SITE_DOMAIN' SERVER_IP='$DEPLOY_HOST' bash /tmp/gama-deploy/enable-tls.sh"
+
+      - name: Summary
+        if: always()
+        env:
+          SITE_URL: ${{ steps.url.outputs.site_url }}
+        run: |
+          {
+            echo "### Deploy — ${{ job.status }}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| site | ${SITE_URL:-n/a} |"
+            echo "| host | \`$DEPLOY_HOST\` |"
+            echo "| commit | \`${GITHUB_SHA:0:8}\` |"
+            echo "| provisioned | ${{ inputs.provision || false }} |"
+            echo "| TLS step | ${{ inputs.enable_tls || false }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The runner is torn down anyway, but a key left readable on disk
+      # through later steps is a habit worth not having.
+      - name: Shred the key
+        if: always()
+        run: shred -u ~/.ssh/deploy_key 2>/dev/null || rm -f ~/.ssh/deploy_key
