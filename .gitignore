@@ -7,3 +7,4 @@ site/dist/
 site/public/vendor/
 site/public/docs/
 .playground-shots/
+deploy/deploy.env

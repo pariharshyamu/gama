@@ -56,6 +56,7 @@
     "site:dev": "node site/build-vendor.mjs && vite site",
     "site:build": "npm run assets:check && node site/build-vendor.mjs && vite build site && node site/build-game.mjs",
     "site:publish": "npm run site:build && node site/publish-docs.mjs",
+    "site:deploy": "bash deploy/deploy.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

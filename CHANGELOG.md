@@ -16,6 +16,47 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [Unreleased]
+
+### Added
+
+- **`deploy/` — self-hosting the docs site** on a plain Linux box, alongside
+  the existing GitHub Pages path rather than instead of it. `bootstrap.sh`
+  provisions the server once (nginx, `/srv/gama`, SELinux labelling, port 80);
+  `npm run site:deploy` builds locally, ships artifacts, and flips a symlink.
+  The server needs nginx and rsync and nothing else — no Node, no toolchain,
+  no registry access — so a broken build cannot reach it.
+- **Releases, not an in-place sync.** An in-place `rsync` is *visibly* broken
+  while it runs: the new `index.html` lands naming hashed bundles that have
+  not uploaded yet, and anyone loading the page in that window gets a white
+  screen. Each deploy writes a whole directory and moves a symlink with
+  `mv -T` — `ln -sfn` onto an existing symlink unlinks and re-creates, which
+  is a real if brief window where the document root does not resolve.
+- **A smoke test that can fail.** The deploy finishes by requesting the live
+  site over HTTP rather than trusting `rsync`'s exit code, and the check worth
+  having is the last one: it fetches the hashed bundle *the deployed
+  `index.html` actually names*. A partial upload survives every other status
+  code on the list.
+
+### Fixed
+
+Three nginx traps, all found by running the config rather than reading it,
+and all recorded in `deploy/README.md` because each one looks correct:
+
+- `types { include /etc/nginx/mime.types; … }` nests a `types` block inside
+  another — `mime.types` is itself one — and nginx dies with `unexpected "{"`.
+- A `types` block in `server` *replaces* the inherited map instead of
+  extending it: every `.css` and `.js` goes out as `application/octet-stream`
+  and the site renders as unstyled text with no scripts.
+- `listen [::]:80` on a kernel without IPv6 does not degrade, it stops nginx
+  starting — a config that passes `nginx -t` for syntax and still refuses to
+  boot. It ships commented out and `bootstrap.sh` enables it on evidence.
+
+Cache rules are a `map` rather than per-`location` headers for a fourth
+reason of the same kind: `add_header` in a `location` replaces every inherited
+`add_header`, so the obvious version silently drops `X-Frame-Options` and
+`Referrer-Policy` from exactly the HTML responses that need them.
+
 ## [0.45.0] — 2026-07-30
 
 ### Added

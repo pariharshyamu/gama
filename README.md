@@ -94,6 +94,12 @@ GitHub Pages (Settings → Pages → Deploy from a branch → `docs`, `/ (root)`
 It includes every guide below plus a dozen editable, runnable examples of
 steering, flocking, navmesh baking, behavior trees and more.
 
+To host the same build on your own server instead, `npm run site:deploy` —
+see [deploy/](deploy/README.md) for the nginx config, the one-time server
+bootstrap, and the atomic release-and-symlink scheme it uses. The two are
+independent; `base: './'` is what lets one build serve correctly from both a
+GitHub Pages subpath and a domain root.
+
 - [Getting started](docs/getting-started.md)
 - [The shell & templates](docs/shell.md) — the part of a game that is not the game
 - [Levels: prefabs & format](docs/levels.md) — a scene as data, and the round trip back
