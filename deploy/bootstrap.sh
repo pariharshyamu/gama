@@ -111,44 +111,75 @@ if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; t
 fi
 
 # -------------------------------------------------------------- nginx conf
-say "installing the site config"
 if [ -d /etc/nginx/sites-available ]; then
-    # Debian/Ubuntu.
-    install -m 0644 "$HERE/nginx/gama.conf" /etc/nginx/sites-available/gama.conf
-    ln -sfn /etc/nginx/sites-available/gama.conf /etc/nginx/sites-enabled/gama.conf
-    # The stock `default` site also claims `listen 80 default_server`, and two
-    # default servers on one port is a hard config error — nginx will refuse
-    # to start, not pick one.
-    if [ -e /etc/nginx/sites-enabled/default ]; then
-        rm -f /etc/nginx/sites-enabled/default
-        say "removed the stock 'default' site (it also claimed default_server)"
-    fi
+    CONF_DIR=/etc/nginx/sites-available
+    ENABLED=/etc/nginx/sites-enabled
 else
-    # RHEL-family.
-    install -m 0644 "$HERE/nginx/gama.conf" /etc/nginx/conf.d/gama.conf
-    # Same collision, different file: the stock nginx.conf ships an inline
-    # `server { listen 80 default_server; ... }`. It cannot be deleted from
-    # here without rewriting nginx.conf, so say so plainly rather than
-    # failing at `nginx -t` with a message about duplicate defaults.
-    if grep -qE '^\s*listen\s+80\s+default_server' /etc/nginx/nginx.conf 2>/dev/null; then
-        warn "/etc/nginx/nginx.conf has its own 'listen 80 default_server' block."
-        warn "Comment that server{} block out, or nginx will reject this config."
+    CONF_DIR=/etc/nginx/conf.d
+    ENABLED=""
+fi
+
+# Shared by both the HTTP and the TLS config. Debian ships snippets/;
+# RHEL-family does not, so make it either way.
+say "installing the shared snippets"
+mkdir -p /etc/nginx/snippets
+install -m 0644 "$HERE/nginx/snippets/gama-http.conf" /etc/nginx/snippets/gama-http.conf
+install -m 0644 "$HERE/nginx/snippets/gama-site.conf" /etc/nginx/snippets/gama-site.conf
+
+# The webroot enable-tls.sh serves ACME challenges from. Created here so the
+# `location ^~ /.well-known/acme-challenge/` in gama.conf has a real
+# directory behind it from the first boot.
+mkdir -p /var/www/certbot/.well-known/acme-challenge
+chmod 755 /var/www/certbot
+
+# THE TLS CHECK. Re-running bootstrap on a box that already has HTTPS must
+# not quietly drop it back to plain HTTP — which is exactly what installing
+# gama.conf unconditionally would do, and it would look like a successful
+# provisioning run right up until a browser refused the site.
+if [ -e "${ENABLED:-$CONF_DIR}/gama-tls.conf" ]; then
+    say "TLS config is already enabled — leaving it alone"
+    warn "Refreshing the snippets above updated the shared parts (cache rules,"
+    warn "headers, routing). To update the TLS server block itself, re-run"
+    warn "enable-tls.sh; it is idempotent and reuses the existing certificate."
+    SITE_CONF="$CONF_DIR/gama-tls.conf"
+else
+    say "installing the site config (plain HTTP)"
+    install -m 0644 "$HERE/nginx/gama.conf" "$CONF_DIR/gama.conf"
+    SITE_CONF="$CONF_DIR/gama.conf"
+    if [ -n "$ENABLED" ]; then
+        ln -sfn "$CONF_DIR/gama.conf" "$ENABLED/gama.conf"
+        # The stock `default` site also claims `listen 80 default_server`, and
+        # two default servers on one port is a hard config error — nginx will
+        # refuse to start, not pick one.
+        if [ -e "$ENABLED/default" ]; then
+            rm -f "$ENABLED/default"
+            say "removed the stock 'default' site (it also claimed default_server)"
+        fi
+    else
+        # Same collision, different file: the stock nginx.conf ships an inline
+        # `server { listen 80 default_server; ... }`. It cannot be deleted from
+        # here without rewriting nginx.conf, so say so plainly rather than
+        # failing at `nginx -t` with a message about duplicate defaults.
+        if grep -qE '^\s*listen\s+80\s+default_server' /etc/nginx/nginx.conf 2>/dev/null; then
+            warn "/etc/nginx/nginx.conf has its own 'listen 80 default_server' block."
+            warn "Comment that server{} block out, or nginx will reject this config."
+        fi
     fi
 fi
 
-# The IPv6 listener ships commented out — see the note in gama.conf. Enable
-# it only where the kernel can actually open an AF_INET6 socket, because the
-# failure mode is nginx refusing to start rather than quietly skipping it.
+# The IPv6 listeners ship commented out — see the note in gama.conf. Enable
+# them only where the kernel can actually open an AF_INET6 socket, because the
+# failure mode is nginx refusing to start rather than quietly skipping them.
 if [ -f /proc/net/if_inet6 ]; then
-    say "IPv6 detected — enabling the [::]:80 listener"
-    sed -i 's/^\(\s*\)#listen \[::\]:80 default_server;/\1listen [::]:80 default_server;/' \
-        /etc/nginx/sites-available/gama.conf /etc/nginx/conf.d/gama.conf 2>/dev/null || true
+    say "IPv6 detected — enabling the [::] listeners"
+    sed -i 's/^\(\s*\)#listen \(\[::\].*\);/\1listen \2;/' "$SITE_CONF"
 fi
 
 if [ "$WEB_ROOT" != "/srv/gama" ]; then
     say "pointing the config at $WEB_ROOT"
+    # The root lives in the shared snippet now, so this is one file, not two.
     sed -i "s#root /srv/gama/current;#root ${WEB_ROOT}/current;#" \
-        /etc/nginx/sites-available/gama.conf /etc/nginx/conf.d/gama.conf 2>/dev/null || true
+        /etc/nginx/snippets/gama-site.conf
 fi
 
 say "checking the config"
@@ -203,5 +234,10 @@ cat <<EOF
   Next, from your checkout of the repository:
 
     DEPLOY_HOST=103.39.133.227 DEPLOY_USER=$DEPLOY_USER npm run site:deploy
+
+  Then, once gama.playmeet.games has an A record pointing at this box,
+  turn on HTTPS (nginx keeps serving throughout):
+
+    EMAIL=you@example.com bash $HERE/enable-tls.sh
 
 EOF

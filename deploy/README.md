@@ -1,6 +1,7 @@
-# Hosting the site on 103.39.133.227
+# Hosting the site on gama.playmeet.games
 
-The docs site and Havenbrook Courier, served from one Linux box over HTTP.
+The docs site and Havenbrook Courier, served over HTTPS from one Linux box at
+103.39.133.227.
 
 Everything `npm run site:build` produces is static — five HTML entry points,
 the hashed bundles, the vendor import-map targets, the guides as markdown,
@@ -16,26 +17,68 @@ npm run site:deploy
   ├─ rsync ────────────────────────────►  /srv/gama/releases/20260802-141530/  ← new
   ├─ flip the symlink ─────────────────►  /srv/gama/current ─┘
   ├─ prune to the last 5
-  └─ smoke-test over HTTP  ◄───────────── nginx :80
+  └─ smoke-test over HTTPS ◄───────────── nginx :443  gama.playmeet.games
 ```
 
-## Once, on the server
+## 1. The DNS record — you have to do this one
+
+Nothing in this directory can create it. At whoever hosts the
+`playmeet.games` zone:
+
+| | |
+|---|---|
+| Type | `A` |
+| Name | `gama` (i.e. `gama.playmeet.games`) |
+| Value | `103.39.133.227` |
+| TTL | 300 while you are setting up; raise it later |
+| Proxy | **off** — see below if you are on Cloudflare |
+
+Check it landed before going further. `enable-tls.sh` checks too, and refuses
+to spend a rate-limited certificate request on a name that does not resolve
+here yet:
+
+```sh
+dig +short gama.playmeet.games      # want: 103.39.133.227
+```
+
+If the zone is on Cloudflare with the orange cloud on, the HTTP-01 challenge
+validates against Cloudflare's edge rather than this box. Turn the proxy off
+for this record (grey cloud) at least until the certificate is issued, or
+switch to a DNS-01 challenge.
+
+## 2. Once, on the server
 
 ```sh
 scp -r deploy/ root@103.39.133.227:/tmp/gama-deploy
 ssh root@103.39.133.227 'bash /tmp/gama-deploy/bootstrap.sh'
 ```
 
-Installs nginx and rsync, lays out `/srv/gama`, installs the site config,
-labels the tree for SELinux on RHEL-family boxes, opens port 80, and leaves a
-placeholder page so the IP answers with something intelligible before the
-first deploy. Re-running it is safe.
+Installs nginx and rsync, lays out `/srv/gama`, installs the config, labels
+the tree for SELinux on RHEL-family boxes, opens port 80, and leaves a
+placeholder page so the box answers with something intelligible before the
+first deploy. Re-running it is safe — including after TLS is on, which it
+detects and leaves alone.
 
 It deliberately does **not** run `ufw enable` for you. It stages the rules —
 SSH first, then 80 — and stops, because enabling a default-deny firewall on a
 box you are connected to over SSH is a decision to make with your eyes open.
 
-## Every time, from your machine
+## 3. Turn on HTTPS
+
+```sh
+ssh root@103.39.133.227 'EMAIL=you@example.com bash /tmp/gama-deploy/enable-tls.sh'
+```
+
+Obtains a Let's Encrypt certificate, swaps the HTTP config for the TLS one,
+and reloads. nginx keeps serving throughout; there is no window where the
+site is down. Set `EMAIL` — without it certbot registers with no contact and
+nobody is told when renewal starts failing.
+
+Debugging it? `STAGING=1` uses Let's Encrypt's staging CA: the certificate is
+not browser-trusted, but the rate limits are vastly looser than the five
+failures per hostname per hour you get on the real one.
+
+## 4. Every time, from your machine
 
 ```sh
 cp deploy/deploy.env.example deploy/deploy.env   # once; gitignored
@@ -48,7 +91,8 @@ build cannot reach it: the checks run before the upload.
 
 | Variable | Default | |
 |---|---|---|
-| `DEPLOY_HOST` | `103.39.133.227` | |
+| `DEPLOY_HOST` | `103.39.133.227` | where to ssh/rsync — the IP, so it works when DNS does not |
+| `SITE_URL` | `https://gama.playmeet.games` | where to smoke-test — the name on the certificate |
 | `DEPLOY_USER` | `root` | must own `/srv/gama` |
 | `DEPLOY_PORT` | `22` | |
 | `SSH_KEY` | — | if not your default key |
@@ -56,6 +100,47 @@ build cannot reach it: the checks run before the upload.
 | `KEEP` | `5` | releases retained for rollback |
 | `SKIP_BUILD` | — | `1` ships `site/dist` as it stands |
 | `DRY_RUN` | — | `1` stops before the upload |
+
+`DEPLOY_HOST` and `SITE_URL` are separate on purpose. The upload needs the
+address that answers SSH; the smoke test needs the name on the certificate.
+Point the checks at the IP over HTTPS and every one of them fails on a name
+mismatch that has nothing to do with the deploy that just ran.
+
+## The two configs, and why certbot does not write them
+
+```
+snippets/gama-http.conf   http-level: the MIME additions and the cache map
+snippets/gama-site.conf   server-level: root, gzip, headers, routing
+gama.conf                 :80 serving the site        ← before TLS
+gama-tls.conf             :80 redirecting, :443 site  ← after TLS
+```
+
+Exactly one of `gama.conf` / `gama-tls.conf` is ever enabled. Both include
+`gama-http.conf`, and two copies of that `map` is a hard config error — which
+is the failure you want if both ever get enabled at once.
+
+`enable-tls.sh` runs `certbot certonly --webroot`, **not** `certbot --nginx`.
+The `--nginx` plugin rewrites the server block in place, and this config is
+version-controlled and re-installed by `bootstrap.sh` — so the next
+provisioning run would silently revert TLS, and it would look like a clean
+run right up until a browser refused the site. The certificate is data and
+lives on the box; the config is code and lives in git.
+
+`bootstrap.sh` knows about this: if the TLS config is already enabled it
+refreshes the shared snippets and leaves the site config alone.
+
+### Renewal
+
+certbot's own timer renews within 30 days of expiry. The
+`--deploy-hook "systemctl reload nginx"` is stored in the renewal config, so
+nginx picks up the new certificate without anyone watching. `enable-tls.sh`
+runs `certbot renew --dry-run` at the end, which is what proves that now
+rather than in 60 days.
+
+The `:80` block keeps serving `/.well-known/acme-challenge/` after the
+redirect goes in — HTTP-01 always starts on port 80, and while Let's Encrypt
+does follow redirects, renewal not depending on the redirect being correct is
+worth the four lines.
 
 ## Why releases and a symlink
 
@@ -88,12 +173,19 @@ No rebuild, no upload; it is the same atomic flip pointed backwards.
 
 ## What the smoke test actually proves
 
-`deploy.sh` finishes by requesting the live site over HTTP — not by trusting
+`deploy.sh` finishes by requesting the live site over HTTPS — not by trusting
 that `rsync` exited 0. It checks each entry point, that `/play/` serves the
 game, that a nonsense URL 404s rather than falling back to the landing page,
 and that the hashed bundle **the deployed `index.html` actually names**
 resolves. That last one is the check that catches a partial upload, which
 every other status code would happily survive.
+
+`enable-tls.sh` has its own, including one before it spends a certificate
+request: it drops a token in the webroot and fetches it over
+`http://gama.playmeet.games/` exactly the way Let's Encrypt will. That single
+request exercises DNS, the provider firewall, port 80, the nginx location and
+its `^~` priority — all of which certbot reports identically and unhelpfully
+as `Invalid response … 403`.
 
 ## Caching, in three tiers
 
@@ -118,9 +210,15 @@ rather than adding to it, so the obvious version of this config silently
 drops `X-Frame-Options` and `Referrer-Policy` from exactly the responses that
 need them most. Deriving the value keeps one header set for the whole server.
 
-## Three nginx traps this config already stepped in
+The same rule is why HSTS sits in `gama-tls.conf`'s `:443` block rather than
+in the shared snippet: `include` splices directives into the *same* server
+context, so it accumulates onto the other four instead of replacing them —
+and it stays off the plain-HTTP config, where browsers ignore it anyway.
 
-Recorded because all three look correct and none of them are.
+## Six nginx traps this config already stepped in
+
+Recorded because all six look correct and none of them are. Four were found
+by running the config, not by reading it.
 
 **`types { include /etc/nginx/mime.types; … }`** — `mime.types` is *itself* a
 `types { … }` block, so this nests one inside another and nginx dies with
@@ -136,26 +234,22 @@ accumulates onto the first.
 **`listen [::]:80`** — on a kernel without IPv6 this does not degrade, it
 kills nginx outright with `socket() [::]:80 failed (97: Address family not
 supported by protocol)`: a config that passes `nginx -t` for syntax and still
-refuses to start. It ships commented out; `bootstrap.sh` uncomments it when
-`/proc/net/if_inet6` says the box actually has IPv6.
+refuses to start. It ships commented out; `bootstrap.sh` and `enable-tls.sh`
+uncomment it when `/proc/net/if_inet6` says the box actually has IPv6.
 
-## No HTTPS, and why
+**`add_header` in a `location`** — replaces every inherited `add_header`
+rather than adding to it. See the caching section.
 
-Let's Encrypt does not issue certificates for bare IP addresses, so
-`http://103.39.133.227/` is the honest ceiling for this setup. Nothing here
-handles credentials or payments, so the exposure is eavesdropping on which
-docs page someone read.
+**`location /.well-known/acme-challenge/`** — a plain prefix location loses to
+the `location ~ /\.` dotfile-deny regex, because regex locations outrank
+prefix ones. ACME then 403s and certbot reports an unauthorized error that
+says nothing about nginx. `^~` is the one prefix form that outranks regex,
+and it is what both configs use.
 
-The moment a domain points at the box:
-
-```sh
-# add `server_name example.com;` to the server block first,
-# or certbot has nothing to match
-sudo certbot --nginx -d example.com
-```
-
-which rewrites the config in place, adds the 443 listener and the
-HTTP→HTTPS redirect, and installs a renewal timer.
+**`default_server` on the site's `:443` block** — parses, serves, and quietly
+makes the site answer to *any* name, including the IP the certificate does
+not cover. The default belongs on the block that returns 421; the site block
+should match its name and nothing else.
 
 ## No Content-Security-Policy, and why
 
@@ -166,12 +260,33 @@ policy needs at least `script-src 'self' blob:` and `worker-src blob:`, and
 should be checked against `node site/verify-playgrounds.mjs` before you
 believe it.
 
+## HSTS
+
+One year, no `includeSubDomains`, no `preload` — all three are choices.
+`includeSubDomains` would commit every `*.gama.playmeet.games` too, including
+any that does not speak HTTPS yet; `preload` is effectively irreversible,
+since it bakes the name into browser binaries and removal takes months.
+
+To back out, serve `max-age=0` for longer than the longest `max-age` any
+visitor has already cached. Removing the header is *not* the same as turning
+HSTS off.
+
+## The bare IP still works, sort of
+
+`http://103.39.133.227/` now redirects to `https://103.39.133.227/`, where
+the certificate for `gama.playmeet.games` does not match and the browser
+warns; clicking through gets a 421. That is correct rather than a
+regression — Let's Encrypt will not issue for an IP. The site is at
+`https://gama.playmeet.games/`.
+
 ## This does not host the multiplayer server
 
 `scripts/net-server.mjs` is a long-lived Node process and is not part of this
 deployment — the site does not need it, and nothing on the box runs Node.
 Adding it means a systemd unit, and an nginx `location /ws { proxy_pass … }`
-with `Upgrade`/`Connection` headers set for the WebSocket handshake.
+with `Upgrade`/`Connection` headers set for the WebSocket handshake. It would
+go in `gama-tls.conf`'s `:443` block, and browsers on an HTTPS page can only
+open `wss://`, not `ws://`.
 
 ## GitHub Pages still works
 
@@ -182,13 +297,21 @@ subpath and a domain root.
 
 ## Verified
 
-The config in `nginx/gama.conf` was installed on nginx 1.24.0 against a real
-`site/dist`, and checked for: all seven entry points plus `/play/` and
-`/play/editor.html` returning 200; `/guide` resolving to `guide.html`; a
-nonsense URL returning 404 rather than the landing page; dotfiles returning
-403; the four cache tiers emitting the right `Cache-Control`; the security
-headers surviving on every one of them; `gltf`, `markdown` and `wav` typed
-correctly; and gzip engaging on the 572 KB editor bundle.
+Both configs were installed on nginx 1.24.0 against a real `site/dist`, the
+TLS one against a self-signed certificate at the Let's Encrypt path — which
+is what let the `:443` behaviour be checked before spending a real
+certificate request.
 
-`bootstrap.sh` was run end to end on Ubuntu 24.04 — it stops at `systemctl`
-only in a container that was not booted with systemd.
+Over HTTPS: all seven entry points plus `/play/` and `/play/editor.html` at
+200; `/guide` resolving to `guide.html`; a nonsense URL at 404 rather than
+the landing page; HTTP/2 negotiated; the immutable cache tier intact; and
+HSTS arriving *alongside* the snippet's four headers rather than replacing
+them.
+
+Also: `http://…/guide` → 301 to `https://…/guide` with the path kept;
+`/.well-known/acme-challenge/` served while `/.hidden` still 403s; and the
+IP, a raw `127.0.0.1`, and a forged `Host:` header all getting 421 with an
+empty body rather than the site.
+
+`bootstrap.sh` runs end to end on Ubuntu 24.04 — it stops at `systemctl` only
+in a container that was not booted with systemd.

@@ -33,15 +33,34 @@ Two gaps between this file and the registry, stated rather than papered over:
   `mv -T` — `ln -sfn` onto an existing symlink unlinks and re-creates, which
   is a real if brief window where the document root does not resolve.
 - **A smoke test that can fail.** The deploy finishes by requesting the live
-  site over HTTP rather than trusting `rsync`'s exit code, and the check worth
-  having is the last one: it fetches the hashed bundle *the deployed
+  site over HTTPS rather than trusting `rsync`'s exit code, and the check
+  worth having is the last one: it fetches the hashed bundle *the deployed
   `index.html` actually names*. A partial upload survives every other status
   code on the list.
+- **HTTPS on `gama.playmeet.games`** via `enable-tls.sh` — Let's Encrypt,
+  HTTP→HTTPS redirect, HSTS, HTTP/2, automatic renewal with an nginx reload
+  hook. It runs `certbot certonly --webroot`, deliberately not `certbot
+  --nginx`: the plugin rewrites the server block in place, and this config is
+  version-controlled and re-installed by `bootstrap.sh`, so the next
+  provisioning run would silently revert TLS. The certificate is data and
+  lives on the box; the config is code and lives in git. `bootstrap.sh` knows
+  it, and refuses to downgrade a box that already has TLS.
+- **A preflight that costs nothing before a request that does.** Let's Encrypt
+  allows five failed validations per hostname per hour, so `enable-tls.sh`
+  first drops a token in the webroot and fetches it over
+  `http://gama.playmeet.games/` exactly the way the CA will — one request that
+  exercises DNS, the provider firewall, port 80, and the nginx location. All
+  four fail identically and unhelpfully under certbot as `Invalid response …
+  403`.
+- **`SITE_URL`, separate from `DEPLOY_HOST`.** The upload needs the address
+  that answers SSH; the smoke test needs the name on the certificate. Pointing
+  the checks at the IP over HTTPS fails every one of them on a name mismatch
+  that has nothing to do with the deploy that just ran.
 
 ### Fixed
 
-Three nginx traps, all found by running the config rather than reading it,
-and all recorded in `deploy/README.md` because each one looks correct:
+Six nginx traps, four of them found by running the config rather than reading
+it, and all recorded in `deploy/README.md` because each one looks correct:
 
 - `types { include /etc/nginx/mime.types; … }` nests a `types` block inside
   another — `mime.types` is itself one — and nginx dies with `unexpected "{"`.
@@ -51,11 +70,18 @@ and all recorded in `deploy/README.md` because each one looks correct:
 - `listen [::]:80` on a kernel without IPv6 does not degrade, it stops nginx
   starting — a config that passes `nginx -t` for syntax and still refuses to
   boot. It ships commented out and `bootstrap.sh` enables it on evidence.
-
-Cache rules are a `map` rather than per-`location` headers for a fourth
-reason of the same kind: `add_header` in a `location` replaces every inherited
-`add_header`, so the obvious version silently drops `X-Frame-Options` and
-`Referrer-Policy` from exactly the HTML responses that need them.
+- `add_header` in a `location` replaces every inherited `add_header` rather
+  than adding to it, so per-`location` cache rules silently drop
+  `X-Frame-Options` and `Referrer-Policy` from exactly the HTML responses that
+  need them. The cache tiers are a `map` for that reason, not for tidiness —
+  and it is the same reason HSTS sits in the `:443` block, where `include`
+  splices it alongside the others rather than nesting it beneath them.
+- `location /.well-known/acme-challenge/` as a plain prefix loses to the
+  `location ~ /\.` dotfile-deny regex — regex outranks prefix — so ACME 403s
+  and certbot blames the wrong thing. `^~` is the one prefix form that wins.
+- `default_server` on the site's `:443` block parses, serves, and quietly
+  makes the site answer to *any* name, including the IP the certificate does
+  not cover. The default belongs on the block that returns 421.
 
 ## [0.45.0] — 2026-07-30
 

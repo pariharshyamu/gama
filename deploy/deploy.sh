@@ -13,7 +13,8 @@
 # artifacts before a single byte is uploaded.
 #
 # Knobs (or put them in deploy/deploy.env, which is gitignored):
-#   DEPLOY_HOST   default 103.39.133.227
+#   DEPLOY_HOST   where to ssh/rsync; default 103.39.133.227
+#   SITE_URL      where to smoke-test; default https://gama.playmeet.games
 #   DEPLOY_USER   ssh user; default root
 #   DEPLOY_PORT   ssh port; default 22
 #   SSH_KEY       path to a private key, if not your default
@@ -27,6 +28,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [ -f "$ROOT/deploy/deploy.env" ] && . "$ROOT/deploy/deploy.env"
 
 DEPLOY_HOST="${DEPLOY_HOST:-103.39.133.227}"
+# Where the smoke test looks, which is NOT where the upload goes. The upload
+# needs the address that answers SSH; the smoke test needs the name on the
+# certificate, or every HTTPS check fails on a name mismatch that has nothing
+# to do with the deploy. Before enable-tls.sh has run, set this to
+# http://103.39.133.227 in deploy.env.
+SITE_URL="${SITE_URL:-https://gama.playmeet.games}"
+SITE_URL="${SITE_URL%/}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 WEB_ROOT="${WEB_ROOT:-/srv/gama}"
@@ -133,11 +141,11 @@ remote "set -e
 #
 # Served-over-HTTP checks, not "did rsync exit 0". These are the ones that
 # catch a broken nginx config, an SELinux denial, or a provider firewall.
-say "smoke-testing http://$DEPLOY_HOST/"
+say "smoke-testing $SITE_URL/"
 fail=0
-check() { # url, expected status
+check() { # path, expected status
     local code
-    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "http://$DEPLOY_HOST$1" || echo 000)"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$SITE_URL$1" || echo 000)"
     if [ "$code" = "${2:-200}" ]; then
         printf '  \033[32mok\033[0m   %-28s %s\n' "$1" "$code"
     else
@@ -169,10 +177,10 @@ fi
 
 cat <<EOF
 
-  Deployed.  http://$DEPLOY_HOST/
+  Deployed.  $SITE_URL/
 
     release   $RELEASE
-    game      http://$DEPLOY_HOST/play/
-    guide     http://$DEPLOY_HOST/guide
+    game      $SITE_URL/play/
+    guide     $SITE_URL/guide
 
 EOF
