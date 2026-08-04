@@ -51,6 +51,12 @@ jobs:
       # and the gate checks it against an exhaustive sweep of 6000 fixed
       # leaving times — a number it must match and must not beat.
       - run: npm run forage
+      # Flow fields. The usual eight-neighbour Dijkstra is 8.24% longer than a
+      # straight line at 22.5° — exactly √(4−2√2) — and it is a BIAS, so a finer
+      # grid does not help. The gate measures both solvers against a Euclidean
+      # distance neither is shown, and refines the grid three times to watch one
+      # error sit still while the other converges.
+      - run: npm run flow
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check

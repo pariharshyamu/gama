@@ -3739,6 +3739,189 @@ window.forageDebug = () => ({
 game.start();
 `,
   },
+  {
+    id: 'flow',
+    title: 'Flow fields: the eight-way grid is 8.24% wrong',
+    group: 'AI',
+    code: `// ONE FLOOD, ANY NUMBER OF AGENTS — AND THE USUAL ONE IS BIASED.
+//
+// A flow field runs a single search outward from the goal and lets every agent
+// read the local downhill direction. It is how any game with a crowd in it
+// moves the crowd. The search is almost always Dijkstra over eight neighbours,
+// costs 1 and sqrt(2), which looks exact and is not: the PATH is still made of
+// eight directions, and a staircase is longer than the line it approximates.
+//
+// For a displacement at angle t the grid distance is cos t + (sqrt(2)-1) sin t,
+// worst at tan t = sqrt(2)-1 — exactly 22.5 degrees — where the ratio is
+//
+//   sqrt(4 - 2*sqrt(2)) = 1.08239220...
+//
+// 8.24% too long. And it is a BIAS, not a resolution error: halve the cell and
+// you get the same staircase twice as often.
+//
+// WHAT YOU ARE WATCHING
+//
+// The same crowd released twice from the same places, at a goal deliberately
+// placed at 22.5 degrees. AMBER steers on the eight-way field. GREEN steers on
+// a fast-marching solve of the eikonal equation |grad phi| = cost, which is
+// Pythagoras instead of a staircase.
+//
+// Watch what happens to the SHAPE of each crowd. Nothing is in the way — the
+// ground is empty — but the amber crowd collapses into a thin diagonal line,
+// because the eight-way field funnels everyone onto the same few directions.
+// The green crowd keeps its shape and walks at the goal.
+//
+// On open ground the eight-way field is up to 21 degrees off the true bearing.
+// The eikonal one is under 6.
+//
+// The bars at the back are how many of each have arrived.
+import { BoxGeometry, CylinderGeometry, InstancedMesh, Matrix4, Mesh,
+         MeshStandardMaterial, Object3D, Vector3 } from 'three';
+import { Game, FlowField, EIGHT_WAY_ANISOTROPY } from 'gama3d';
+${SCENE}
+
+const N = 81;              // cells
+const CELL = 0.22;         // metres — two fields have to fit side by side
+const SPAN = N * CELL;
+const MID = SPAN / 2;
+// The goal at 22.5 degrees from the start corner: the worst direction there is.
+const R = SPAN * 0.34;
+const GOAL = { x: MID + Math.cos(Math.PI / 8) * R, z: MID + Math.sin(Math.PI / 8) * R };
+
+const eight = new FlowField({ width: N, height: N, cell: CELL, solver: 'grid8' });
+const eikonal = new FlowField({ width: N, height: N, cell: CELL, solver: 'eikonal' });
+for (const f of [eight, eikonal]) f.build([GOAL]);
+
+// The two crowds. Same starts, same speed, different field.
+const COUNT = 220;
+const SPEED = 1.5;
+function crowd(colour, field, lane) {
+  // Each crowd is DRAWN in its own half of the world. They share one set of
+  // field coordinates — the ground is uniform, so the same field at two offsets
+  // is the same problem twice — and the first version put them on top of each
+  // other, which showed one crowd and hid the comparison.
+  const mesh = new InstancedMesh(
+    new BoxGeometry(0.16, 0.5, 0.16),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25 }),
+    COUNT
+  );
+  mesh.frustumCulled = false;
+  game.world.scene.add(mesh);
+  const agents = [];
+  for (let i = 0; i < COUNT; i++) {
+    // A block of starts well away from the goal, identical for both crowds.
+    const row = Math.floor(i / 22), col = i % 22;
+    agents.push({ x: 1.2 + col * 0.2, z: 1.2 + row * 0.2, done: false });
+  }
+  const post = new Mesh(
+    new CylinderGeometry(0.28, 0.28, 2, 12),
+    new MeshStandardMaterial({ color: 0xffffff, emissive: 0x888888 })
+  );
+  const offset = (lane - 0.5) * SPAN * 1.1;
+  post.position.set(GOAL.x - SPAN / 2 + offset, 1, GOAL.z - SPAN / 2);
+  game.world.scene.add(post);
+  return { mesh, agents, field, arrived: 0, colour, offset, reset: () => {
+    for (let i = 0; i < COUNT; i++) {
+      const row = Math.floor(i / 22), col = i % 22;
+      agents[i].x = 1.2 + col * 0.2; agents[i].z = 1.2 + row * 0.2; agents[i].done = false;
+    }
+  } };
+}
+const amber = crowd(0xd8a83a, eight, 0);
+const green = crowd(0x54b070, eikonal, 1);
+
+// Arrival bars at the back.
+const bar = (colour, x) => {
+  const m = new Mesh(
+    new BoxGeometry(1.1, 1, 1.1),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.5 })
+  );
+  m.position.set(x, 0, -SPAN / 2 - 2.5);
+  game.world.scene.add(m);
+  return m;
+};
+const amberBar = bar(0xd8a83a, -SPAN * 0.2);
+const greenBar = bar(0x54b070, SPAN * 0.2);
+
+const dummy = new Object3D();
+let t = 0;
+let laps = 0;
+
+game.onUpdate(({ delta }) => {
+  const dt = Math.min(0.05, delta);
+  t += dt;
+  for (const c of [amber, green]) {
+    for (let i = 0; i < c.agents.length; i++) {
+      const a = c.agents[i];
+      if (!a.done) {
+        const s = c.field.sample(a.x, a.z);
+        if (s.reachable && s.distance < 1.0) { a.done = true; c.arrived++; }
+        else if (s.reachable) { a.x += s.x * SPEED * dt; a.z += s.z * SPEED * dt; }
+      }
+      dummy.position.set(a.x - SPAN / 2 + c.offset, a.done ? 0.12 : 0.25, a.z - SPAN / 2);
+      dummy.updateMatrix();
+      c.mesh.setMatrixAt(i, dummy.matrix);
+    }
+    c.mesh.instanceMatrix.needsUpdate = true;
+  }
+  // Release them again once both crowds are in, so the crossing — which is the
+  // only part worth looking at — is what is on screen most of the time.
+  if (amber.arrived >= COUNT && green.arrived >= COUNT) {
+    laps++;
+    amber.arrived = 0; green.arrived = 0;
+    amber.reset(); green.reset();
+  }
+
+  const grow = (m, n) => {
+    const h = Math.max(0.1, (n / COUNT) * 5);
+    m.scale.y = h;
+    m.position.y = h / 2;
+  };
+  grow(amberBar, amber.arrived);
+  grow(greenBar, green.arrived);
+
+  game.camera.position.set(0, 25, 21);
+  game.camera.lookAt(0, 0, 0);
+});
+
+window.flowDebug = () => {
+  // The heading error each field gives on open ground, measured live.
+  const bearing = (field) => {
+    // A radius that stays well inside the grid: sampling near the border reads
+    // the one-sided gradients there, not the field's own quality, and the first
+    // version of this readout put the eikonal field at 14° for that reason.
+    let worst = 0;
+    for (let d = 0; d < 360; d += 2) {
+      const x = GOAL.x + Math.cos((d * Math.PI) / 180) * (SPAN * 0.28);
+      const z = GOAL.z + Math.sin((d * Math.PI) / 180) * (SPAN * 0.28);
+      const s = field.sample(x, z);
+      if (!s.reachable) continue;
+      const want = Math.atan2(GOAL.z - z, GOAL.x - x);
+      const got = Math.atan2(s.z, s.x);
+      worst = Math.max(worst, (Math.abs(((got - want + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * 180) / Math.PI);
+    }
+    return Number(worst.toFixed(2));
+  };
+  return {
+    // The scene's own clock — a headless run is about a third of real time.
+    clock: Number(t.toFixed(1)),
+    // The closed form, before any of this ran.
+    anisotropy: Number(EIGHT_WAY_ANISOTROPY.toFixed(6)),
+    worstAngleDeg: 22.5,
+    cells: N * N,
+    // One flood each, and every open cell settled exactly once.
+    settled: { eight: eight.visited, eikonal: eikonal.visited },
+    // THE POINT OF THE SCENE: what each field tells an agent to do.
+    worstHeadingDeg: { eight: bearing(eight), eikonal: bearing(eikonal) },
+    arrived: { eight: amber.arrived, eikonal: green.arrived, of: COUNT },
+    laps,
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
 ];
 
 

@@ -94,6 +94,8 @@ GitHub Pages (Settings → Pages → Deploy from a branch → `docs`, `/ (root)`
 It includes every guide below plus a dozen editable, runnable examples of
 steering, flocking, navmesh baking, behavior trees and more.
 
+**Flow fields that are not 8% wrong.** One flood from the goal, any number of agents reading it — but the usual eight-neighbour Dijkstra is not exact, because the *path* is still made of eight directions. A staircase at 22.5° is longer than the line it approximates by exactly `√(4 − 2√2)` = **8.24%**, and it is a **bias**: refine the grid three times and the error does not move, because halving the cell gives you the same staircase twice as often. `FlowField` solves the eikonal equation `|∇φ| = cost` by fast marching instead — Pythagoras rather than a staircase — and its error *does* converge (3.67% → 2.57% → 1.66% as the cell quarters). What an agent does with the difference: the eight-way field points it up to **21° off** the true bearing on open ground, the eikonal one **2.3°**. Both solvers ship, because a number that is only ever right is a number nobody has checked against the alternative. Gated by `npm run flow`, which measures both against a Euclidean distance neither is ever shown.
+
 **Utility AI with a unit.** A utility system's response curves and weights exist
 to map metres, hit points and cooldowns onto an invented 0..1 axis. Don't invent
 the axis: an action is worth something and it costs seconds, so utility is
@@ -166,6 +168,7 @@ threshold tuned optimally for a 2 s walk loses **29%** of the harvest rate on a
 │ StateMachine       │               │                      │
 │ BehaviorTree       │               │                      │
 │ Forager (Charnov)  │               │                      │
+│ FlowField (eikonal)│               │                      │
 ├────────────────────┴───────────────┴──────────────────────┤
 │ gama3d/rapier (optional entry point, peer dep on rapier)    │
 │ PhysicsWorld · RigidBody · PhysicsCharacterController     │

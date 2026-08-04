@@ -16,6 +16,52 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.47.0] — 2026-08-04
+
+### Added
+
+- **`FlowField` — one flood, any number of agents, and the usual solver is
+  8.24% wrong.** A flow field searches outward from the goal once and lets every
+  agent read the local downhill direction, which is how any game with a crowd in
+  it moves the crowd. The search is almost always Dijkstra over eight
+  neighbours, costs 1 and √2 — which looks exact and is not, because the PATH is
+  still made of eight directions. For a displacement at angle θ the grid
+  distance is `cos θ + (√2 − 1) sin θ`, worst at `tan θ = √2 − 1`, which is
+  EXACTLY 22.5°, where the ratio is `√(4 − 2√2) = 1.08239220…`. Measured on a
+  real 121×121 field against a Euclidean distance the solver is never shown:
+  8.239% at 22.5°, to three decimals, and zero on both the axes and the diagonal
+  — the two directions a grid can represent exactly.
+- **And it is a BIAS, not a resolution error.** Refined three times, the
+  eight-way error does not move: 8.239%, 8.239%, 8.239%. Halve the cell and you
+  get the same staircase twice as often, so a finer grid buys nothing at all.
+  `FlowField` solves the eikonal equation `|∇φ| = cost` by fast marching instead
+  (Sethian 1996) — the quadratic `(φ−a)² + (φ−b)² = (h·F)²`, which is Pythagoras
+  rather than a staircase — and its error behaves like a discretisation error
+  should: 3.670% → 2.567% → 1.664% as the cell quarters.
+- **What an agent does with the difference.** Heading error against the true
+  bearing on open ground: eight-way mean 10.59° and worst **21.00°**; eikonal
+  mean 1.55° and worst **2.27°**. 21° off is a crowd that separates into lanes
+  nothing in the level put there — visible in the playground example as the
+  eight-way crowd collapsing into a diagonal line while the eikonal crowd keeps
+  its shape.
+- **`solver: 'grid8'` ships too**, on purpose: a number that is only ever right
+  is a number nobody has checked against the alternative.
+- **`npm run flow`, the flow gate**, wired into CI and prepublishOnly, plus the
+  properties an agent's life depends on: every one of 140 agents reaches the
+  goal through a gap in a wall, none ever walks uphill on the distance field, a
+  wall cannot be walked through (the field says 96.79 against a floor of 96.57
+  for the two-leg path), a sealed room stays unreachable rather than being given
+  a made-up distance, and one flood settles every open cell exactly once.
+
+### Fixed
+
+- The exact near-field seed — the ring around a point goal given its true
+  Euclidean distance, worth a third of the eikonal error — was being handed to
+  the eight-way solver as well. That dropped its error to 7.79% and made it
+  drift with resolution, which would have quietly sunk the one claim that
+  matters. It is eikonal-only now: the comparison has to be against a faithful
+  eight-way Dijkstra or it is not a comparison.
+
 ## [0.46.0] — 2026-08-04
 
 ### Added

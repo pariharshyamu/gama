@@ -54,6 +54,17 @@ export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
 export { NavMeshAgent, type NavMeshAgentOptions } from './nav/NavMeshAgent';
 export { generateNavMesh, type NavMeshGenOptions } from './nav/generateNavMesh';
 
+// Flow fields — one flood, any number of agents, and the eight-way grid is
+// 8.24% wrong at 22.5° in a way that finer cells do not fix.
+export {
+  EIGHT_WAY_ANISOTROPY,
+  EIGHT_WAY_WORST_ANGLE,
+  FlowField,
+  type FlowFieldOptions,
+  type FlowSample,
+  type FlowSolver,
+} from './nav/FlowField';
+
 // AI: behavior trees
 export {
   BehaviorTree,
