@@ -31,8 +31,8 @@
  * version runs alongside as the control, and it has to fail.
  */
 import {
-  LEXICON, VOWELS, VOWEL_KEYS, frameTimes, lookUp, pronounce, renderSpeech,
-  soundOut, speak, syllabifyPhones, visemeOf, visemeTrack, voiceOf,
+  CONSONANTS, LEXICON, VOWELS, VOWEL_KEYS, frameTimes, lookUp, pronounce,
+  renderSpeech, soundOut, speak, syllabifyPhones, visemeOf, visemeTrack, voiceOf,
 } from '../dist/index.js';
 import { peaks, spectrum } from './formants.mjs';
 
@@ -354,6 +354,67 @@ const spelling = (() => {
   }
 }
 
+// ------------- 2b. HOW LOUD, WHICH IS WHETHER YOU CAN HEAR IT AT ALL
+
+/**
+ * Fletcher (1953), relative phonetic power. Measured on people; builds nothing.
+ *
+ * A vowel is the loudest thing in speech by about thirty decibels, because a
+ * glottis is a far more efficient source than air scraping past a constriction.
+ *
+ * NOTHING IN THIS FILE MEASURED THAT UNTIL A LISTENER SAID THEY COULD NOT HEAR
+ * A WORD. Every check that listened to a vowel rendered it WHISPERED — and a
+ * whisper has no glottal source to be out of balance with, so the one ratio
+ * that decides whether speech is audible was invisible to all of them. The
+ * frication gains had been set against each other, /s/ against /f/, and a
+ * spoken line came out normalised by its loudest hiss with every vowel FORTY
+ * NINE DECIBELS underneath it. The intelligibility score above was 96% while
+ * the audio was unlistenable, because the score was measuring the filter and
+ * calling it speech.
+ */
+const FLETCHER = { A: 600, i: 220, ae: 490, m: 152, n: 36, z: 5, S: 80, s: 16, v: 12, f: 4, T: 1 };
+
+{
+  // ONE utterance, VOICED, so the levels are real and share a gain.
+  const order = ['A', 's', 'i', 'S', 'f', 'T', 'm', 'z', 'v', 'n'];
+  const phones = order.flatMap((p) => (VOWELS[p] ? [{ phone: p, seconds: 0.3 }] : [{ phone: p }]));
+  const buf = speak('', VOICE) && renderSpeech(phones, VOICE, { sampleRate: SR, seed: 5 });
+  const times = frameTimes(phones, VOICE);
+  const level = {};
+  let frame = 0;
+  for (const p of phones) {
+    const from = times[frame].from;
+    let to = times[frame].to;
+    frame++;
+    while (frame < times.length && times[frame].label.startsWith(`${p.phone}:`)) { to = times[frame].to; frame++; }
+    const a = Math.round((from + 0.02) * SR);
+    const b = Math.round((to - 0.01) * SR);
+    let sum = 0;
+    for (let i = a; i < b; i++) sum += buf[i] * buf[i];
+    level[p.phone] = Math.sqrt(sum / Math.max(1, b - a));
+  }
+  const dB = (k) => 20 * Math.log10(level[k] / level.s);
+  const wantDB = (k) => 10 * Math.log10(FLETCHER[k] / FLETCHER.s);
+
+  const rows = order.map((k) => ({ k, got: dB(k), want: wantDB(k) }));
+  // Six decibels: about the point where one sound starts masking another in
+  // the same utterance, and well inside the spread of Fletcher's own speakers.
+  for (const r of rows) {
+    if (!(Math.abs(r.got - r.want) < 6)) {
+      fail(`/${VOWELS[r.k]?.ipa ?? CONSONANTS[r.k]?.ipa ?? r.k}/ sits ${r.got.toFixed(0)} dB from /s/ where Fletcher puts it ${r.want.toFixed(0)} — a ${(r.got - r.want).toFixed(0)} dB error, and a sentence is normalised by its loudest sound`);
+    }
+  }
+  // And the headline, stated in the unit Fletcher used. A dB is not a dB:
+  // amplitudes take 20·log₁₀ and POWERS take 10, Fletcher published powers, and
+  // the first attempt at this fix overshot by exactly that factor of two —
+  // 30.8 dB where the table says 15.7. Being wrong in the right direction is
+  // still wrong.
+  if (!(dB('A') > 12)) {
+    fail(`/ɑ/ is only ${dB('A').toFixed(1)} dB above /s/ against Fletcher's ${wantDB('A').toFixed(1)} — you cannot hear a word of a line normalised like that`);
+  }
+  var loudness = { rows, aOverS: dB('A') };
+}
+
 // ---------------- 3b. THE LEXICON HAS TO AGREE WITH ENGLISH, NOT WITH ITSELF
 
 /**
@@ -457,7 +518,7 @@ const HOMOPHONES = [['see', 'sea'], ['knew', 'new'], ['their', 'there']];
 // ------------------------------------------------------------------- report
 
 if (json) {
-  console.log(JSON.stringify({ failures, intelligibility, aligned, shifted, spelling, rhyming, guards }, null, 2));
+  console.log(JSON.stringify({ failures, intelligibility, loudness, aligned, shifted, spelling, rhyming, guards }, null, 2));
 } else {
   console.log('diction — text in, speech out, and can you tell what it said\n');
 
@@ -476,6 +537,22 @@ if (json) {
   console.log(`    Misaligned — the same audio cut from the wrong places — scores ${(intelligibility.shuffled * 100).toFixed(0)}%,`);
   console.log('    which is the control: the listener is listening to the utterance and');
   console.log('    not to the vowel inventory.\n');
+
+  console.log('  HOW LOUD, WHICH IS WHETHER YOU CAN HEAR IT AT ALL');
+  console.log('  Fletcher (1953) relative phonetic power, measured on people. A vowel is');
+  console.log('  the loudest thing in speech by thirty decibels. Rendered VOICED, in one');
+  console.log('  utterance, so the levels are real and share a gain.\n');
+  console.log('    sound    measured   Fletcher');
+  for (const r of loudness.rows) {
+    console.log(`    /${(VOWELS[r.k]?.ipa ?? CONSONANTS[r.k]?.ipa ?? r.k).padEnd(4)}   ${r.got.toFixed(1).padStart(7)} dB  ${r.want.toFixed(1).padStart(7)} dB`);
+  }
+  console.log('\n    Nothing here measured this until a listener said they could not hear a');
+  console.log('    word. Every check above renders vowels WHISPERED, and a whisper has no');
+  console.log('    glottal source to be out of balance with — so the one ratio that decides');
+  console.log('    whether speech is audible was invisible to all of them. Vowels were 49 dB');
+  console.log('    BELOW /s/, and the score above still read 96%.');
+  console.log('    Then the first fix overshot to +30.8, because the correction was worked');
+  console.log('    out with 20·log₁₀ on a POWER ratio. A dB is not a dB.\n');
 
   console.log('  THE HANDSHAKE — F1 IS MOUTH OPENING');
   console.log('  ANIMA draws a mouth from `open`. GAMA measures F1 in the air. Neither');

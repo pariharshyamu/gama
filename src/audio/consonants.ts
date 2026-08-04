@@ -117,15 +117,15 @@ export const CONSONANTS: Record<string, ConsonantSpec> = {
   // two long. /f/ and /θ/ have essentially no front cavity, so their noise is
   // diffuse and about 20 dB quieter — which is why they are the two English
   // consonants people mishear most.
-  f: { ipa: 'f', manner: 'fricative', place: 'labial', voiced: false, locus: 1000, hold: 100, noise: [1200, 4500, 8000], noiseGain: 0.06 },
-  v: { ipa: 'v', manner: 'fricative', place: 'labial', voiced: true, locus: 1000, hold: 65, noise: [1200, 4500, 8000], noiseGain: 0.08 },
-  T: { ipa: 'θ', manner: 'fricative', place: 'dental', voiced: false, locus: 1400, hold: 95, noise: [1400, 5500, 8200], noiseGain: 0.1 },
-  D: { ipa: 'ð', manner: 'fricative', place: 'dental', voiced: true, locus: 1400, hold: 60, noise: [1400, 5500, 8200], noiseGain: 0.07 },
+  f: { ipa: 'f', manner: 'fricative', place: 'labial', voiced: false, locus: 1000, hold: 100, noise: [1200, 4500, 8000], noiseGain: 0.34 },
+  v: { ipa: 'v', manner: 'fricative', place: 'labial', voiced: true, locus: 1000, hold: 65, noise: [1200, 4500, 8000], noiseGain: 0.42 },
+  T: { ipa: 'θ', manner: 'fricative', place: 'dental', voiced: false, locus: 1400, hold: 95, noise: [1400, 5500, 8200], noiseGain: 0.16 },
+  D: { ipa: 'ð', manner: 'fricative', place: 'dental', voiced: true, locus: 1400, hold: 60, noise: [1400, 5500, 8200], noiseGain: 0.22 },
   s: { ipa: 's', manner: 'fricative', place: 'alveolar', voiced: false, locus: 1800, hold: 110, noise: [4200, 6800, 8200], noiseGain: 0.5 },
   z: { ipa: 'z', manner: 'fricative', place: 'alveolar', voiced: true, locus: 1800, hold: 75, noise: [4200, 6800, 8200], noiseGain: 0.32 },
-  S: { ipa: 'ʃ', manner: 'fricative', place: 'postalveolar', voiced: false, locus: 1900, hold: 110, noise: [2200, 3600, 5200], noiseGain: 0.5 },
-  Z: { ipa: 'ʒ', manner: 'fricative', place: 'postalveolar', voiced: true, locus: 1900, hold: 75, noise: [2200, 3600, 5200], noiseGain: 0.32 },
-  h: { ipa: 'h', manner: 'fricative', place: 'glottal', voiced: false, locus: 0, hold: 70, noise: [], noiseGain: 0.2 },
+  S: { ipa: 'ʃ', manner: 'fricative', place: 'postalveolar', voiced: false, locus: 1900, hold: 110, noise: [2200, 3600, 5200], noiseGain: 3.0 },
+  Z: { ipa: 'ʒ', manner: 'fricative', place: 'postalveolar', voiced: true, locus: 1900, hold: 75, noise: [2200, 3600, 5200], noiseGain: 1.9 },
+  h: { ipa: 'h', manner: 'fricative', place: 'glottal', voiced: false, locus: 0, hold: 70, noise: [], noiseGain: 0.02 },
 
   // Nasals. `zero` is the whole point — see the module comment.
   m: { ipa: 'm', manner: 'nasal', place: 'labial', voiced: true, locus: 720, hold: 80, zero: 750 },
@@ -141,6 +141,45 @@ export const CONSONANTS: Record<string, ConsonantSpec> = {
 };
 
 export const CONSONANT_KEYS = Object.keys(CONSONANTS);
+
+/**
+ * How much weaker turbulence is than the glottis.
+ *
+ * Fletcher (1953) measured the **relative phonetic power** of English sounds:
+ * /ɔ/ 680, /ɑ/ 600, /æ/ 490, /i/ 220 … /s/ 16, /f/ 4, /θ/ 1. Those are POWERS,
+ * so the span from the weakest sound to the loudest is `10·log₁₀(680/1)` — the
+ * 28 dB every textbook quotes — and /ɑ/ sits **15.7 dB** over /s/.
+ *
+ * This library had it backwards by SIXTY-FIVE decibels. The frication gains
+ * were set against each other — /s/ against /f/ — and never against a vowel, so
+ * a spoken line came out normalised by its loudest hiss with every vowel 49 dB
+ * underneath it, which is a sentence you cannot hear a word of. It shipped,
+ * because every gate that listened to a vowel rendered it WHISPERED, and a
+ * whisper has no glottal source to be out of balance with.
+ *
+ * The first attempt at the fix then overshot by 15 dB, because the correction
+ * was worked out with `20·log₁₀` on a power ratio. A dB is not a dB: amplitudes
+ * take 20, powers take 10, and Fletcher published powers.
+ *
+ * The number below brings /ɑ/ to 15.7 dB over /s/, and `npm run diction`
+ * measures that ratio on VOICED audio against the published table.
+ */
+export const FRICATION_POWER = 5.7e-4;
+
+/**
+ * Aspiration is a different source from frication, and much louder.
+ *
+ * A fricative's noise is made at a constriction with the whole tract in front
+ * of it doing very little; aspiration is made AT THE GLOTTIS, so it drives the
+ * entire tube exactly as the folds would. Giving both the same power made a
+ * /p/'s aspiration so quiet that the gate's pitch tracker found the burst's
+ * resonator ringing instead and reported a 58 ms voice onset time as 32.
+ *
+ * Fletcher gives /h/ about the same power as /f/, but /h/ is a whole segment of
+ * it — the burst and aspiration here are milliseconds, and this is their level
+ * against the voicing that follows.
+ */
+export const ASPIRATION_POWER = 0.06;
 
 /**
  * How much of the coming vowel is already in the closure, 0..1.
@@ -307,6 +346,8 @@ interface Frame {
   noise: number;
   /** Resonances shaping the frication. Empty means unshaped (a glottal /h/). */
   noiseFormants: readonly number[];
+  /** Noise made at the GLOTTIS rather than at a constriction. */
+  glottal?: boolean;
   /** Antiformant, Hz, or 0 for none. */
   zero: number;
   /** Fraction of the frame spent gliding to the target. */
@@ -382,7 +423,7 @@ export function planPhones(
         formants: target,
         voicing: 0, noise: 0.35,
         noiseFormants: [target[1], target[2], 5000 * scale],
-        zero: 0, glide: 1, f0: pitch,
+        zero: 0, glide: 1, f0: pitch, glottal: true,
         label: `${phone}:burst`,
       });
       // ASPIRATION, for exactly the voice onset time. This is the whole /p/ vs
@@ -394,7 +435,7 @@ export function planPhones(
           formants: target,
           voicing: 0, noise: 0.2,
           noiseFormants: target,
-          zero: 0, glide: 1, f0: pitch,
+          zero: 0, glide: 1, f0: pitch, glottal: true,
           label: `${phone}:aspiration`,
         });
       }
@@ -426,8 +467,10 @@ export function planPhones(
         formants: target,
         // A voiced fricative is BOTH at once — folds buzzing and turbulence at
         // the constriction — which is a thing this architecture can do and a
-        // pure formant table cannot describe.
-        voicing: spec.voiced ? 0.45 : 0,
+        // pure formant table cannot describe. The buzz is WEAK though: /z/ is
+        // frication with voicing under it, not a vowel with a hiss on top, and
+        // at 0.45 it came out 34 dB louder than Fletcher puts it.
+        voicing: spec.voiced ? 0.06 : 0,
         noise: spec.noiseGain ?? 0.3,
         noiseFormants,
         zero: 0, glide: 0.5, f0: pitch,
@@ -513,7 +556,8 @@ export function renderSpeech(
       // not the cavity the voicing came through.
       if (frame.noise > 0) {
         const source = noise() * frame.noise;
-        let hiss = source;
+        const power = frame.glottal ? ASPIRATION_POWER : FRICATION_POWER;
+        let hiss = source * power;
         if (frame.noiseFormants.length) {
           // PARALLEL, not cascade. A fricative spectrum has several separate
           // peaks, and three narrow bandpasses IN SERIES pass almost nothing
@@ -525,7 +569,7 @@ export function renderSpeech(
           for (let k = 0; k < frame.noiseFormants.length && k < 3; k++) {
             hiss += noisePoles[k](source, frame.noiseFormants[k], 350);
           }
-          hiss *= 3;
+          hiss *= 3 * power;
         }
         x += hiss;
       }

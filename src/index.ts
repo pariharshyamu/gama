@@ -107,6 +107,8 @@ export {
   COARTICULATION,
   CONSONANTS,
   CONSONANT_KEYS,
+  ASPIRATION_POWER,
+  FRICATION_POWER,
   consonantFormants,
   frameTimes,
   isConsonant,

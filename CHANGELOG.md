@@ -16,6 +16,42 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.51.2] — 2026-08-04
+
+### Fixed
+
+- **Every vowel was 49 dB below `/s/`, and a spoken line had no audible word in
+  it.** Frication gains had been set against each other — `/s/` against `/f/` —
+  and never against a vowel, so an utterance came out normalised by its loudest
+  hiss with the speech underneath it. Fletcher (1953) measured the relative
+  phonetic power of English sounds: `/ɑ/` 600, `/s/` 16, and those are POWERS,
+  so a vowel sits **15.7 dB** over a sibilant. New `FRICATION_POWER`, and every
+  sound now lands within 4 dB of the published table.
+- **No gate had ever compared a voiced sound to an unvoiced one.** Every check
+  that listened to a vowel rendered it WHISPERED — and a whisper has no glottal
+  source to be out of balance with — so the single ratio that decides whether
+  speech is audible was invisible to all of them while `npm run diction`
+  reported 96% intelligibility. That check now exists, on voiced audio, against
+  Fletcher.
+- **The first fix overshot by 15 dB**, because the correction was worked out
+  with `20·log₁₀` on a power ratio. A dB is not a dB: amplitudes take 20 and
+  powers take 10. The same confusion turned out to be sitting in the consonant
+  gate, which had asserted `/s/` was ~20 dB over `/f/` where Fletcher gives 6.
+- **Aspiration is not frication.** A fricative's noise is made at a
+  constriction; aspiration is made at the GLOTTIS and drives the whole tube.
+  Giving both the same power made a `/p/`'s aspiration quiet enough that the
+  consonant gate's pitch tracker found the burst's resonator ringing instead,
+  and read a 58 ms voice onset time as 32. New `ASPIRATION_POWER`.
+- **A voiced fricative is frication with voicing under it**, not a vowel with a
+  hiss on top. `/z/` came out 17 dB louder than Fletcher puts it.
+
+### Changed
+
+- `docs/diction.md` and the README now say what the intelligibility score
+  measures — a template match on WHISPERED vowels, which is the filter and not
+  the speech. It was presented as though it answered "can you tell what it
+  said?" for two releases. It did not.
+
 ## [0.51.1] — 2026-08-04
 
 ### Added

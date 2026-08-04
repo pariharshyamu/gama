@@ -433,15 +433,20 @@ for (const c of ['f', 's', 'S']) {
   if (!(fricatives.s.centroid > fricatives.S.centroid)) {
     fail(`/s/ has a centroid of ${fricatives.s.centroid.toFixed(0)} Hz against /ʃ/'s ${fricatives.S.centroid.toFixed(0)} — a sibilant's pitch is its front cavity`);
   }
-  // TWO-SIDED, and that matters. /f/ is about 20 dB below /s/ — quiet, not
-  // silent. A one-sided "louder than /f/" check passed happily while /f/ was
-  // 57 dB down and effectively inaudible, which is what a CASCADE of separated
-  // bandpasses does: three narrow filters in series multiply, and almost
-  // nothing survives all three. A spectrum with several humps needs them added.
-  const ratio = fricatives.s.level / fricatives.f.level;
-  const dB = 20 * Math.log10(ratio);
-  if (!(dB > 12 && dB < 32)) {
-    fail(`/s/ is ${dB.toFixed(0)} dB above /f/ against a published ~20 — ${dB > 32 ? '/f/ is inaudible, not quiet' : '/f/ is not quiet enough'}`);
+  // TWO-SIDED, and against the RIGHT NUMBER. Fletcher (1953) gives /s/ a
+  // relative phonetic power of 16 and /f/ of 4, and those are POWERS, so the
+  // gap is 10·log₁₀(4) = 6 dB — not the 20 this gate asserted for two releases.
+  // A dB is not a dB: amplitudes take 20 and powers take 10, and that same
+  // confusion put a 15 dB overshoot into the frication balance before anyone
+  // caught it by listening.
+  //
+  // The check stays two-sided, which is what earned it: a one-sided "louder
+  // than /f/" version passed happily while /f/ was 57 dB down and inaudible,
+  // which is what a CASCADE of separated bandpasses does — three narrow filters
+  // in series multiply, and almost nothing survives all three.
+  const dB = 20 * Math.log10(fricatives.s.level / fricatives.f.level);
+  if (!(dB > 2 && dB < 14)) {
+    fail(`/s/ is ${dB.toFixed(0)} dB above /f/ against Fletcher's 6 — ${dB > 14 ? '/f/ is inaudible, not quiet' : '/f/ is not quiet enough'}`);
   }
 }
 
@@ -557,7 +562,7 @@ if (json) {
       `    /${CONSONANTS[c].ipa}/       ${fricatives[c].centroid.toFixed(0).padStart(5)} Hz   ${fricatives[c].level.toFixed(3)}`
     );
   }
-  console.log(`\n    /s/ is ${(20 * Math.log10(fricatives.s.level / fricatives.f.level)).toFixed(0)} dB above /f/ — published about 20 — because /f/ has almost no cavity`);
+  console.log(`\n    /s/ is ${(20 * Math.log10(fricatives.s.level / fricatives.f.level)).toFixed(0)} dB above /f/ — Fletcher's 6 — because /f/ has almost no cavity`);
   console.log('    in front of the constriction to shape or amplify anything. That is why');
   console.log('    /f/ and /θ/ are the two English consonants people mishear most.');
   console.log(`\n    ...and a /p/ closure is ${(closureRatio * 100).toFixed(1)}% as loud as the vowel beside it.`);

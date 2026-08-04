@@ -8,6 +8,18 @@ npm run diction
 
 ---
 
+## What this gate does and does not measure
+
+**Read this before the number below.** The vowels are rendered WHISPERED and
+matched against whispered references. That establishes the filter puts vowels
+where the table says — it does not establish that a spoken line is audible, and
+for two releases it was presented as though it did.
+
+It was not. Every vowel sat **49 dB below `/s/`**, so a sentence normalised by
+its own loudest hiss had no word you could hear, and this file scored it 96%.
+The check that would have caught it — a voiced level against an unvoiced one —
+is now section two, and it is the one to look at first.
+
 ## Can you tell what it said?
 
 Every gate before this asked whether a piece of the model matched physics or a
@@ -147,6 +159,11 @@ const mouth = visemeTrack(spoken.phones, voice);   // ANIMA eats this
 ---
 
 ## Where this is still wrong
+
+**The intelligibility score is a machine's, and a generous one.** It is a
+template match on whispered vowels. A human listening to voiced output is a
+different test, and the only one that found the loudness bug was a person
+saying they could not hear a word.
 
 **The dictionary is 216 words.** That is enough for village dialogue and not
 enough for prose, and the gate reports the miss rate rather than the file
