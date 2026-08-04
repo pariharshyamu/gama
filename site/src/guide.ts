@@ -26,6 +26,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'replay', title: 'Replay & determinism' },
   { id: 'utility', title: 'Utility AI: Charnov, not a threshold' },
   { id: 'flow', title: 'Flow fields: the eight-way grid is 8.24% wrong' },
+  { id: 'voice', title: 'Voice: a tube and the speed of sound', playground: 'voice' },
   { id: 'perf', title: 'The perf gate' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },

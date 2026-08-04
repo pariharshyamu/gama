@@ -57,6 +57,13 @@ jobs:
       # distance neither is shown, and refines the grid three times to watch one
       # error sit still while the other converges.
       - run: npm run flow
+      # Voice. A vocal tract is a tube, so its resonances are (2n−1)c/4L, and
+      # every voice that is not an adult male is the 1952 formant table divided
+      # by one length. The gate renders a woman and a child and checks them
+      # against Peterson & Barney's OWN women's and children's rows — data that
+      # builds nothing here — against a budget that is what the best possible
+      # single ratio achieves on the same rows.
+      - run: npm run voice
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check

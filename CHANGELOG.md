@@ -16,6 +16,83 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.48.0] — 2026-08-04
+
+### Added
+
+- **Voice — an NPC that speaks, with no audio files, no network and no
+  assets.** Speech is a SOURCE through a FILTER (Fant, 1960): the folds carry
+  pitch, the tract carries the vowel, and they are independent — which is why
+  you can sing "ah" on any note and why a whisper, which has no folds in it at
+  all, stays intelligible. A tract is a tube closed at the glottis and open at
+  the lips, so its resonances are `(2n−1)c/4L`. For 17.5 cm that is **490 /
+  1470 / 2450 Hz** against a textbook neutral vowel of 500 / 1500 / 2500 — one
+  length and the speed of sound, nothing fitted. `tubeFormants`, `VOWELS`,
+  `formantsOf`, `voiceOf`, `tractLengthFor`, `renderFormants`, `renderVowel`,
+  `renderVoice`. All pure: a `Float32Array`, no WebAudio and no browser.
+- **The vowel chart IS the formant table.** F1 ranks against the IPA chart's own
+  vertical axis at **ρ = 1.000** — not a correlation, an identity, because the
+  ten vowels rank in exactly the same order on a phonetician's ear in 1888 and a
+  spectrograph in 1952. F2 against backness+rounding is ρ = −0.976. ANIMA's
+  viseme table reads the same two axes to draw a mouth and imports nothing. It
+  has no BACKNESS, correctly: a tongue is not visible, and `/i/` and `/u/` are
+  identical on every axis a mouth can show while sitting 1400 Hz apart in F2.
+- **`npm run voice` — the gate, and it is out of sample.** Peterson & Barney
+  published three rows in 1952; this library carries the men's. Every other
+  voice is that row divided by one ratio of tract lengths, and the gate renders
+  a woman and a child and checks them against P&B's OWN women's and children's
+  rows, which build nothing here. Model error **5.0%** and **5.4%** — against a
+  floor of **4.9%** and **4.3%**, which is the best any single ratio achieves on
+  the same rows when it is allowed to see the answer. Two measured anatomical
+  lengths, shown none of it, cost 0.1 and 1.1 points against a fitted one.
+- **Playground `voice`.** Three vowel charts stacked, one per body, each pillar
+  placed at `(−log F2, log F1)` — the IPA quadrilateral drawn by the 1952
+  numbers alone. In log formant space a different body is a *translation*, so
+  the three charts are congruent: same shape, three heights, one diagonal shift.
+  Three orbs trace the same utterance through three bodies and never leave
+  formation. Click to hear it.
+
+### Fixed
+
+- **The analyser was the bug, and the gate nearly widened its budget to hide
+  it.** `npm run voice` reported F1 errors of 8 to 11% and was one commit from
+  raising its tolerance to cover them. A voiced spectrum is a comb — a harmonic
+  every F0 hertz — so peak-picking finds harmonics rather than formants, and the
+  fix for that is cepstral liftering. But a whisper has **no comb to remove**,
+  and liftering it anyway smooths the spectrum with a kernel about 125 Hz wide,
+  twice a first formant's own bandwidth, which dragged every sharp F1 up the
+  rising skirt of F2. Unliftered, the same renders come back within **4.1%**
+  with errors of both signs instead of a one-way bias. The lifter is now applied
+  to voiced spectra only.
+- **A budget derived from the thing under test is not a budget.** The
+  out-of-sample floor is fitted to the same vowel table it judges, so corrupting
+  a published formant — /ɑ/'s F2 moved from 1090 to 1450 — moved the model and
+  its budget together and the gate said nothing at all. Peterson & Barney's
+  men's row is now carried a second time in the bench as an anchor from outside,
+  and is labelled as the transcription check it is rather than dressed up as a
+  claim about speech.
+- **The model half of the gate reimplemented the scaling instead of calling
+  it.** A `formantsOf` that ignored its tract argument entirely and returned a
+  constant sailed through the whole out-of-sample section, because the gate was
+  multiplying the table by a ratio itself and checking its own arithmetic. It
+  now goes through the shipped function.
+- **The `/ʊ/` residual was not widened away.** The children's worst miss outside
+  `/ɔ/` sat at 15.4% against a hand-drawn 15% bar. Rather than move the bar, the
+  budget was replaced with what the best possible single ratio achieves on the
+  same data — and the residual turned out to be the population's rather than the
+  model's: P&B's own vowel-by-vowel ratios scatter about 7% around their own
+  mean, because a male larynx descends at puberty and a tract does not scale
+  uniformly. `/ɔ/` scales men→women at 1.035 where a typical vowel runs 1.212,
+  and the gate now asserts that it IS the outlier rather than excusing it.
+
+### Changed
+
+- `npm run voice` joins `prepublishOnly` and CI alongside `forage` and `flow`.
+- The bench's analyser (FFT, Welch spectrum, cepstral envelope, prominence peak
+  picking) moved to `bench/formants.mjs`, which knows nothing about vowels,
+  tracts or Peterson & Barney — so the thing doing the measuring cannot be
+  quietly taught the answer.
+
 ## [0.47.0] — 2026-08-04
 
 ### Added

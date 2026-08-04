@@ -3922,6 +3922,243 @@ window.flowDebug = () => {
 game.start();
 `,
   },
+  {
+    id: 'voice',
+    title: 'Voice: the vowel chart IS the formant table',
+    group: 'AI',
+    code: `// A VOICE WITHOUT AN AUDIO FILE.
+//
+// Speech is a SOURCE through a FILTER (Fant, 1960). The vocal folds buzz — that
+// is pitch — and the tract they buzz through is a tube whose resonances are the
+// vowel. The two are independent, which is why you can sing "ah" on any note,
+// and why a WHISPER, which has no folds in it at all, is still intelligible.
+//
+// A tube closed at the glottis and open at the lips resonates at (2n-1)c/4L.
+// For a 17.5 cm adult male tract that is 490 / 1470 / 2450 Hz, against a
+// textbook neutral vowel of 500 / 1500 / 2500. One length and the speed of
+// sound, nothing fitted.
+//
+// WHAT YOU ARE LOOKING AT
+//
+// Three vowel charts, floating one above another. The floor plan is not drawn
+// by hand: each pillar sits at (-log F2, log F1) — the two numbers Peterson and
+// Barney measured in 1952 — and what comes out is the IPA vowel quadrilateral,
+// front-close at the far left, back-open at the near right. The chart every
+// phonetics textbook prints IS the formant table, plotted.
+//
+// The three charts are a man (17.5 cm tract, amber), a woman (15 cm, green) and
+// a child (12.5 cm, blue). Only the man's row is in the library. The other two
+// are that row divided by a length — and in LOG formant space, dividing by a
+// length is a TRANSLATION, so the three charts are congruent. Same shape, three
+// heights, shifted along one diagonal. Watch the three orbs: they trace the
+// same utterance through three bodies and never leave formation.
+//
+// The ladder at the right is the live filter: three beads per speaker at
+// log F1, F2, F3. The beads slide as the vowel changes and the SPACING between
+// them is identical across all three speakers, because the spacing is the vowel
+// and the offset is the body.
+//
+// Click to hear it. No samples, no network, no assets — renderVoice() returns
+// a Float32Array and the browser plays it.
+import { BoxGeometry, BufferGeometry, CylinderGeometry, Line, LineBasicMaterial,
+         LineLoop, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
+import { Game, VOWELS, VOWEL_KEYS, formantsOf, renderVoice, voiceOf,
+         REFERENCE_TRACT } from 'gama3d';
+${SCENE}
+
+// Log-formant space. The chart is what the numbers already say it is.
+const K = 7;
+const MID_F2 = 10.4;   // log2 of a middle F2, so the chart sits around x = 0
+const MID_F1 = 8.8;
+const px = (f2) => -(Math.log2(f2) - MID_F2) * K;
+const pz = (f1) => (Math.log2(f1) - MID_F1) * K;
+
+// The utterance, and every speaker says the same one at the same tempo so the
+// formation is the thing on screen.
+const LINE = ['i', 'E', 'ae', 'A', 'O', 'u', 'U', 'V', 'I', '@'];
+const HOLD = 0.55;
+
+const SPEAKERS = [
+  { name: 'man', tract: REFERENCE_TRACT, colour: 0xd8a83a, y: 0 },
+  { name: 'woman', tract: 0.15, colour: 0x54b070, y: 3.2 },
+  { name: 'child', tract: 0.125, colour: 0x5aa8d8, y: 6.4 },
+];
+
+// The OUTLINE is the payoff, not the pillars. Eight peripheral vowels drawn as
+// a closed loop give the IPA quadrilateral itself, and three of them stacked
+// are visibly the SAME SHAPE at three offsets. The first version of this scene
+// drew only the pillars and read as three scattered clouds: the numbers in the
+// probe said congruent, and the screen did not show it.
+const RIM = ['i', 'I', 'E', 'ae', 'A', 'O', 'u'];
+
+for (const s of SPEAKERS) {
+  s.voice = voiceOf({ tract: s.tract });
+  s.spot = {};
+  for (const key of VOWEL_KEYS) {
+    const f = formantsOf(key, s.tract);
+    const at = new Vector3(px(f[1]), s.y, pz(f[0]));
+    s.spot[key] = at;
+    // Pillar height is F1 itself, so the chart's vertical axis is visible as
+    // height as well as depth: a close vowel is a low F1 and a short pillar.
+    const h = 0.2 + (Math.log2(f[0]) - 7.6) * 0.45;
+    const pillar = new Mesh(
+      new BoxGeometry(0.3, h, 0.3),
+      new MeshStandardMaterial({ color: s.colour, emissive: s.colour, emissiveIntensity: 0.45 })
+    );
+    pillar.position.set(at.x, s.y + h / 2, at.z);
+    game.world.scene.add(pillar);
+  }
+  const rim = new LineLoop(
+    new BufferGeometry().setFromPoints(RIM.map((k) => s.spot[k].clone().setY(s.y + 0.06))),
+    new LineBasicMaterial({ color: s.colour })
+  );
+  game.world.scene.add(rim);
+
+  const orb = new Mesh(
+    new SphereGeometry(0.4, 20, 14),
+    new MeshStandardMaterial({ color: 0xffffff, emissive: s.colour, emissiveIntensity: 1.1 })
+  );
+  game.world.scene.add(orb);
+  s.orb = orb;
+
+  // The ladder: three beads at log F1, F2, F3, on a pole of this speaker's own.
+  const lx = 6.4 + SPEAKERS.indexOf(s) * 1.4;
+  const lz = 9.8;
+  const pole = new Mesh(
+    new CylinderGeometry(0.07, 0.07, 9, 8),
+    new MeshStandardMaterial({ color: 0x475569, emissive: 0x1e293b })
+  );
+  pole.position.set(lx, 4.5, lz);
+  game.world.scene.add(pole);
+  s.beads = [0, 1, 2].map(() => {
+    const b = new Mesh(
+      new SphereGeometry(0.28, 16, 12),
+      new MeshStandardMaterial({ color: s.colour, emissive: s.colour, emissiveIntensity: 0.9 })
+    );
+    game.world.scene.add(b);
+    return b;
+  });
+  s.ladder = { x: lx, z: lz };
+}
+
+// One diagonal, drawn once: every speaker's /ɑ/ lies on it, and so does every
+// speaker's /i/, because a shorter tract is a TRANSLATION in this space.
+for (const key of ['i', 'A']) {
+  game.world.scene.add(new Line(
+    new BufferGeometry().setFromPoints(SPEAKERS.map((s) => s.spot[key].clone().setY(s.y + 0.06))),
+    new LineBasicMaterial({ color: 0x64748b })
+  ));
+}
+
+// ---- the sound itself, rendered once, no assets involved
+const SEGMENTS = LINE.map((vowel) => ({ vowel, seconds: HOLD }));
+let ctx = null;
+function speak() {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    let when = ctx.currentTime + 0.05;
+    for (const s of SPEAKERS) {
+      const data = renderVoice(SEGMENTS, s.voice, { sampleRate: ctx.sampleRate, amplitude: 0.35 });
+      const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(data);
+      const node = ctx.createBufferSource();
+      node.buffer = buffer;
+      node.connect(ctx.destination);
+      node.start(when);
+      when += buffer.duration + 0.25;
+    }
+  } catch (err) { /* no audio device is not a reason to stop drawing */ }
+}
+game.renderer.domElement.addEventListener('pointerdown', speak);
+
+let t = 0;
+let said = 0;
+const from = new Vector3();
+const to = new Vector3();
+
+game.onUpdate(({ delta }) => {
+  t += Math.min(0.05, delta);
+  const span = LINE.length * HOLD;
+  const phase = (t % span) / HOLD;
+  const i = Math.floor(phase);
+  said = Math.floor(t / HOLD);
+  // The same glide renderVoice uses: move over the first third, then hold.
+  const g = Math.min(1, (phase - i) * 3);
+  const a = LINE[(i + LINE.length - 1) % LINE.length];
+  const b = LINE[i];
+
+  for (const s of SPEAKERS) {
+    from.copy(s.spot[a]);
+    to.copy(s.spot[b]);
+    s.orb.position.lerpVectors(from, to, g).setY(s.y + 1.1);
+    // Live formants, glided in log space exactly as the filter is.
+    const fa = formantsOf(a, s.tract);
+    const fb = formantsOf(b, s.tract);
+    s.live = [0, 1, 2].map((k) => Math.pow(2, Math.log2(fa[k]) + (Math.log2(fb[k]) - Math.log2(fa[k])) * g));
+    for (let k = 0; k < 3; k++) {
+      s.beads[k].position.set(s.ladder.x, (Math.log2(s.live[k]) - 7.6) * 1.55, s.ladder.z);
+    }
+  }
+
+  game.camera.position.set(0, 16, 25);
+  game.camera.lookAt(0.5, 3.2, 2.0);
+});
+
+// The offline render is the audio evidence: pure samples, no device needed.
+window.audioDebug = () => {
+  const data = renderVoice(SEGMENTS, SPEAKERS[0].voice, { sampleRate: 22050, amplitude: 0.35 });
+  let sum = 0, peak = 0;
+  for (let i = 0; i < data.length; i++) { sum += data[i] * data[i]; peak = Math.max(peak, Math.abs(data[i])); }
+  return {
+    offlineRms: Number(Math.sqrt(sum / data.length).toFixed(5)),
+    offlinePeak: Number(peak.toFixed(4)),
+    samples: data.length,
+    seconds: Number((data.length / 22050).toFixed(2)),
+  };
+};
+
+window.voiceDebug = () => {
+  // THE CLAIM ON SCREEN: a different body is a TRANSLATION in log formant
+  // space, so the three charts are congruent. Measured against the ten vowels
+  // rather than asserted — the offset between any two speakers has to be the
+  // same for every one of them.
+  const drift = (a, b) => {
+    let worst = 0;
+    let mean = 0;
+    for (const key of VOWEL_KEYS) {
+      const d = a.spot[key].clone().sub(b.spot[key]);
+      mean += Math.hypot(d.x, d.z) / VOWEL_KEYS.length;
+    }
+    for (const key of VOWEL_KEYS) {
+      const d = a.spot[key].clone().sub(b.spot[key]);
+      worst = Math.max(worst, Math.abs(Math.hypot(d.x, d.z) - mean));
+    }
+    return { shift: Number(mean.toFixed(4)), worstDeviation: Number(worst.toFixed(6)) };
+  };
+  // ...and the SPACING of the ladder beads is the vowel, not the body, so it
+  // has to agree across speakers to the last decimal.
+  const spacing = SPEAKERS.map((s) => Number((Math.log2(s.live[1] / s.live[0])).toFixed(6)));
+  return {
+    clock: Number(t.toFixed(1)),
+    vowels: VOWEL_KEYS.length,
+    saying: LINE[Math.floor((t % (LINE.length * HOLD)) / HOLD)],
+    said,
+    tracts: SPEAKERS.map((s) => s.tract),
+    f0: SPEAKERS.map((s) => Number(s.voice.f0.toFixed(1))),
+    liveF1: SPEAKERS.map((s) => Number(s.live[0].toFixed(0))),
+    congruent: {
+      manToWoman: drift(SPEAKERS[0], SPEAKERS[1]),
+      womanToChild: drift(SPEAKERS[1], SPEAKERS[2]),
+    },
+    ladderSpacing: spacing,
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
 ];
 
 

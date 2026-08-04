@@ -54,6 +54,31 @@ export { NavMesh, type NavMeshOptions, type NavTriangle } from './nav/NavMesh';
 export { NavMeshAgent, type NavMeshAgentOptions } from './nav/NavMeshAgent';
 export { generateNavMesh, type NavMeshGenOptions } from './nav/generateNavMesh';
 
+// Voice — a formant synthesizer. Speech is a source through a filter; the
+// filter is the vowel and it is a tube, so the resonances are (2n−1)c/4L.
+// ANIMA reads the same vowel chart to draw a mouth, and imports nothing.
+export {
+  BANDWIDTHS,
+  CHILD_TRACT,
+  FEMALE_TRACT,
+  REFERENCE_TRACT,
+  SPEED_OF_SOUND,
+  VOWELS,
+  VOWEL_KEYS,
+  formantsOf,
+  renderFormants,
+  renderVoice,
+  renderVowel,
+  tractLengthFor,
+  tubeFormants,
+  voiceOf,
+  type RenderOptions,
+  type VoiceOptions,
+  type VoiceSegment,
+  type VoiceSpec,
+  type VowelSpec,
+} from './audio/voice';
+
 // Flow fields — one flood, any number of agents, and the eight-way grid is
 // 8.24% wrong at 22.5° in a way that finer cells do not fix.
 export {
