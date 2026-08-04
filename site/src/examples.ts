@@ -4656,8 +4656,9 @@ game.world.scene.add(new Line(
 
 // ---- the mouth: two lips and a jaw gap, drawn from the viseme
 const lipColour = 0x8a4a44;
+const MOUTH = 1.85;
 const lip = (h) => new Mesh(
-  new BoxGeometry(1.9, h, 0.6),
+  new BoxGeometry(1.9 * MOUTH, h * MOUTH, 0.6),
   new MeshStandardMaterial({ color: lipColour, emissive: lipColour, emissiveIntensity: 0.45 })
 );
 const upper = lip(0.42);
@@ -4724,7 +4725,7 @@ game.onUpdate(({ delta }) => {
   upper.position.set(0, MOUTH_Y + gap * 0.25 - bridge * 0.25 + 0.3, 0);
   lower.position.set(0, MOUTH_Y - gap * 0.75 + bridge * 0.75 - 0.3, 0);
   cavity.position.set(0, MOUTH_Y - shown * 0.25, -0.1);
-  cavity.scale.set(width, Math.max(0.05, shown / 0.3), 1);
+  cavity.scale.set(width, Math.max(0.05, shown / (0.3 * MOUTH)), 1);
   upper.scale.x = width;
   lower.scale.x = width;
 
@@ -4765,6 +4766,198 @@ window.dictionDebug = () => {
     sealPhones: seals.map((b) => b.phone),
     // The strip is the render's own timing, to the microsecond.
     trackMatchesAudio: Math.abs(SPAN - TRACK[TRACK.length - 1].to) < 1e-9,
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
+  {
+    id: 'tts',
+    title: 'The platform speaks, the mouth is ours',
+    group: 'AI',
+    code: `// TWO WAYS TO MAKE AN NPC TALK, AND THIS PICKS BOTH.
+//
+// speak() is the synthesizer: a vocal tract that is a tube, Klatt's durations,
+// Delattre's loci, Lisker and Abramson's voice onset times. It is right about
+// the physics and it sounds like 1980, because it IS 1980. Keep it for what it
+// is good at — creatures, radio chatter, crowd murmur, anything where a 12 cm
+// tract or a 40 cm one is the point, and anything that has to be deterministic
+// and offline and inside a replay checksum.
+//
+// speakAloud() is the platform's SpeechSynthesis, for lines a player has to
+// UNDERSTAND.
+//
+// WHAT DOES NOT CHANGE IS THE MOUTH. The visemes come out of pronounce() — the
+// lexicon and the prosody model — not out of the audio, so the face is driven
+// by the same F1-IS-MOUTH-OPENING fact whichever thing is making the sound.
+// anima3d's Speech.follow() consumes exactly the same { open, round, close,
+// spread } and still imports nothing from here.
+//
+// WHAT YOU ARE LOOKING AT
+//
+//   TOP STRIP     the PLAN. One block per word, width is Klatt's duration.
+//   BOTTOM STRIP  the SAME words after anchorTrack has dragged them onto the
+//                 boundaries the platform actually reported. Watch them slide
+//                 when you click: the platform does not agree with the plan,
+//                 and it does not agree UNIFORMLY either.
+//   THE MOUTH     driven from the bottom strip, so it follows the real voice.
+//
+// SpeechSynthesis reports word boundaries and no phone boundaries — it will
+// never tell you where the /m/ is. So the word marks anchor the track and the
+// relative phone durations inside each word stay Klatt's, which is the best
+// information anyone has about them.
+//
+// Click to hear it. With no platform voice installed the strip still runs on
+// the plan and the mouth still moves: a missing voice should cost you the
+// audio, not the animation.
+import { BoxGeometry, BufferGeometry, Line, LineBasicMaterial, Mesh,
+         MeshStandardMaterial, Vector3 } from 'three';
+import { Game, planLine, speakAloud, speechAvailable, mouthFrom,
+         voiceOf } from 'gama3d';
+${SCENE}
+
+const VOICE = voiceOf({ height: 1.75 });
+const TEXT = 'the traveller stopped at the gate';
+const PLAN = planLine(TEXT, VOICE);
+
+// Sized for the PREVIEW PANE, which is about half the width of the window and
+// TALLER THAN IT IS WIDE. A strip laid out for a landscape viewport leaves the
+// top and bottom thirds empty and the mouth the size of a postage stamp, so the
+// timeline is narrow and the face is big.
+const SX = 4.6;
+const LEFT = -PLAN.seconds * SX / 2;
+const PLAN_Y = 7.6;
+const LIVE_Y = 5.4;
+
+const wordBlock = (span, y, colour) => {
+  const w = (span.to - span.from) * SX;
+  const m = new Mesh(
+    new BoxGeometry(Math.max(0.05, w * 0.92), 0.5, 0.5),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.3 })
+  );
+  m.position.set(LEFT + span.from * SX + w / 2, y, 0);
+  game.world.scene.add(m);
+  return m;
+};
+
+const planned = PLAN.words.map((w) => wordBlock(w, PLAN_Y, 0x475569));
+const live = PLAN.words.map((w) => wordBlock(w, LIVE_Y, 0xd8a83a));
+for (const y of [PLAN_Y, LIVE_Y]) {
+  game.world.scene.add(new Line(
+    new BufferGeometry().setFromPoints([new Vector3(LEFT - 1, y - 0.5, -0.7), new Vector3(-LEFT + 1, y - 0.5, -0.7)]),
+    new LineBasicMaterial({ color: 0x334155 })
+  ));
+}
+
+// ---- the mouth, exactly as the diction demo draws it
+const lipColour = 0x8a4a44;
+const MOUTH = 1.85;
+const lip = (h) => new Mesh(
+  new BoxGeometry(1.9 * MOUTH, h * MOUTH, 0.6),
+  new MeshStandardMaterial({ color: lipColour, emissive: lipColour, emissiveIntensity: 0.45 })
+);
+const upper = lip(0.42);
+const lower = lip(0.48);
+const cavity = new Mesh(new BoxGeometry(1.75 * MOUTH, 0.3 * MOUTH, 0.4), new MeshStandardMaterial({ color: 0x2a1418 }));
+game.world.scene.add(upper, lower, cavity);
+const MOUTH_Y = 12.6;
+const TRAVEL = 1.9 * MOUTH;
+// The jaw travel and the lip seal, in the published proportion: 5.25 cm of
+// opening against 2.4 cm of lip, so a /p/ actually shuts instead of nearly.
+const BRIDGE = TRAVEL * (0.024 / 0.0525);
+
+const head = new Mesh(
+  new BoxGeometry(0.16, 1.4, 0.6),
+  new MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 })
+);
+game.world.scene.add(head);
+
+let line = null;
+let marks = 0;
+let lines = 0;
+const say = () => {
+  if (line && !line.done) return;
+  marks = 0;
+  lines++;
+  line = speakAloud(TEXT, VOICE, { onWord: () => { marks++; } });
+};
+game.renderer.domElement.addEventListener('pointerdown', say);
+
+let idle = 0;
+game.onUpdate(({ delta }) => {
+  // Say it again every few seconds, so the demo is alive before anyone clicks.
+  idle += Math.min(0.05, delta);
+  if (!line || (line.done && idle > 2.2)) { idle = 0; say(); }
+
+  const t = line ? line.elapsed() : -1;
+  const track = line ? line.track : PLAN.cues;
+  const speaking = t >= 0 && !line.done;
+
+  // The bottom strip follows the anchored track: each word block sits where
+  // the platform actually put it, which is not where the plan said.
+  for (let i = 0; i < PLAN.words.length; i++) {
+    const span = PLAN.words[i];
+    const from = track[span.firstCue]?.from ?? span.from;
+    const to = track[span.lastCue - 1]?.to ?? span.to;
+    const w = Math.max(0.05, (to - from) * SX * 0.92);
+    live[i].scale.x = w / Math.max(0.05, (span.to - span.from) * SX * 0.92);
+    live[i].position.x = LEFT + from * SX + (to - from) * SX / 2;
+    const on = speaking && t >= from && t < to;
+    live[i].material.emissiveIntensity = on ? 1.5 : 0.3;
+    planned[i].material.emissiveIntensity = on ? 0.9 : 0.3;
+  }
+
+  const v = line ? line.mouthAt() : mouthFrom(PLAN.cues, 0);
+  head.visible = speaking;
+  const last = track.length ? track[track.length - 1].to : PLAN.seconds;
+  head.position.set(LEFT + Math.min(Math.max(0, t), last) * SX, LIVE_Y, 0.8);
+
+  const gap = v.open * TRAVEL;
+  const bridge = Math.min(gap, BRIDGE) * v.close;
+  const shown = gap - bridge;
+  const width = 1 + v.spread * 0.35 - v.round * 0.4;
+  upper.position.set(0, MOUTH_Y + gap * 0.25 - bridge * 0.25 + 0.3, 0);
+  lower.position.set(0, MOUTH_Y - gap * 0.75 + bridge * 0.75 - 0.3, 0);
+  cavity.position.set(0, MOUTH_Y - shown * 0.25, -0.1);
+  cavity.scale.set(width, Math.max(0.05, shown / (0.3 * MOUTH)), 1);
+  upper.scale.x = width;
+  lower.scale.x = width;
+
+  game.camera.position.set(0, 9.4, 14.5);
+  game.camera.lookAt(0, 9.4, 0);
+});
+
+window.ttsDebug = () => {
+  const track = line ? line.track : PLAN.cues;
+  const v = line ? line.mouthAt() : { open: 0, round: 0, close: 0, spread: 0 };
+  return {
+    // Whether the API exists — NOT whether it can speak. Headless Chromium
+    // exposes speechSynthesis and ships zero voices, so this is true there and
+    // nothing is ever said. The line watches for the platform's start event and
+    // runs the mouth off the plan when it does not come, which is what
+    // fellBack reports.
+    platformApi: speechAvailable(),
+    fellBack: !!line && line.fellBack,
+    lines,
+    text: TEXT,
+    words: PLAN.words.length,
+    cues: PLAN.cues.length,
+    // Word boundaries the platform has reported so far. Zero without a voice.
+    marks,
+    plannedSeconds: Number(PLAN.seconds.toFixed(2)),
+    trackSeconds: Number((track.length ? track[track.length - 1].to : 0).toFixed(2)),
+    elapsed: line ? Number(Math.max(-1, line.elapsed()).toFixed(2)) : -1,
+    speaking: !!line && !line.done && line.elapsed() >= 0,
+    // The track is monotonic, always. A mouth cannot run backwards.
+    monotonic: track.every((c, i) => c.to >= c.from && (i === 0 || c.from >= track[i - 1].from - 1e-9)),
+    mouth: {
+      open: Number(v.open.toFixed(2)),
+      close: Number(v.close.toFixed(2)),
+      round: Number(v.round.toFixed(2)),
+      spread: Number(v.spread.toFixed(2)),
+    },
     draws: game.renderer.info.render.calls,
   };
 };

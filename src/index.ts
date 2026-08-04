@@ -100,6 +100,25 @@ export {
   type Viseme,
 } from './audio/diction';
 
+// The platform's voice, with this library's mouth. `speak` is the synthesizer —
+// creatures, radio, crowd murmur, anything where a 12 cm tract is the point.
+// `speakAloud` is `SpeechSynthesis`, for lines a player has to UNDERSTAND. The
+// viseme handshake is the same either way, because it comes out of `pronounce`
+// and not out of the audio.
+export {
+  anchorTrack,
+  mouthFrom,
+  planLine,
+  speakAloud,
+  speechAvailable,
+  utteranceVoice,
+  type SpeakAloudOptions,
+  type SpokenLine,
+  type VisemeCue,
+  type WordMark,
+  type WordSpan,
+} from './audio/tts';
+
 // Consonants — a stop is a TRANSITION (Delattre et al. 1955), /p/ vs /b/ is a
 // DURATION (Lisker & Abramson 1964), and a nasal needs a ZERO, which no cascade
 // of resonators can produce at any setting.

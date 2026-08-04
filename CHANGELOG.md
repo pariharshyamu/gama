@@ -16,6 +16,72 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.52.0] — 2026-08-04
+
+**A listener said the synthesizer still hissed, and said "if you cannot fix it,
+move to TTS." They were right.** `renderSpeech` is a Klatt-style cascade formant
+synthesizer, which is 1980 technology and sounds like it; three rounds of level
+fixes each found a real, published-number-backed bug and the words were still
+not pleasant to listen to. Being right about the physics and being pleasant to
+listen to are different problems.
+
+So this is the hybrid, not the retreat: the synthesizer keeps the jobs where a
+12 cm vocal tract is the point, and the platform gets the dialogue.
+
+### Added
+
+- **`speakAloud()` — the platform's `SpeechSynthesis`, with this library's
+  mouth.** For any line a player has to UNDERSTAND. `speak()` is unchanged and
+  keeps creatures, radio chatter, crowd murmur, barks, and everything that has
+  to be deterministic, offline and inside a replay checksum.
+- **The viseme handshake survives intact**, which is the whole reason the split
+  is worth making. The mouth comes out of `pronounce()` — the lexicon and the
+  prosody model — not out of the audio, so ANIMA's `Speech.follow()` consumes
+  exactly the same `{ open, round, close, spread }` and still imports nothing
+  from here.
+- **`anchorTrack()` — a piecewise-linear time warp onto reported word
+  boundaries.** `SpeechSynthesis` reports words and never phones; it will not
+  tell you where the `/m/` is. Between two marks the plan is stretched
+  uniformly, because within a word the relative durations are Klatt's and the
+  absolute rate is the platform's. Drifts **13 ms** from the words against
+  **68 ms** for a global rate estimate, budget 40 ms — one frame at 24 fps,
+  which is the tolerance ANIMA's lip-sync gate already uses.
+- **`npm run tts`**, and it is explicit about its scope: nothing in it listens
+  to a voice, because there is no `speechSynthesis` in Node and headless
+  Chromium ships with none. It checks the warp, which is the only part of the
+  bridge this library wrote — that it reduces to the identity, that a mouth
+  never runs backwards through ten malformed mark streams, and that it beats
+  the alternative.
+- **A playground example and a docs page**, both showing the plan and the
+  anchored track as two strips so the deformation is visible.
+
+### Fixed
+
+- **A browser with the API and no voices left the face frozen.** Headless
+  Chromium exposes `speechSynthesis`, ships zero voices, accepts `speak()`, says
+  nothing, and fires `end` without ever firing `start` — so `elapsed()` sat at
+  −1 for the whole session and the mouth never moved. The claim "a missing
+  platform voice should cost you the audio, not the animation" was in the first
+  draft of the docs and was false when written. `speakAloud` now watches for the
+  BEHAVIOUR — a start watchdog plus an end-without-start check — rather than
+  sniffing a capability, and reports `fellBack` when it is running off the plan.
+  Found by a headless probe; invisible on any machine with voices installed.
+
+### Known
+
+- **The gate's first simulator was a tautology.** It stretched each word by one
+  constant, which is a piecewise-constant rate change that a word-anchored warp
+  inverts exactly — it printed 0 ms drift, and would have printed 0 ms for a
+  warp with a sign error in it. The rate now wanders within each word too, which
+  is information no word boundary can carry.
+- **Two of the four checks were decorations until they were mutation-tested.**
+  Deleting the monotonicity guard in `anchorTrack` failed nothing, because none
+  of the malformed mark streams had observed times running backwards; and
+  mapping pitch onto a difference rather than a ratio also fell with height and
+  also landed inside the spec's 0..2. Both now have a case that fails.
+- **Some engines do not report word boundaries at all.** With no marks the track
+  is the plan, unwarped: a worse mouth, but a working one.
+
 ## [0.51.3] — 2026-08-04
 
 Two listener reports, one release. The words were "very near, accompanied with

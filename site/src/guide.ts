@@ -30,6 +30,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'prosody', title: 'Prosody: rhythm is a published number', playground: 'prosody' },
   { id: 'consonants', title: 'Consonants: a stop is a transition', playground: 'consonants' },
   { id: 'diction', title: 'Diction: can you tell what it said?', playground: 'diction' },
+  { id: 'tts', title: 'The platform speaks, the mouth is ours', playground: 'tts' },
   { id: 'perf', title: 'The perf gate' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
