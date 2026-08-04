@@ -16,6 +16,27 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.51.1] — 2026-08-04
+
+### Added
+
+- **Playground `diction`** — the gap 0.51.0 left open, and it is stated as
+  filled rather than quietly appearing. One line laid out as the machine says
+  it: a block per phone, width for duration, height for pitch, amber for a
+  vowel and blue for a consonant. Beside it, the viseme ANIMA would draw, as a
+  working mouth with a jaw gap and two lips that bridge it — the same
+  `{ open, round, close, spread }` that anima3d 0.63.0's `Speech.follow()`
+  consumes, with neither package importing the other. The mouth shuts on the
+  /p/ in \stopped\, which is the one viseme a viewer reads off a silent face.
+
+### Fixed
+
+- **The first layout was forty-two metres wide.** A 2.5-second line at
+  seventeen metres a second, framed against the viewport rather than the
+  PREVIEW PANE — which is about half the window's width and taller than it is
+  wide. Most of the sentence was off the right-hand edge. Third time this
+  release series that a playground was framed for the wrong rectangle.
+
 ## [0.51.0] — 2026-08-04
 
 ### Added

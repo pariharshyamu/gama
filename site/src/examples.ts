@@ -4578,6 +4578,200 @@ window.consonantDebug = () => {
 game.start();
 `,
   },
+  {
+    id: 'diction',
+    title: 'Diction: text in, speech out',
+    group: 'AI',
+    code: `// AN NPC THAT TALKS, WITH NO AUDIO FILES.
+//
+// speak('the traveller stopped at the gate') returns a Float32Array. Under it:
+// a vocal tract that is a tube (Fant 1960), Klatt's durations with the floor
+// that matters (1979), a pitch contour in semitones ('t Hart 1990), consonants
+// with loci and voice onset times (Delattre 1955, Lisker & Abramson 1964), and
+// a 216-word pronunciation dictionary — because English spelling is not a
+// function of its letters. "though", "through", "tough", "thought" and
+// "thorough" share four letters and no vowel.
+//
+// WHAT YOU ARE LOOKING AT
+//
+// One line, laid out as the machine actually says it. Left to right is time.
+//
+//   THE STRIP        one block per phone. WIDTH is its duration — a stop's
+//                    closure is as real a duration as a vowel's. AMBER is a
+//                    vowel, BLUE a consonant, and the height of a vowel block
+//                    is its pitch in semitones.
+//
+//   THE MOUTH        the viseme ANIMA would draw at this instant, as two lips
+//                    and a jaw gap. It is the SAME { open, round, close,
+//                    spread } that anima3d's Speech.follow() consumes, and
+//                    neither package imports the other. What makes them agree
+//                    is not a shared type but a shared fact: F1 IS MOUTH
+//                    OPENING. A jaw that drops raises the first formant, in
+//                    the geometry and in the air.
+//
+// Watch the mouth SHUT on every /p/, /b/ and /m/. That is the one viseme a
+// viewer can read off a silent face, and it is why they are the lip-sync
+// landmark.
+//
+// Click to hear the line.
+import { BoxGeometry, BufferGeometry, Line, LineBasicMaterial, Mesh,
+         MeshStandardMaterial, Vector3 } from 'three';
+import { Game, CONSONANTS, VOWELS, pronounce, speak, visemeTrack,
+         voiceOf } from 'gama3d';
+${SCENE}
+
+const VOICE = voiceOf({ height: 1.75 });
+const TEXT = 'the traveller stopped at the gate';
+const SPOKEN = pronounce(TEXT, { voice: VOICE });
+const TRACK = visemeTrack(SPOKEN.phones, VOICE);
+const SPAN = TRACK[TRACK.length - 1].to;
+
+// Time to metres, semitones to metres. Sized for the PREVIEW PANE, which is
+// about half the width of the window: a 2.5-second line at seventeen metres a
+// second is forty-two metres wide and most of it is off the right-hand edge.
+const SX = 7;
+const SY = 0.42;
+const LEFT = -SPAN * SX / 2;
+
+const blocks = [];
+for (const row of TRACK) {
+  const vowel = VOWELS[row.phone];
+  const w = (row.to - row.from) * SX;
+  // A vowel's block sits at its own pitch; a consonant's sits on the baseline.
+  const seg = SPOKEN.phones.find((p) => p.phone === row.phone);
+  const semis = vowel && seg ? 12 * Math.log2(seg.f0 / VOICE.f0) : 0;
+  const colour = vowel ? 0xd8a83a : 0x5aa8d8;
+  const m = new Mesh(
+    new BoxGeometry(Math.max(0.04, w * 0.9), vowel ? 0.5 : 0.3, 0.5),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.3 })
+  );
+  m.position.set(LEFT + row.from * SX + w / 2, 6 + semis * SY, 0);
+  game.world.scene.add(m);
+  blocks.push({ ...row, mesh: m, vowel: !!vowel, semis });
+}
+game.world.scene.add(new Line(
+  new BufferGeometry().setFromPoints([new Vector3(LEFT - 1, 6, -0.7), new Vector3(-LEFT + 1, 6, -0.7)]),
+  new LineBasicMaterial({ color: 0x475569 })
+));
+
+// ---- the mouth: two lips and a jaw gap, drawn from the viseme
+const lipColour = 0x8a4a44;
+const lip = (h) => new Mesh(
+  new BoxGeometry(1.9, h, 0.6),
+  new MeshStandardMaterial({ color: lipColour, emissive: lipColour, emissiveIntensity: 0.45 })
+);
+const upper = lip(0.42);
+const lower = lip(0.48);
+const cavity = new Mesh(
+  new BoxGeometry(1.75, 0.3, 0.4),
+  new MeshStandardMaterial({ color: 0x2a1418 })
+);
+game.world.scene.add(upper, lower, cavity);
+const MOUTH_Y = 10.6;
+// The JAW TRAVEL, to scale with everything else: 5.25 cm on a 1.75 m body,
+// drawn at the same metres-per-unit the strip uses for nothing, so it is only
+// a proportion — but the proportions are the published ones.
+const TRAVEL = 1.9;
+const BRIDGE = TRAVEL * (0.024 / 0.0525);
+
+let ctx = null;
+function say() {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    const data = speak(TEXT, VOICE, { sampleRate: ctx.sampleRate, amplitude: 0.45, seed: 7 });
+    const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+    buffer.getChannelData(0).set(data);
+    const node = ctx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(ctx.destination);
+    node.start();
+  } catch (err) { /* no audio device is not a reason to stop drawing */ }
+}
+game.renderer.domElement.addEventListener('pointerdown', say);
+
+const head = new Mesh(
+  new BoxGeometry(0.16, 1.4, 0.6),
+  new MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 })
+);
+game.world.scene.add(head);
+
+let t = 0;
+let lines = 0;
+let at = 0;
+game.onUpdate(({ delta }) => {
+  t += Math.min(0.05, delta);
+  const cycle = SPAN + 0.9;
+  lines = Math.floor(t / cycle);
+  const phase = t % cycle;
+  at = 0;
+  for (let i = 0; i < blocks.length; i++) if (phase >= blocks[i].from) at = i;
+  const live = phase <= SPAN;
+  const v = blocks[at].viseme;
+
+  head.visible = live;
+  head.position.set(LEFT + Math.min(phase, SPAN) * SX, 6, 0.8);
+  for (let i = 0; i < blocks.length; i++) {
+    blocks[i].mesh.material.emissiveIntensity = live && i === at ? 1.5 : 0.3;
+  }
+
+  // The jaw drops by open, and the lips bridge what the seal asks for — the
+  // same two lengths anima3d uses, so a /p/ actually shuts.
+  const gap = v.open * TRAVEL;
+  const bridge = Math.min(gap, BRIDGE) * v.close;
+  const shown = gap - bridge;
+  const width = 1 + v.spread * 0.35 - v.round * 0.4;
+  upper.position.set(0, MOUTH_Y + gap * 0.25 - bridge * 0.25 + 0.3, 0);
+  lower.position.set(0, MOUTH_Y - gap * 0.75 + bridge * 0.75 - 0.3, 0);
+  cavity.position.set(0, MOUTH_Y - shown * 0.25, -0.1);
+  cavity.scale.set(width, Math.max(0.05, shown / 0.3), 1);
+  upper.scale.x = width;
+  lower.scale.x = width;
+
+  game.camera.position.set(0, 8.4, 19);
+  game.camera.lookAt(0, 8.4, 0);
+});
+
+window.audioDebug = () => {
+  const data = speak(TEXT, VOICE, { sampleRate: 22050, amplitude: 0.45, seed: 7 });
+  let sum = 0, peak = 0;
+  for (let i = 0; i < data.length; i++) { sum += data[i] * data[i]; peak = Math.max(peak, Math.abs(data[i])); }
+  return {
+    offlineRms: Number(Math.sqrt(sum / data.length).toFixed(5)),
+    offlinePeak: Number(peak.toFixed(4)),
+    seconds: Number((data.length / 22050).toFixed(2)),
+  };
+};
+
+window.dictionDebug = () => {
+  const vowels = blocks.filter((b) => b.vowel);
+  const seals = blocks.filter((b) => b.viseme.close > 0.9);
+  return {
+    clock: Number(t.toFixed(1)),
+    lines,
+    text: TEXT,
+    words: SPOKEN.words.length,
+    guessed: SPOKEN.guessed,
+    phones: SPOKEN.phones.length,
+    vowels: vowels.length,
+    seconds: Number(SPAN.toFixed(2)),
+    saying: blocks[at].phone,
+    // The visemes span a real range, and the bilabials actually shut.
+    openRange: [
+      Number(Math.min(...blocks.map((b) => b.viseme.open)).toFixed(2)),
+      Number(Math.max(...blocks.map((b) => b.viseme.open)).toFixed(2)),
+    ],
+    seals: seals.length,
+    sealPhones: seals.map((b) => b.phone),
+    // The strip is the render's own timing, to the microsecond.
+    trackMatchesAudio: Math.abs(SPAN - TRACK[TRACK.length - 1].to) < 1e-9,
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
 ];
 
 

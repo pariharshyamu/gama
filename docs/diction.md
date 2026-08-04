@@ -159,6 +159,8 @@ initial stress, which is right for most English content words and wrong for
 **Affricates are spelled out.** `/tʃ/` is rendered as `/t/` followed by `/ʃ/`,
 which is what it is made of but releases far too slowly.
 
-**No playground for this release.** The `voice`, `prosody` and `consonants`
-playgrounds cover the ladder underneath it; the payoff here is audible rather
-than visual, and a page you type a line into is the obvious next thing.
+**The playground shows one fixed line.** Playground `diction` lays "the
+traveller stopped at the gate" out as the machine says it — a block per phone,
+width for duration, height for pitch — with the viseme ANIMA would draw beside
+it as a working mouth. A page you type your own line into is the obvious next
+thing.
