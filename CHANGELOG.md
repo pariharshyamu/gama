@@ -16,6 +16,56 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.51.0] — 2026-08-04
+
+### Added
+
+- **Diction — text in, speech out, and an NPC that talks.** `speak(text, voice)`
+  returns a `Float32Array`. `LEXICON` (216 words), `lookUp`, `soundOut`,
+  `LETTER_RULES`, `syllabifyPhones`, `pronounce`, `visemeOf`, `visemeTrack`.
+- **`npm run diction` — the only question left: can you tell what it said?**
+  Ten lines spoken, every vowel cut out where the planner said it would be and
+  labelled by a listener given the vowel table and nothing else — not the text,
+  not which vowel to expect. **96% of 96 vowels identified**, against a 10%
+  chance floor. The budget is the **ratio to its own control** (the same audio
+  cut from the wrong places, 15%) rather than the score, because a score is a
+  baseline and a ratio to the thing that should fail is not.
+- **The handshake.** `visemeOf` returns the mouth shape ANIMA's `Speech`
+  consumes. Neither package imports the other; what makes them agree is that
+  **F1 is mouth opening**. Correlated at **r = 0.832** over 96 vowels against
+  **0.392** for a face shifted 100 ms out of step.
+- **An anchor from outside the file.** Every other check compares the audio
+  against the plan that produced it, so a corrupted dictionary entry is
+  invisible to all of them. English supplies its own check: rhymes must share
+  their rime and homophones must be identical. Same hole the voice gate had
+  before P&B's men's row was carried twice.
+
+### Fixed
+
+- **`f0: 0` was not whispering, and it scored the synthesizer at chance.**
+  `renderSpeech` documents it as whispering the whole utterance, but each phone
+  carried its own planned pitch and quietly overrode it — so a whisper request
+  produced a VOICED signal, which the gate analysed with an analyser that
+  assumes no harmonic comb. It read 96 vowels' worth of harmonics and reported
+  **11%** intelligibility, one point above chance. Fixed, the same audio scores
+  96%.
+- **`visemeTrack` added 8 ms to every consonant the renderer does not**, so the
+  face drifted a frame ahead of the sound across a sentence — the one thing
+  lip-sync must never do.
+- **The gate's listener was indexing peaks.** A back vowel's F1 and F2 merge —
+  /ɔ/ is 570 and 840 — so "the second peak" is F3, and it heard /ɔ/ as /ɛ/ and
+  /i/ as /æ/. It is a template matcher now, with no index to get wrong.
+- **The analysis window did not fit its transform.** `spectrum` is Welch-averaged
+  and its loop runs while `start + size <= length`, so a slice shorter than the
+  transform produces no windows at all and returns a flat −240 dB floor. Every
+  reduced vowel in running speech is under 50 ms.
+
+### Changed
+
+- `npm run diction` joins `prepublishOnly` and CI. Six gates now.
+- No new playground: `voice`, `prosody` and `consonants` cover the ladder
+  underneath, and this release's payoff is audible rather than visual.
+
 ## [0.50.0] — 2026-08-04
 
 ### Added

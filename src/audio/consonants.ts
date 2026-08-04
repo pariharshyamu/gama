@@ -335,7 +335,13 @@ export function planPhones(
 
   for (let i = 0; i < phones.length; i++) {
     const { phone } = phones[i];
-    const pitch = phones[i].f0 ?? f0;
+    // A whisper is a whisper for the WHOLE utterance. `f0: 0` is documented as
+    // rendering one, and a per-phone pitch from `pronounce` was quietly
+    // overriding it — so asking for a whisper produced a voiced signal, which
+    // the diction gate then analysed with an analyser that assumes no harmonic
+    // comb. It read 96 vowels' worth of harmonics and scored the whole
+    // synthesizer at chance.
+    const pitch = f0 > 0 ? phones[i].f0 ?? f0 : 0;
     const spec = CONSONANTS[phone];
     if (!spec) {
       const key = isVowel(phone) ? phone : '@';

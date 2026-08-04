@@ -79,6 +79,27 @@ export {
   type VowelSpec,
 } from './audio/voice';
 
+// Diction — text in, speech out. A pronunciation dictionary, because English
+// spelling is not a function of its letters, and `visemeOf` — the handshake
+// ANIMA reads to drive a mouth, agreeing because F1 IS mouth opening.
+export {
+  LETTER_RULES,
+  LEXICON,
+  lookUp,
+  pronounce,
+  soundOut,
+  speak,
+  syllabifyPhones,
+  visemeOf,
+  visemeTrack,
+  type DictionOptions,
+  type LexicalEntry,
+  type PhoneSyllable,
+  type PronouncedWord,
+  type Spoken,
+  type Viseme,
+} from './audio/diction';
+
 // Consonants — a stop is a TRANSITION (Delattre et al. 1955), /p/ vs /b/ is a
 // DURATION (Lisker & Abramson 1964), and a nasal needs a ZERO, which no cascade
 // of resonators can produce at any setting.

@@ -78,6 +78,13 @@ jobs:
       # renders the same phone all-pole as the control and requires the notch
       # to vanish.
       - run: npm run consonants
+      # Diction. The end of the ladder: ten lines spoken, every vowel cut out
+      # and labelled by a listener that is given the vowel table and nothing
+      # else. The budget is the ratio to its own control — the same audio cut
+      # from the wrong places — rather than the score, because a score is a
+      # baseline. Plus the ANIMA handshake: F1 IS mouth opening, correlated
+      # against a face shifted 100 ms out of step.
+      - run: npm run diction
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check
