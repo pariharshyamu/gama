@@ -71,6 +71,13 @@ jobs:
       # stress-timed languages cover — and to LEAVE it when stress reduction is
       # turned off, which is what "stress-timed" means.
       - run: npm run prosody
+      # Consonants. A stop is a TRANSITION (Delattre 1955) and the same /d/ runs
+      # in opposite directions before /i/ and /u/; /p/ vs /b/ is a DURATION
+      # (Lisker & Abramson 1964) measured back out of the audio; and a nasal
+      # needs a ZERO, which no cascade of resonators can produce — the gate
+      # renders the same phone all-pole as the control and requires the notch
+      # to vanish.
+      - run: npm run consonants
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check

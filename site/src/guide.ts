@@ -28,6 +28,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'flow', title: 'Flow fields: the eight-way grid is 8.24% wrong' },
   { id: 'voice', title: 'Voice: a tube and the speed of sound', playground: 'voice' },
   { id: 'prosody', title: 'Prosody: rhythm is a published number', playground: 'prosody' },
+  { id: 'consonants', title: 'Consonants: a stop is a transition', playground: 'consonants' },
   { id: 'perf', title: 'The perf gate' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },

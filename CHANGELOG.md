@@ -16,6 +16,90 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.50.0] — 2026-08-04
+
+### Added
+
+- **Consonants — and a consonant is mostly not a sound.** `voice.ts` is a
+  cascade of three resonators, which is a vowel and only a vowel. Consonants
+  break it in three separate places, and each break is a different piece of
+  machinery rather than another row in a table. `CONSONANTS` (21 phones),
+  `COARTICULATION`, `consonantFormants`, `planPhones`, `frameTimes`,
+  `renderSpeech`, `isConsonant`/`isVowel`.
+- **A stop is a TRANSITION.** Delattre, Liberman and Cooper cut the bursts off
+  synthetic syllables at Haskins in 1955 and listeners still heard `/b/`, `/d/`
+  and `/g/`. Each stop has a **locus** the F2 transition points back to, so the
+  same `/d/` runs **2067 → 2290 Hz** before `/i/` and **1378 → 870** before
+  `/u/` — opposite directions, one consonant, and nothing in the model specifies
+  it. `/g/`'s locus equation has a slope of **1.07** and never crosses the
+  diagonal: a velar closure IS the tongue body, so it has no locus at all, and
+  the gate asserts that as a positive claim rather than printing a `NaN`.
+- **The `/p/` vs `/b/` distinction is a DURATION.** Voice onset time, Lisker &
+  Abramson (1964), measured back out of the rendered audio by **periodicity**
+  rather than loudness — aspiration is loud, and an energy threshold reports
+  every VOT as about zero. Budget is **two pitch periods**, because voicing can
+  only begin when the folds next close, so a VOT off a 120 Hz voice is quantised
+  to 8.3 ms whatever the model intended.
+- **A nasal needs a ZERO, and that changed the architecture.** The closed oral
+  cavity hangs off the path as a dead end and *subtracts* a frequency. Poles make
+  peaks; a cascade of resonators cannot produce a notch at any setting, which is
+  why `renderFormants` was never going to say `/m/` however its table was tuned.
+  `antiresonator` is the first filter in this library that is not a pole.
+  `noNasalZero: true` renders nasals all-pole and ships exported as the control.
+- **`npm run consonants`** — the gate, with a control on every claim. The zero is
+  measured as the **difference** between the same phone rendered with and without
+  it, and must be *local*: a filter that came out uniformly quieter would be a
+  gain change, which a cascade of poles can do perfectly well.
+- **Playground `consonants`.** The F2 track of `/d/` and `/b/` before six vowels,
+  with each row's locus drawn across it. The amber row rises for three vowels and
+  falls for three; the green row barely moves, because while the lips are shut
+  the tongue is already where the vowel wants it.
+
+### Fixed
+
+- **Fricative noise resonances were cascaded rather than summed.** Three narrow
+  bandpasses in series multiply, and almost nothing survives all three when their
+  centres are far apart: `/f/` came out **57 dB** below `/s/`, which is silence
+  rather than a quiet consonant. A spectrum with several humps needs its poles
+  added, not chained — the same lesson as the nasal, one filter earlier. Caught
+  only after the level check was made **two-sided** against the published ~20 dB;
+  the one-sided "louder than /f/" version passed happily.
+- **The nasal murmur used the oral locus for its formants.** `/n/`'s pole at
+  1800 Hz sat on top of its own zero at 1700 and the two annihilated. The murmur
+  is the **nose**, and the nose is the same tube whichever way the mouth is shut,
+  so all three nasals now share its resonances and what distinguishes them is
+  entirely the zero.
+- **The gate's nasal test was measuring valleys, and scored the control as
+  better than the real thing.** An all-pole spectrum has gaps between its
+  formants forty decibels deep; taking the lowest bin in a band and measuring it
+  against the highest bin either side reported all-pole `/n/` as a *deeper*
+  notch than the pole-zero one, which would have proved the exact opposite of
+  the release's central claim.
+- **Fricative levels were measuring the normaliser.** `renderSpeech` normalises
+  its output, so three fricatives rendered separately all come back at the same
+  peak — `/s/` was reported as 1.0× the level of `/f/`. Measured inside one
+  buffer now, where the gain is shared.
+- **The F2 picker was returning F3.** Asking a prominence picker for "the second
+  formant" requires it to find the first, and an 11 ms window cannot resolve a
+  280 Hz resonance, so it read `/du/`'s onset as 2498 Hz where the model had put
+  it at 1378. The search band is bounded by the phones themselves now: no F1
+  reaches 600 Hz at release and no F3 falls below 2400.
+- **The model had no coarticulation at all.** Every locus-equation slope came
+  out at zero, because the closure's F2 target was the locus regardless of what
+  followed. A consonant's own articulation is already partly the vowel after it,
+  and `COARTICULATION` is ordered by which articulator is occupied — the lips
+  leave the tongue entirely free, an alveolar closure pins it part-way, and a
+  velar closure IS it.
+
+### Changed
+
+- `renderSpeech` honours `f0: 0` as a whisper, driving the tract with turbulence
+  instead of folds. The gate uses it to read formant transitions: a voiced
+  spectrum is a comb, and a moving formant read through a comb in a 12 ms window
+  is hopeless.
+- `npm run consonants` joins `prepublishOnly` and CI beside `forage`, `flow`,
+  `voice` and `prosody`.
+
 ## [0.49.0] — 2026-08-04
 
 ### Added

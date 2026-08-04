@@ -79,6 +79,26 @@ export {
   type VowelSpec,
 } from './audio/voice';
 
+// Consonants — a stop is a TRANSITION (Delattre et al. 1955), /p/ vs /b/ is a
+// DURATION (Lisker & Abramson 1964), and a nasal needs a ZERO, which no cascade
+// of resonators can produce at any setting.
+export {
+  COARTICULATION,
+  CONSONANTS,
+  CONSONANT_KEYS,
+  consonantFormants,
+  frameTimes,
+  isConsonant,
+  isVowel,
+  planPhones,
+  renderSpeech,
+  type ConsonantSpec,
+  type Manner,
+  type Phone,
+  type Place,
+  type SpeechOptions,
+} from './audio/consonants';
+
 // Prosody — the part of speech that is not the words. Klatt's duration rules
 // with the floor that matters, and a pitch contour done in SEMITONES because
 // declination is a semitone phenomenon and a child proves it.

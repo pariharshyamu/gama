@@ -4390,6 +4390,194 @@ window.prosodyDebug = () => {
 game.start();
 `,
   },
+  {
+    id: 'consonants',
+    title: 'Consonants: a stop is a transition',
+    group: 'AI',
+    code: `// A CONSONANT IS MOSTLY NOT A SOUND.
+//
+// Ask what /b/ sounds like and the answer seems obvious: a little burst of
+// noise at the lips. Delattre, Liberman and Cooper cut the bursts off synthetic
+// syllables at Haskins in 1955 and found listeners still heard /b/, /d/ and /g/
+// perfectly well. Splice one consonant's burst onto another's transitions and
+// you hear the TRANSITIONS. What identifies a stop is where the second formant
+// is HEADING as the vowel begins.
+//
+// WHAT YOU ARE LOOKING AT
+//
+// The F2 track of the same consonant before six different vowels. Time runs
+// right, frequency runs up, and each ribbon is one syllable. The left end of
+// every ribbon in a row is the LOCUS — the frequency that consonant points back
+// to — and the right end is the vowel's own F2.
+//
+//   AMBER   /d/ — an alveolar closure. Locus 1800 Hz, high up.
+//   GREEN   /b/ — a labial closure. Locus 720 Hz, low down.
+//
+// Look at the amber row. Before /i/ the line goes UP; before /u/ it goes DOWN.
+// Same consonant, opposite directions, and nothing specifies that — it falls out
+// of the locus sitting above one vowel's F2 and below the other's. That reversal
+// is what Delattre's listeners were hearing.
+//
+// The green row barely moves at all, and that is anatomy: while the lips are
+// shut for /b/ the tongue has nothing to do and is already where the vowel wants
+// it. An alveolar closure uses the tongue tip and pins the body part-way.
+// Sussman et al. (1991) measured those as slopes: 0.87 labial, 0.43 alveolar.
+//
+// Click to hear all twelve.
+import { BoxGeometry, BufferGeometry, Line, LineBasicMaterial, Mesh,
+         MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
+import { Game, CONSONANTS, consonantFormants, formantsOf, renderSpeech,
+         voiceOf } from 'gama3d';
+${SCENE}
+
+const VOICE = voiceOf({ height: 1.75 });
+const VOWELS_SHOWN = ['i', 'I', 'E', 'A', 'O', 'u'];
+const ROWS = [
+  { c: 'd', colour: 0xd8a83a, y: 13.5 },
+  { c: 'b', colour: 0x54b070, y: 4.5 },
+];
+
+// Log frequency up, because a listener hears ratios. Time is just spacing.
+// The scale is deliberately compressed: at seven metres per octave the two rows
+// overlapped and the amber one ran off the top of the frame, so two sets of
+// transitions that are the whole comparison read as one scatter of lines.
+const FY = (hz) => (Math.log2(hz) - 9.2) * 3.2;
+// Sized for the PREVIEW PANE, which is about half the width of the window and
+// so much narrower than its own height — a layout framed against the viewport
+// puts the last syllable off the right-hand edge.
+const SPAN = 2.0;
+const GAP = 3.0;
+
+for (const row of ROWS) {
+  row.tracks = [];
+  VOWELS_SHOWN.forEach((v, i) => {
+    // The locus, pulled toward the vowel by however much the closure allows.
+    const onset = consonantFormants(row.c, VOICE.tract, v)[1];
+    const target = formantsOf(v, VOICE.tract)[1];
+    const x0 = i * GAP - ((VOWELS_SHOWN.length - 1) * GAP) / 2;
+    const a = new Vector3(x0, FY(onset) + row.y, 0);
+    const b = new Vector3(x0 + SPAN, FY(target) + row.y, 0);
+    game.world.scene.add(new Line(
+      new BufferGeometry().setFromPoints([a, b]),
+      new LineBasicMaterial({ color: row.colour })
+    ));
+    // A block at each end: the locus, and where the vowel actually is.
+    for (const [at, size] of [[a, 0.34], [b, 0.5]]) {
+      const m = new Mesh(
+        new BoxGeometry(size, size, size),
+        new MeshStandardMaterial({ color: row.colour, emissive: row.colour, emissiveIntensity: 0.8 })
+      );
+      m.position.copy(at);
+      game.world.scene.add(m);
+    }
+    row.tracks.push({ vowel: v, onset, target, a, b });
+  });
+  // The locus itself, drawn as a line across the whole row — every ribbon in
+  // the row starts on or near it, which is the entire claim.
+  const locus = CONSONANTS[row.c].locus;
+  game.world.scene.add(new Line(
+    new BufferGeometry().setFromPoints([
+      new Vector3(-10.5, FY(locus) + row.y, -0.6),
+      new Vector3(10.5, FY(locus) + row.y, -0.6),
+    ]),
+    new LineBasicMaterial({ color: 0x64748b })
+  ));
+  const dot = new Mesh(
+    new SphereGeometry(0.42, 16, 12),
+    new MeshStandardMaterial({ color: 0xffffff, emissive: row.colour, emissiveIntensity: 1.3 })
+  );
+  game.world.scene.add(dot);
+  row.dot = dot;
+}
+
+// ---- the sound. renderSpeech takes phones; no assets, no network.
+const SYLLABLES = [];
+for (const row of ROWS) for (const v of VOWELS_SHOWN) SYLLABLES.push([{ phone: row.c }, { phone: v, seconds: 0.24 }]);
+let ctx = null;
+function speak() {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    let when = ctx.currentTime + 0.05;
+    for (const phones of SYLLABLES) {
+      const data = renderSpeech(phones, VOICE, { sampleRate: ctx.sampleRate, amplitude: 0.4 });
+      const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(data);
+      const node = ctx.createBufferSource();
+      node.buffer = buffer;
+      node.connect(ctx.destination);
+      node.start(when);
+      when += buffer.duration + 0.12;
+    }
+  } catch (err) { /* no audio device is not a reason to stop drawing */ }
+}
+game.renderer.domElement.addEventListener('pointerdown', speak);
+
+let t = 0;
+let sweeps = 0;
+game.onUpdate(({ delta }) => {
+  t += Math.min(0.05, delta);
+  const per = 0.85;
+  const cycle = VOWELS_SHOWN.length * per;
+  sweeps = Math.floor(t / cycle);
+  const phase = t % cycle;
+  const i = Math.min(VOWELS_SHOWN.length - 1, Math.floor(phase / per));
+  const g = Math.min(1, (phase - i * per) / (per * 0.62));
+  for (const row of ROWS) {
+    const k = row.tracks[i];
+    row.dot.position.lerpVectors(k.a, k.b, g);
+    row.at = i;
+  }
+  game.camera.position.set(0, 9.4, 22);
+  game.camera.lookAt(0, 9.4, 0);
+});
+
+window.audioDebug = () => {
+  const data = renderSpeech(SYLLABLES[0], VOICE, { sampleRate: 22050, amplitude: 0.4 });
+  let sum = 0, peak = 0;
+  for (let i = 0; i < data.length; i++) { sum += data[i] * data[i]; peak = Math.max(peak, Math.abs(data[i])); }
+  return {
+    offlineRms: Number(Math.sqrt(sum / data.length).toFixed(5)),
+    offlinePeak: Number(peak.toFixed(4)),
+    seconds: Number((data.length / 22050).toFixed(2)),
+  };
+};
+
+window.consonantDebug = () => {
+  const row = (r) => {
+    const rises = r.tracks.filter((k) => k.target > k.onset).length;
+    const falls = r.tracks.filter((k) => k.target < k.onset).length;
+    // How far each ribbon has to travel, as a fraction of the vowel spread. A
+    // labial leaves almost nothing to travel; an alveolar leaves a lot.
+    const travel = r.tracks.map((k) => Math.abs(k.target - k.onset));
+    return {
+      locus: CONSONANTS[r.c].locus,
+      rises, falls,
+      meanTravelHz: Number((travel.reduce((a, b) => a + b, 0) / travel.length).toFixed(0)),
+      onsetSpreadHz: Number((Math.max(...r.tracks.map((k) => k.onset)) -
+        Math.min(...r.tracks.map((k) => k.onset))).toFixed(0)),
+    };
+  };
+  const d = row(ROWS[0]);
+  const b = row(ROWS[1]);
+  return {
+    clock: Number(t.toFixed(1)),
+    sweeps,
+    saying: VOWELS_SHOWN[ROWS[0].at ?? 0],
+    // THE CLAIM ON SCREEN: one consonant, transitions going BOTH ways.
+    alveolar: d,
+    labial: b,
+    // The vowels' own F2s span this much; the onsets span far less, and that
+    // compression is the locus.
+    vowelSpreadHz: Number((Math.max(...VOWELS_SHOWN.map((v) => formantsOf(v, VOICE.tract)[1])) -
+      Math.min(...VOWELS_SHOWN.map((v) => formantsOf(v, VOICE.tract)[1]))).toFixed(0)),
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
 ];
 
 
