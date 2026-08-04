@@ -46,6 +46,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # Utility AI with a unit. The forager runs Charnov's marginal value
+      # theorem (1976) with the environment's rate measured off its own life,
+      # and the gate checks it against an exhaustive sweep of 6000 fixed
+      # leaving times — a number it must match and must not beat.
+      - run: npm run forage
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check

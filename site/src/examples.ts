@@ -3548,6 +3548,197 @@ window.railDebug = () => {
 
 game.start();`,
   },
+  {
+    id: 'forage',
+    title: 'Utility AI: Charnov instead of a threshold',
+    group: 'AI',
+    code: `// WHEN TO STOP IS THE HALF NOBODY HAS A PRINCIPLE FOR.
+//
+// A utility system scores actions with response curves and weights, and the
+// weights exist to trade off axes that were never comparable. Do not invent the
+// axis: an action is worth something and it costs seconds, so utility is VALUE
+// PER SECOND and there is nothing left to shape.
+//
+// The harder half is knowing when to quit the thing you are doing, and every
+// implementation solves that with a threshold somebody picked — leave at 20%
+// remaining, give up after 8 seconds.
+//
+// Behavioural ecology settled it in 1976. Charnov's MARGINAL VALUE THEOREM: quit
+// when this patch's instantaneous rate of return has fallen to the average rate
+// available in the environment as a whole. No sooner, no later.
+//
+// WHAT YOU ARE WATCHING
+//
+// Two foragers work the same ring of depleting bushes. The GREEN one runs the
+// theorem, with the environment's rate MEASURED off its own life rather than
+// handed to it — so it has no parameters at all. The AMBER one uses the rule
+// everybody writes: leave when the bush is 54% picked, which is the OPTIMAL
+// threshold for a short walk between bushes.
+//
+// The bar behind each is its harvest. The walk is long here, and the tuned
+// threshold is now wrong: it quits bushes that are still paying better than
+// anything it could walk to. Watch the green bar pull away.
+//
+// The bushes shrink as they are picked, and each forager's ring shows the rate
+// it is currently getting. Nothing in the green agent was tuned.
+import { BoxGeometry, CylinderGeometry, Mesh, MeshStandardMaterial,
+         RingGeometry, DoubleSide, Vector3 } from 'three';
+import { Game, Forager, depletingPatch, optimalStay } from 'gama3d';
+${SCENE}
+
+const AMOUNT = 10;      // berries a bush holds
+const TAU = 5;          // seconds to take 63% of them
+const TRAVEL = 12;      // seconds of walking between bushes — a LONG walk
+const TUNED = 0.54;     // the optimal depletion threshold for a 2 s walk
+
+// Two colonies, well apart, so nothing about the comparison is a coincidence
+// of who got where first. Each has its own ring of bushes and its own walker.
+const RING = 6;
+const BUSHES = 6;
+const spot = (home, i) => new Vector3(
+  home + Math.cos((i / BUSHES) * Math.PI * 2) * RING,
+  0,
+  Math.sin((i / BUSHES) * Math.PI * 2) * RING
+);
+
+function colony(home, colour, bushColour) {
+  const bushes = [];
+  for (let i = 0; i < BUSHES; i++) {
+    const mesh = new Mesh(
+      new CylinderGeometry(0.85, 1.05, 1.8, 9),
+      new MeshStandardMaterial({ color: bushColour, roughness: 0.85 })
+    );
+    const at = spot(home, i);
+    mesh.position.set(at.x, 0.9, at.z);
+    game.world.scene.add(mesh);
+    bushes.push(mesh);
+  }
+  const body = new Mesh(
+    new BoxGeometry(1, 2, 1),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25 })
+  );
+  body.position.set(home, 1, 0);
+  const ring = new Mesh(
+    new RingGeometry(1.4, 1.8, 32),
+    new MeshStandardMaterial({ color: colour, side: DoubleSide, transparent: true, opacity: 0.55 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(home, 0.04, 0);
+  // The harvest, as a column standing at the front of its own colony.
+  const bar = new Mesh(
+    new BoxGeometry(1.4, 1, 1.4),
+    new MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.5 })
+  );
+  bar.position.set(home, 0, 11);
+  game.world.scene.add(body, ring, bar);
+  return { home, bushes, body, ring, bar };
+}
+
+const green = colony(-11, 0x54b070, 0x3d7a52);
+const amber = colony(11, 0xd8a83a, 0x8a7130);
+
+// THE THEOREM. No parameters: the environment's rate is MEASURED off its own
+// life, not handed to it.
+let greenIndex = 0;
+const forager = new Forager(() => {
+  greenIndex = (greenIndex + 1) % BUSHES;
+  return depletingPatch(AMOUNT, TAU, TRAVEL);
+});
+
+// THE THRESHOLD, hand-rolled exactly as anybody would write it. Optimal for a
+// 2 s walk, and this walk is twelve.
+// t = -tau * ln(1 - fraction) is where that fraction has been picked.
+const TUNED_STAY = -TAU * Math.log(1 - TUNED);
+let amberIndex = 0;
+let amberPhase = 'travelling';
+let amberClock = TRAVEL;
+let amberIn = 0;
+let amberHarvest = 0;
+let amberElapsed = 0;
+const amberPatch = depletingPatch(AMOUNT, TAU);
+
+// What the theorem says the right answer is here, for the readout.
+const IDEAL = optimalStay(depletingPatch(AMOUNT, TAU, TRAVEL), TRAVEL);
+
+let t = 0;
+game.onUpdate(({ delta }) => {
+  const dt = Math.min(0.05, delta);
+  t += dt;
+
+  forager.update(dt);
+
+  amberElapsed += dt;
+  if (amberPhase === 'travelling') {
+    amberClock -= dt;
+    if (amberClock <= 0) { amberPhase = 'foraging'; amberIn = -amberClock; }
+  } else {
+    const was = amberPatch.gain(amberIn);
+    amberIn += dt;
+    amberHarvest += amberPatch.gain(amberIn) - was;
+    if (amberIn >= TUNED_STAY) {
+      amberPhase = 'travelling'; amberClock = TRAVEL; amberIn = 0;
+      amberIndex = (amberIndex + 1) % BUSHES;
+    }
+  }
+
+  // Walk the body out to its bush and back; shrink the bush being worked.
+  const place = (c, index, travelling, progress, inPatch) => {
+    const at = spot(c.home, index);
+    const p = travelling ? Math.min(1, Math.max(0, progress)) : 1;
+    c.body.position.x = c.home + (at.x - c.home) * p;
+    c.body.position.z = at.z * p;
+    c.ring.position.set(c.body.position.x, 0.04, c.body.position.z);
+    // A bush shows what is left of it: e^(-t/tau) of its berries.
+    const left = travelling ? 1 : Math.exp(-inPatch / TAU);
+    c.bushes[index].scale.y = 0.2 + 0.8 * left;
+    c.bushes[index].position.y = 0.9 * c.bushes[index].scale.y;
+  };
+  place(green, greenIndex, forager.phase === 'travelling',
+    1 - forager.remainingTravel / TRAVEL, forager.inPatch);
+  place(amber, amberIndex, amberPhase === 'travelling', 1 - amberClock / TRAVEL, amberIn);
+
+  // The harvest columns. Same scale for both, so the gap is the whole story.
+  const grow = (bar, harvest) => {
+    const h = Math.max(0.1, harvest * 0.22);
+    bar.scale.y = h;
+    bar.position.y = h / 2;
+  };
+  grow(green.bar, forager.harvest);
+  grow(amber.bar, amberHarvest);
+
+  // Hold both colonies in frame, tilted enough to read the columns.
+  game.camera.position.set(0, 20, 26);
+  game.camera.lookAt(0, 2, 2);
+});
+
+window.forageDebug = () => ({
+  // The scene's own clock — a headless run is about a third of real time.
+  clock: Number(t.toFixed(1)),
+  travel: TRAVEL,
+  // What the theorem says, and what the measured-rate forager actually does.
+  theoremSays: Number(IDEAL.toFixed(3)),
+  theorem: {
+    harvest: Number(forager.harvest.toFixed(2)),
+    rate: Number(forager.rate.toFixed(4)),
+    // Measured off its own life. Nobody told it this number.
+    environmentRate: Number(forager.environmentRate.toFixed(4)),
+    marginal: Number(forager.marginal.toFixed(4)),
+    visits: forager.visits,
+    phase: forager.phase,
+  },
+  threshold: {
+    leaveAt: Number(TUNED_STAY.toFixed(3)),
+    harvest: Number(amberHarvest.toFixed(2)),
+    rate: Number((amberHarvest / Math.max(1e-6, amberElapsed)).toFixed(4)),
+  },
+  // THE POINT OF THE SCENE: how much a threshold tuned for a shorter walk costs.
+  ahead: Number((forager.harvest - amberHarvest).toFixed(2)),
+  draws: game.renderer.info.render.calls,
+});
+
+game.start();
+`,
+  },
 ];
 
 

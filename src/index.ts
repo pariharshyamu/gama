@@ -89,6 +89,28 @@ export {
   type ParallelOptions,
 } from './ai/behaviorTree';
 
+// AI: utility — and the utility has a unit. Value per second, so there are no
+// response curves and no weights; and when to quit is Charnov's marginal value
+// theorem rather than a threshold somebody picked.
+export {
+  Forager,
+  MARGINAL_STEP,
+  bestRate,
+  choose,
+  depletingPatch,
+  leaveWhen,
+  longRunRate,
+  marginalRate,
+  optimalStay,
+  rank,
+  rateOf,
+  type ForagerOptions,
+  type ForagerPhase,
+  type PatchLike,
+  type RankedAction,
+  type UtilityAction,
+} from './ai/utility';
+
 // Animation
 export { Tween, Tweens, type TweenOptions } from './animation/Tween';
 export * as easing from './animation/easing';

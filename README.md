@@ -94,6 +94,21 @@ GitHub Pages (Settings → Pages → Deploy from a branch → `docs`, `/ (root)`
 It includes every guide below plus a dozen editable, runnable examples of
 steering, flocking, navmesh baking, behavior trees and more.
 
+**Utility AI with a unit.** A utility system's response curves and weights exist
+to map metres, hit points and cooldowns onto an invented 0..1 axis. Don't invent
+the axis: an action is worth something and it costs seconds, so utility is
+`value / seconds` — a rate, which compares, with nothing to shape or balance.
+And the harder half, knowing when to **stop**, is Charnov's marginal value
+theorem (1976) rather than a threshold somebody picked: leave when this patch's
+instantaneous rate has fallen to the average rate available elsewhere. `Forager`
+runs it with the environment's rate **measured off its own life**, so it has no
+parameters at all, and `npm run forage` checks it against an exhaustive sweep of
+6000 fixed leaving times — landing within **0.35%** of a rule it was never given,
+reproducing both of Charnov's predictions (longer travel → longer stay; a richer
+world → an earlier exit), and showing what the alternative costs: a depletion
+threshold tuned optimally for a 2 s walk loses **29%** of the harvest rate on a
+40 s one.
+
 - [Getting started](docs/getting-started.md)
 - [The shell & templates](docs/shell.md) — the part of a game that is not the game
 - [Levels: prefabs & format](docs/levels.md) — a scene as data, and the round trip back
@@ -150,6 +165,7 @@ steering, flocking, navmesh baking, behavior trees and more.
 │ generateNavMesh    │               │                      │
 │ StateMachine       │               │                      │
 │ BehaviorTree       │               │                      │
+│ Forager (Charnov)  │               │                      │
 ├────────────────────┴───────────────┴──────────────────────┤
 │ gama3d/rapier (optional entry point, peer dep on rapier)    │
 │ PhysicsWorld · RigidBody · PhysicsCharacterController     │

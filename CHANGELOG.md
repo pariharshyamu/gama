@@ -16,6 +16,45 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.46.0] — 2026-08-04
+
+### Added
+
+- **Utility AI, and the utility has a unit.** A utility system scores actions
+  with considerations mapped onto 0..1 by response curves, multiplies them, and
+  picks the highest — which leaves a designer holding a curve per consideration,
+  a weight per consideration, and a compensation factor to undo the fact that
+  multiplying N numbers below 1 punishes an action for how many things you
+  thought to check. None of those numbers means anything. They exist because the
+  0..1 axis is invented: a curve's job is to map metres and hit points and
+  seconds onto one scale so they can be added. So do not invent the scale. An
+  action is worth something and it costs seconds, so `utility = value / seconds`
+  — coins per second, metres per second — and rates compare. `rateOf`, `rank`
+  and `choose`, with a ratio-scale check in the gate: counting in pennies
+  instead of pounds, or minutes instead of seconds, cannot reorder anything. A
+  zero-second action scores 0 and not Infinity, because a free action otherwise
+  beats everything for ever.
+- **`Forager` — when to stop is a theorem, not a threshold.** Charnov's marginal
+  value theorem (1976): leave a depleting patch when its instantaneous rate of
+  return has fallen to the average rate available in the environment as a whole.
+  `optimalStay` solves `g′(t)(T + t) = g(t)` as a ROOT — deliberately not by
+  searching the rate for its maximum, because a number found by sweeping cannot
+  then be checked against a sweep. `Forager` runs the rule with the environment
+  rate MEASURED off its own life rather than handed to it, which removes the
+  last parameter.
+- **`npm run forage`, the foraging gate.** It sweeps 6000 fixed leaving times,
+  takes the best rate any of them achieves, and requires the forager — told none
+  of it — to land on that number: 99.65% to 100.00% across six worlds, and it
+  must not exceed it either, since a forager that beats an exhaustive search is
+  measuring its own rate wrongly. It also checks both of Charnov's predictions
+  (travel up → stay longer; environment richer → leave sooner, with the patch
+  unchanged), and that a depletion threshold tuned optimally at one travel time
+  loses more than 20% of the rate at another — 29.1% at travel 40, tuned at 2.
+  If a fixed threshold were nearly as good, the release would be decoration.
+- **`leaveWhen`, `marginalRate`, `longRunRate`, `bestRate`, `depletingPatch`**,
+  and the playground example `forage`: two colonies, one running the theorem and
+  one running the 54% threshold, on a walk the threshold was not tuned for.
+
 ## [0.45.0] — 2026-07-30
 
 ### Added

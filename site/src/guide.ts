@@ -24,6 +24,7 @@ const PAGES: Array<{ id: string; title: string; playground?: string }> = [
   { id: 'assets', title: 'The asset pipeline', playground: 'assets' },
   { id: 'net', title: 'Networking', playground: 'net' },
   { id: 'replay', title: 'Replay & determinism' },
+  { id: 'utility', title: 'Utility AI: Charnov, not a threshold' },
   { id: 'perf', title: 'The perf gate' },
   { id: 'shell', title: 'The shell & templates' },
   { id: 'physics', title: 'Physics (rapier adapter)' },
