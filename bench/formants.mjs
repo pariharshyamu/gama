@@ -171,3 +171,84 @@ export function envelopeMatch(a, b, sampleRate) {
   }
   return num / Math.sqrt(da * db + 1e-12);
 }
+
+/**
+ * Pitch track: the fundamental in each window, by autocorrelation.
+ *
+ * Not by being told. A planner that produces a beautiful contour and a renderer
+ * that ignores it look identical from the planner's side, so the gate reads the
+ * pitch back out of the samples.
+ *
+ * The search starts at a lag well past a formant's ring time. A 60 Hz-wide
+ * resonance rings for some five milliseconds, so ANY excitation of it
+ * correlates with itself a few hundred samples later — that is not a pitch, and
+ * looking for one below about 60 Hz finds the filter instead of the folds.
+ */
+export function trackPitch(buf, sampleRate, windowSeconds = 0.05, lo = 60, hi = 500) {
+  const size = Math.round(windowSeconds * sampleRate);
+  const minLag = Math.round(sampleRate / hi);
+  const maxLag = Math.round(sampleRate / lo);
+  const out = [];
+  for (let start = 0; start + size + maxLag <= buf.length; start += size) {
+    let energy = 0;
+    for (let i = 0; i < size; i++) energy += buf[start + i] * buf[start + i];
+    let best = 0;
+    let at = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0;
+      for (let i = 0; i < size; i++) sum += buf[start + i] * buf[start + i + lag];
+      const r = sum / (energy + 1e-12);
+      if (r > best) { best = r; at = sampleRate / lag; }
+    }
+    out.push({ at: start / sampleRate, hz: at, strength: best });
+  }
+  return out;
+}
+
+/**
+ * The fundamental of one span of samples, by normalized autocorrelation.
+ *
+ * Confined to `[from, to)` rather than a sliding window, because a window that
+ * straddles two syllables averages two pitches and reports neither. Short
+ * syllables get a `null` rather than a guess: below about two periods there is
+ * nothing to correlate, and saying so beats inventing a number.
+ *
+ * `hi` defaults to 300 Hz and that is not arbitrary caution. A first formant
+ * sits at 490 Hz for a schwa, and a 60 Hz-wide resonance rings hard enough that
+ * an autocorrelation allowed up to 500 Hz locks onto it — the first version of
+ * this gate read a 115 Hz syllable as being 25 semitones off its plan, which is
+ * exactly a fourth-harmonic error onto F1.
+ */
+export function pitchIn(buf, from, to, sampleRate, lo = 60, hi = 300) {
+  const a = Math.max(0, Math.floor(from));
+  const b = Math.min(buf.length, Math.floor(to));
+  const minLag = Math.round(sampleRate / hi);
+  const maxLag = Math.round(sampleRate / lo);
+  // Two periods of the LOWEST pitch searched, or the answer is noise.
+  if (b - a < maxLag * 2) return null;
+  const span = b - a - maxLag;
+  let energy = 0;
+  for (let i = 0; i < span; i++) energy += buf[a + i] * buf[a + i];
+  if (!(energy > 1e-12)) return null;
+  let best = 0;
+  const r = new Float64Array(maxLag + 1);
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let sum = 0;
+    for (let i = 0; i < span; i++) sum += buf[a + i] * buf[a + i + lag];
+    r[lag] = sum / energy;
+    if (r[lag] > best) best = r[lag];
+  }
+  if (!(best > 0.3)) return null;
+  // OCTAVE SAFETY. A periodic signal correlates with itself just as well at
+  // twice its period, so "the highest peak" reports the octave below about as
+  // often as it reports the pitch: this gate read a syllable planned at 144.5 Hz
+  // as being 11.99 semitones off, which is an octave to two decimal places.
+  // Taking the SHORTEST lag that gets within a fraction of the best peak is the
+  // standard remedy, and 0.85 is loose enough to survive a slightly decaying
+  // waveform and tight enough not to catch a formant.
+  const threshold = best * 0.85;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    if (r[lag] >= threshold) return { hz: sampleRate / lag, strength: r[lag] };
+  }
+  return null;
+}

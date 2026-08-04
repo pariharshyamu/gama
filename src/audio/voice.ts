@@ -330,6 +330,16 @@ export interface VoiceSegment {
   /** A key of `VOWELS`. */
   vowel: string;
   seconds: number;
+  /**
+   * Hertz, for this segment. Absent falls back to the utterance's `f0`.
+   *
+   * This is what makes a PITCH CONTOUR possible: a voice holding one frequency
+   * for a whole line is the single loudest thing wrong with a synthesizer that
+   * has everything else right. `prosody.ts` produces these; the interpolation
+   * between them is here, because F0 glides for the same reason formants do —
+   * the folds have mass.
+   */
+  f0?: number;
 }
 
 /**
@@ -352,6 +362,9 @@ export function renderVoice(
   if (!segments.length) return out;
 
   const targets = segments.map((s) => formantsOf(s.vowel, voice.tract));
+  // A per-segment pitch, defaulting to the utterance's. Whispers stay whispers:
+  // an f0 of zero anywhere means no folds, and a contour cannot switch them on.
+  const pitches = segments.map((s) => (f0 > 0 ? s.f0 ?? f0 : 0));
   const noise = noiseSource(options.seed ?? 1);
   let phase = 0;
   let previous = 0;
@@ -363,12 +376,18 @@ export function renderVoice(
     const length = Math.round(Math.max(0, segments[s].seconds) * sampleRate);
     const from = s === 0 ? targets[0] : targets[s - 1];
     const to = targets[s];
+    const pitchFrom = s === 0 ? pitches[0] : pitches[s - 1];
+    const pitchTo = pitches[s];
     for (let i = 0; i < length && cursor < n; i++, cursor++) {
       // Glide over the first third of the segment, then hold.
       const t = Math.min(1, (i / Math.max(1, length)) * 3);
       let x: number;
       if (f0 > 0) {
-        phase += f0 / sampleRate;
+        // Pitch glides in SEMITONES, not hertz — the folds do not care about
+        // hertz, and a linear ramp in hertz between two notes an octave apart
+        // spends most of its time near the top one.
+        const hz = pitchFrom * Math.pow(pitchTo / Math.max(1e-6, pitchFrom), t);
+        phase += hz / sampleRate;
         if (phase >= 1) phase -= 1;
         x = glottalPulse(phase);
       } else {

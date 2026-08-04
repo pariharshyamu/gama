@@ -16,6 +16,82 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.49.0] — 2026-08-04
+
+### Added
+
+- **Prosody — the part of speech that is not the words.** `voice.ts` gives an
+  NPC a vocal tract, and the tract is right. What it renders is still a machine,
+  and not because of the timbre: because the pitch is a constant and the
+  syllables are evenly spaced. `planUtterance`, `syllabify`, `klattDuration`,
+  `nPVI`, `toSemitones`/`fromSemitones`, `KLATT_INHERENT`, `DURATION_RULES`,
+  `FUNCTION_WORDS`, `DECLINATION`, `ACCENT_EXCURSION`, `FINAL_FALL`,
+  `QUESTION_RISE`.
+- **Duration is Klatt's rule form, and the FLOOR is the claim.** Klatt (1979)
+  applied shortening rules not to a duration but to the duration above a
+  minimum: `DUR = (INHERENT − MIN) × pct/100 + MIN`. That shape matters more
+  than any percentage — no stack of rules can squeeze a syllable to nothing.
+- **`npm run prosody` — the gate, and the number was measured on people.**
+  Grabe & Low (2002) put a figure on the old stress-timed/syllable-timed split:
+  the normalized Pairwise Variability Index. English 57.2, Dutch 65.5, German
+  59.7, French 43.5, Spanish 29.7, Mandarin 27.0. This library was built from
+  none of it. The model comes out at **63.8**, inside the 57.2–65.5 the
+  stress-timed languages cover. **The contrast is the claim**: drop the stress
+  reduction and it falls to **50.2**, out of that group entirely. Remove Klatt's
+  floor and it goes to **85.0**, past every language ever measured.
+- **Pitch in SEMITONES, with a hertz version shipped as the control.**
+  Declination, accent size and the final rise are published in semitones because
+  that is the finding: a man, a woman and a child saying the same sentence
+  differ by up to 70 Hz and agree to 3.1e-15 semitones. `pitchInHertz: true`
+  runs the same model in hertz on a reference male's figures — what a naive
+  implementation does — and puts the three bodies 1.6 semitones apart. It is
+  exported for the same reason `FlowField`'s `grid8` is.
+- **`VoiceSegment` gained an optional per-segment `f0`**, so a contour can
+  actually be rendered. `renderVoice` glides between them in semitones, because
+  a linear ramp in hertz between two notes an octave apart spends most of its
+  time near the top one.
+- **Playground `prosody`.** The same eight syllables three ways — statement,
+  question, and a flat control. Each block is a syllable: width is duration,
+  height is pitch in semitones, bright is accented. The widths are identical
+  across all three lanes, because intonation does not touch rhythm.
+
+### Fixed
+
+- **The final movement was on the wrong syllable, and only the audio said so.**
+  A question rise applied to the *last* syllable is inaudible in English,
+  because English sentences so often end on a reduced schwa lasting under sixty
+  milliseconds — "…for WA-ter". A statement and a question came out with the
+  same tune everywhere a listener could hear one, and the gate found it by
+  measuring both renders and getting **0.0 semitones** of difference. The
+  movement now runs in time from the start of the nuclear syllable — the last
+  accent — to the end.
+- **The gate's pitch tracker was reading a formant.** An autocorrelation allowed
+  up to 500 Hz locked onto the schwa's 490 Hz F1 and reported a 115 Hz syllable
+  as 25 semitones off its plan.
+- **Then it was reading the octave below.** A periodic signal correlates with
+  itself just as well at twice its period, so the highest peak reports the
+  octave about as often as the pitch: a syllable planned at 144.5 Hz came back
+  11.99 semitones away, which is an octave to two decimal places. Fixed with the
+  standard remedy — the shortest lag within 0.85 of the best peak.
+- **One assertion in the gate was simply the wrong claim.** "A statement ends
+  below where it started" failed on a correct contour, because the last readable
+  syllable is the accented nucleus and is *supposed* to sit above the baseline.
+  Declination is a trend and is now measured as one: a least-squares slope
+  through the accented syllables, −1.51 st/s, against a flat control at 0.03.
+- **The playground's first layout was unreadable.** Three lanes scattered in
+  depth let perspective have them — the near lane came out twice the size of the
+  far one and the strip ran off the frame, so three contours that are congruent
+  in the data read as three unrelated shapes. Stacked in Y and viewed head on
+  now.
+
+### Changed
+
+- `npm run prosody` joins `prepublishOnly` and CI alongside `forage`, `flow` and
+  `voice`.
+- `bench/formants.mjs` gained `pitchIn` and `trackPitch` — pitch estimation, so
+  the gate can read a contour back out of samples rather than trusting the
+  planner that produced it.
+
 ## [0.48.0] — 2026-08-04
 
 ### Added

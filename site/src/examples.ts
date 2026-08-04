@@ -4159,6 +4159,237 @@ window.voiceDebug = () => {
 game.start();
 `,
   },
+  {
+    id: 'prosody',
+    title: 'Prosody: English rhythm is a published number',
+    group: 'AI',
+    code: `// THE SAME WORDS, THREE DELIVERIES.
+//
+// The vocal tract in 'voice' is right — a tube, checked against 1952. What it
+// renders is still a machine, and not because of the timbre: because the pitch
+// is a constant and the syllables are evenly spaced. Rhythm and melody are two
+// separate systems, and both are published.
+//
+// RHYTHM. Klatt (1979) modelled duration as multiplicative rules applied to the
+// duration ABOVE A FLOOR: DUR = (INHERENT - MIN) * pct/100 + MIN. The floor is
+// the part that matters — no stack of shortening rules can drive a syllable to
+// nothing. Grabe & Low (2002) then put a number on "stress-timed vs
+// syllable-timed": the normalized Pairwise Variability Index, measured off
+// recordings of humans. English 57.2, Dutch 65.5, French 43.5, Spanish 29.7.
+// This model was built from none of it and comes out at 63.8 — and dropping the
+// stress reduction takes it to 50.2, out of the stress-timed group entirely.
+//
+// MELODY. Declination, accent size and the final rise are published in
+// SEMITONES, and that is the finding rather than a unit convention: a man, a
+// woman and a child saying this sentence have contours that differ by 70 Hz and
+// agree to 3e-15 semitones.
+//
+// WHAT YOU ARE LOOKING AT
+//
+// Three lanes, the same eight syllables. Each block is one syllable: its WIDTH
+// is its duration and its HEIGHT is its pitch in semitones. Bright blocks are
+// accented.
+//
+//   AMBER   a statement — declining, ending with a fall
+//   GREEN   a question  — the same rhythm, and the tail goes up instead
+//   BLUE    'flat'      — the control. No declination, no accents, no ending.
+//
+// Note the widths are identical across all three: intonation does not touch
+// rhythm. And note where the two tails part company — at the NUCLEUS, the last
+// accented syllable, not at the last syllable. Putting the movement on the last
+// syllable made a question and a statement identical to any listener, because
+// English so often ends on a reduced schwa lasting 58 ms.
+//
+// Click to hear all three.
+import { BoxGeometry, BufferGeometry, Line, LineBasicMaterial, Mesh,
+         MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
+import { Game, planUtterance, renderVoice, syllabify, toSemitones,
+         voiceOf, nPVI } from 'gama3d';
+${SCENE}
+
+const LEXICON = {
+  the: { vowels: ['@'] },
+  traveller: { vowels: ['ae', '@', '@'] },
+  stopped: { vowels: ['A'] },
+  at: { vowels: ['ae'] },
+  gate: { vowels: ['E'] },
+};
+const WORDS = 'the traveller stopped at the gate'.split(' ');
+const SYLLABLES = syllabify(WORDS, LEXICON);
+const VOICE = voiceOf({ height: 1.78 });
+
+// Stacked in Y and viewed HEAD ON, not scattered in depth. The first version
+// put the three lanes at different z and let perspective have them: the near
+// lane came out twice the size of the far one and the strip ran off the right
+// of the frame, so three contours that are congruent in the data read as three
+// unrelated shapes on screen. Time is x, pitch is y, and the camera looks
+// straight down -z so neither is foreshortened.
+const LANES = [
+  { name: 'statement', intonation: 'statement', colour: 0xd8a83a, base: 13 },
+  { name: 'question', intonation: 'question', colour: 0x54b070, base: 7.2 },
+  { name: 'flat', intonation: 'flat', colour: 0x5aa8d8, base: 1.6 },
+];
+
+// Seconds to metres, semitones to metres. Both fixed, so the three lanes are
+// directly comparable — that is the whole point of drawing them together.
+const SX = 9;
+const SY = 0.4;
+
+for (const lane of LANES) {
+  lane.plan = planUtterance(SYLLABLES, { voice: VOICE, intonation: lane.intonation });
+  lane.span = lane.plan.reduce((a, p) => a + p.seconds, 0);
+  lane.blocks = [];
+  let t = 0;
+  const points = [];
+  for (const p of lane.plan) {
+    const w = p.seconds * SX;
+    const y = p.semitones * SY;
+    const block = new Mesh(
+      new BoxGeometry(Math.max(0.05, w * 0.9), 0.44, 0.6),
+      new MeshStandardMaterial({
+        color: lane.colour,
+        emissive: lane.colour,
+        // Accented syllables are the ones carrying the tune.
+        emissiveIntensity: p.stressed ? 1.0 : 0.22,
+      })
+    );
+    block.position.set(t * SX + w / 2 - lane.span * SX / 2, lane.base + y, 0);
+    game.world.scene.add(block);
+    lane.blocks.push(block);
+    points.push(block.position.clone().setY(lane.base + y + 0.3));
+    t += p.seconds;
+  }
+  game.world.scene.add(new Line(
+    new BufferGeometry().setFromPoints(points),
+    new LineBasicMaterial({ color: lane.colour })
+  ));
+  const head = new Mesh(
+    new SphereGeometry(0.3, 16, 12),
+    new MeshStandardMaterial({ color: 0xffffff, emissive: lane.colour, emissiveIntensity: 1.2 })
+  );
+  game.world.scene.add(head);
+  lane.head = head;
+}
+
+// A baseline at zero semitones, so "above" and "below" mean something.
+for (const lane of LANES) {
+  game.world.scene.add(new Line(
+    new BufferGeometry().setFromPoints([
+      new Vector3(-lane.span * SX / 2 - 1, lane.base, -0.6),
+      new Vector3(lane.span * SX / 2 + 1, lane.base, -0.6),
+    ]),
+    new LineBasicMaterial({ color: 0x475569 })
+  ));
+}
+
+// ---- the sound, rendered once. planUtterance returns exactly what renderVoice
+// wants: {vowel, seconds, f0}. No assets, no network.
+let ctx = null;
+function speak() {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    let when = ctx.currentTime + 0.05;
+    for (const lane of LANES) {
+      const data = renderVoice(lane.plan, VOICE, { sampleRate: ctx.sampleRate, amplitude: 0.4 });
+      const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(data);
+      const node = ctx.createBufferSource();
+      node.buffer = buffer;
+      node.connect(ctx.destination);
+      node.start(when);
+      when += buffer.duration + 0.4;
+    }
+  } catch (err) { /* no audio device is not a reason to stop drawing */ }
+}
+game.renderer.domElement.addEventListener('pointerdown', speak);
+
+let t = 0;
+let lines = 0;
+game.onUpdate(({ delta }) => {
+  t += Math.min(0.05, delta);
+  const span = LANES[0].span;
+  const cycle = span + 0.9;
+  const phase = t % cycle;
+  lines = Math.floor(t / cycle);
+  for (const lane of LANES) {
+    // The playhead sits on whichever syllable is sounding.
+    let acc = 0;
+    let i = 0;
+    for (; i < lane.plan.length - 1; i++) {
+      if (phase < acc + lane.plan[i].seconds) break;
+      acc += lane.plan[i].seconds;
+    }
+    const inside = phase <= span;
+    lane.at = i;
+    lane.head.visible = inside;
+    lane.head.position.set(
+      Math.min(phase, span) * SX - span * SX / 2,
+      lane.base + lane.plan[i].semitones * SY + 0.55,
+      0.9
+    );
+    for (let k = 0; k < lane.blocks.length; k++) {
+      lane.blocks[k].material.emissiveIntensity =
+        inside && k === i ? 1.6 : lane.plan[k].stressed ? 1.0 : 0.22;
+    }
+  }
+  game.camera.position.set(0, 8.5, 18);
+  game.camera.lookAt(0, 8.5, 0);
+});
+
+window.audioDebug = () => {
+  const data = renderVoice(LANES[0].plan, VOICE, { sampleRate: 22050, amplitude: 0.4 });
+  let sum = 0, peak = 0;
+  for (let i = 0; i < data.length; i++) { sum += data[i] * data[i]; peak = Math.max(peak, Math.abs(data[i])); }
+  return {
+    offlineRms: Number(Math.sqrt(sum / data.length).toFixed(5)),
+    offlinePeak: Number(peak.toFixed(4)),
+    seconds: Number((data.length / 22050).toFixed(2)),
+  };
+};
+
+window.prosodyDebug = () => {
+  const durations = LANES[0].plan.map((p) => p.seconds);
+  // The nucleus is the LAST ACCENT, and it is where the two tunes part.
+  let nucleus = 0;
+  for (let i = 0; i < LANES[0].plan.length; i++) if (LANES[0].plan[i].stressed) nucleus = i;
+  const st = (lane, i) => Number(lane.plan[i].semitones.toFixed(3));
+  return {
+    clock: Number(t.toFixed(1)),
+    lines,
+    syllables: SYLLABLES.length,
+    stressed: SYLLABLES.filter((s) => s.stressed).length,
+    // Grabe & Low's metric, off this model, against a published English 57.2.
+    // THIS SENTENCE only. A corpus statistic needs a corpus: npm run prosody
+    // runs five sentences and reports 63.8 against a published English 57.2.
+    // sentence with three accents in eight syllables sits well above that, and
+    // the gate's per-sentence values span 38 to 93.
+    nPVIThisSentence: Number(nPVI(durations).toFixed(1)),
+    // Rhythm is the SAME in all three: intonation does not touch duration.
+    rhythmIdentical: LANES.every(
+      (l) => l.plan.every((p, i) => Math.abs(p.seconds - durations[i]) < 1e-12)
+    ),
+    nucleus,
+    // ...and the tunes are identical up to the nucleus and part after it.
+    beforeNucleus: Number(Math.abs(st(LANES[0], 0) - st(LANES[1], 0)).toFixed(3)),
+    atEnd: Number((st(LANES[1], LANES[1].plan.length - 1) - st(LANES[0], LANES[0].plan.length - 1)).toFixed(2)),
+    flatSpan: Number((Math.max(...LANES[2].plan.map((p) => p.semitones)) -
+      Math.min(...LANES[2].plan.map((p) => p.semitones))).toFixed(3)),
+    // The same sentence on a child: 70 Hz away, and the same tune.
+    childAgreesToSemitones: Number(Math.max(...planUtterance(SYLLABLES, {
+      voice: voiceOf({ height: 1.25 }), intonation: 'statement',
+    }).map((p, i) => Math.abs(p.semitones - LANES[0].plan[i].semitones))).toExponential(1)),
+    childHzApart: Number(Math.max(...planUtterance(SYLLABLES, {
+      voice: voiceOf({ height: 1.25 }), intonation: 'statement',
+    }).map((p, i) => p.f0 - LANES[0].plan[i].f0)).toFixed(0)),
+    toSemitones: Number(toSemitones(2).toFixed(3)),
+    draws: game.renderer.info.render.calls,
+  };
+};
+
+game.start();
+`,
+  },
 ];
 
 

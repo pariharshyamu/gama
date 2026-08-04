@@ -64,6 +64,13 @@ jobs:
       # builds nothing here — against a budget that is what the best possible
       # single ratio achieves on the same rows.
       - run: npm run voice
+      # Prosody. Grabe & Low (2002) measured how unlike each vowel is from the
+      # one beside it across ten languages; the model is Klatt's duration rules
+      # and was built from none of those numbers. The gate measures the index
+      # out of the model and requires it to land inside the span the
+      # stress-timed languages cover — and to LEAVE it when stress reduction is
+      # turned off, which is what "stress-timed" means.
+      - run: npm run prosody
       # The manifest is generated, and a generated file that drifts from its
       # source is worse than no manifest: it names assets that are not there.
       - run: npm run assets:check

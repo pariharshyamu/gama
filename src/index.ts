@@ -79,6 +79,33 @@ export {
   type VowelSpec,
 } from './audio/voice';
 
+// Prosody — the part of speech that is not the words. Klatt's duration rules
+// with the floor that matters, and a pitch contour done in SEMITONES because
+// declination is a semitone phenomenon and a child proves it.
+export {
+  ACCENT_EXCURSION,
+  DECLINATION,
+  DURATION_RULES,
+  FINAL_FALL,
+  FUNCTION_WORDS,
+  KLATT_INHERENT,
+  KLATT_MIN_FRACTION,
+  QUESTION_RISE,
+  SPEECH_RATE,
+  fromSemitones,
+  klattDuration,
+  nPVI,
+  planUtterance,
+  syllabify,
+  toSemitones,
+  type Intonation,
+  type LexicalWord,
+  type PlannedSyllable,
+  type Syllable,
+  type Timing,
+  type UtteranceOptions,
+} from './audio/prosody';
+
 // Flow fields — one flood, any number of agents, and the eight-way grid is
 // 8.24% wrong at 22.5° in a way that finer cells do not fix.
 export {
