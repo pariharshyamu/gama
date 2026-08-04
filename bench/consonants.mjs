@@ -22,6 +22,12 @@
  *    end and SUBTRACTS a frequency. No cascade of resonators can do that at any
  *    setting, which is why `voice.ts` was never going to say /m/. The gate finds
  *    the notch, and runs an all-pole version alongside as the control.
+ *
+ * 4. **A phone boundary is not an EVENT.** Added after a listener heard what
+ *    none of the above could: words "very near, accompanied with noise", which
+ *    was forty clicks a sentence. A click is a step that is an OUTLIER against
+ *    its own neighbourhood, and the control is a phone rendered alone, where
+ *    there is no boundary for the defect to happen at.
  */
 import {
   CONSONANTS, COARTICULATION, VOWELS, VOWEL_KEYS, formantsOf, frameTimes,
@@ -225,27 +231,48 @@ if (!(loci.b.slope > loci.d.slope + 0.15)) {
   }
   var reversal = { front, back };
 }
-// (c) ...and the fixed points have to be far apart, and near where Delattre's
-//     team put them. That difference is what his listeners heard when the
-//     bursts were cut off entirely.
-for (const c of ['b', 'd']) {
-  if (!(Math.abs(loci[c].locus / loci[c].published - 1) < 0.3)) {
-    fail(`/${c}/'s locus equation crosses at ${loci[c].locus.toFixed(0)} Hz against a published ${loci[c].published}`);
+// (c) THE SLOPES THEMSELVES, all three, against Sussman's — because the slope
+//     is the quantity a fitted line determines WELL.
+//
+//     The fixed point is `intercept / (1 − slope)`, and dividing by a number
+//     near zero is not a measurement. /b/ at a slope of 0.87 divides by 0.13
+//     and at 0.94 by 0.06, which moves its "locus" from 548 Hz to 74 without
+//     the model having changed in any way a listener could hear — and it duly
+//     broke the day an unrelated click fix nudged the slope by a hundredth. A
+//     gate that asserts a number the arithmetic guarantees is unstable is
+//     measuring its own conditioning and calling the result physics.
+for (const [c, published] of [['b', 0.87], ['d', 0.43], ['g', 1.07]]) {
+  if (!(Math.abs(loci[c].slope - published) < 0.15)) {
+    fail(`/${c}/'s locus-equation slope is ${loci[c].slope.toFixed(2)} against Sussman's ${published}`);
   }
 }
-if (!(loci.d.locus - loci.b.locus > 600)) {
-  fail(`/b/ and /d/ have loci at ${loci.b.locus.toFixed(0)} and ${loci.d.locus.toFixed(0)} Hz — only ${(loci.d.locus - loci.b.locus).toFixed(0)} apart`);
+// (d) AND ONE FIXED POINT IS DETERMINED WELL ENOUGH TO GATE: /d/'s. Its slope
+//     of 0.43 divides by 0.57, and its crossing lands AMONG the vowels rather
+//     than extrapolated past the end of them. Delattre's team put it at 1800,
+//     and that is what his listeners heard when the bursts were cut off.
+if (!(Math.abs(loci.d.locus / loci.d.published - 1) < 0.3)) {
+  fail(`/d/'s locus equation crosses at ${loci.d.locus.toFixed(0)} Hz against a published ${loci.d.published}`);
 }
-// (d) AND A VELAR HAS NO LOCUS AT ALL, stated as a positive claim rather than
-//     printed as a NaN and hoped past. Its slope comes out at or above 1: the
-//     tongue body IS the closure, so where the closure lands follows the vowel
-//     completely and there is no frequency the transitions point back to. A
-//     line with a slope of one never crosses the diagonal.
-if (!(loci.g.slope > 0.95)) {
-  fail(`/g/'s locus equation has a slope of ${loci.g.slope.toFixed(2)}, which means a velar has a fixed place of articulation — it does not`);
-}
-if (Number.isFinite(loci.g.locus)) {
-  fail(`/g/'s locus equation crosses the diagonal at ${loci.g.locus.toFixed(0)} Hz — a velar should not have a locus to cross at`);
+// (e) AND A VELAR HAS NO LOCUS AT ALL, stated as a positive claim rather than
+//     printed as a NaN and hoped past. The tongue body IS the closure, so where
+//     the closure lands follows the vowel completely and there is nothing left
+//     for the transitions to point back to.
+//
+//     Said properly, that is a statement about RANGE, not about infinity: the
+//     line runs at or above the diagonal, so whatever crossing the arithmetic
+//     manages is an extrapolation above every vowel in the set. Testing
+//     `Number.isFinite` instead made the claim hinge on a slope landing above a
+//     hard-coded 0.999, and a slope of 0.96 — the same line, to any eye —
+//     produced a "locus" at 4629 Hz and failed.
+//
+//     Be clear about which of these two is doing the work. Pinning the velar to
+//     a single coarticulation coefficient — giving it the fixed place it does
+//     not have — is caught by the SLOPE, at 0.64 against 1.07. The range check
+//     below is what makes "no locus" mean something rather than depend on where
+//     a division by nearly zero happens to land.
+const velarSpan = [Math.min(...loci.g.xs), Math.max(...loci.g.xs)];
+if (Number.isFinite(loci.g.locus) && loci.g.locus < velarSpan[1]) {
+  fail(`/g/'s locus equation crosses the diagonal at ${loci.g.locus.toFixed(0)} Hz, inside the ${velarSpan[0].toFixed(0)}–${velarSpan[1].toFixed(0)} Hz of vowel F2 it was fitted to — a velar should have no locus among the vowels that exist`);
 }
 
 // --------------------------------- 2. VOICE ONSET TIME, against 1964
@@ -256,6 +283,19 @@ if (Number.isFinite(loci.g.locus)) {
  * Aspiration is loud. An energy threshold finds the burst and calls that the
  * start of the vowel, which would report every VOT as about zero and would have
  * passed silently — the first version of this gate did exactly that.
+ *
+ * KNOWN, MEASURED, AND NOT FIXED HERE: the 0.6 below is a fixed threshold on a
+ * correlation that starts at whatever the aspiration happens to be reading, so
+ * this measurement is not independent of the aspiration LEVEL. Dropping
+ * `ASPIRATION_POWER` by 8 dB — a change with nothing to do with timing — moves
+ * every value in this table by about 14 ms and takes /g/ from 20 ms to 0. The
+ * replacement tried here (floor and ceiling taken from the same buffer, the
+ * crossing at their midpoint, corrected for the window filling) reads WORSE:
+ * a 30 ms window is the shortest `pitchIn` can resolve a 118 Hz voice in, and
+ * /b/'s one-millisecond VOT is then inside the same window as its own release,
+ * so the floor already contains voicing and the measurement returns nothing.
+ * Measuring a 1 ms interval needs an analyser that does not need 30 ms, which
+ * is a different piece of work. Stated rather than left for someone to find.
  */
 function measureVOT(consonant) {
   const phones = [{ phone: consonant }, { phone: 'A', seconds: 0.3 }];
@@ -450,7 +490,167 @@ for (const c of ['f', 's', 'S']) {
   }
 }
 
-// ------------------------------------------- 5. the things it must not do
+// ------------------ 4b. AND A STOP IS THE QUIETEST THING IN A SENTENCE, NOT
+//                        THE LOUDEST — which is what a listener heard twice
+
+/**
+ * The loudest frame in a spoken sentence has to be a VOWEL.
+ *
+ * `renderSpeech` normalises its output by the peak, so whatever is loudest sets
+ * the level of everything else. A burst frame carried `glottal: true` — a
+ * mislabel, because a release is air escaping a constriction and not noise made
+ * at the glottis — and inherited `ASPIRATION_POWER`, a hundred times the
+ * frication constant. Every stop in a sentence then peaked at TWICE the loudest
+ * vowel and sat 6.5 dB above it in RMS, so a line came out normalised by its
+ * clicks with the words underneath them.
+ *
+ * NOTHING HERE COULD SEE IT. Section 4 above compares fricatives to each other
+ * and a closure to the vowel beside it; the diction gate compares vowels,
+ * nasals and fricatives to Fletcher. No check anywhere compared a BURST to
+ * anything, which is exactly the gap a listener fell into — twice, having
+ * already reported the same class of error in 0.51.2.
+ *
+ * Fletcher (1953) puts /t/ at 15 and /p/ at 6 against /ɑ/'s 600. Those are
+ * powers, so a stop sits 16 to 20 dB BELOW a vowel; the budget is the 6 dB this
+ * file already uses for Fletcher elsewhere.
+ */
+let stopLevel = {};
+{
+  const say = (s) => s.split(' ').map((p) => ({ phone: p }));
+  const phones = say('D @ k w I k b r aU n f A k s j V m p s t A p d A g');
+  const buf = renderSpeech(phones, VOICE, { sampleRate: SR, seed: 9 });
+  const times = frameTimes(phones, VOICE);
+  // RMS, and skipping the first three milliseconds of every frame. A peak
+  // cannot be attributed to a frame: the preceding vowel rings on through the
+  // resonators for a few samples past the boundary, so the loudest sample in
+  // the buffer lands just inside `k:closure` — a frame with no source in it at
+  // all — and the check reported a silent closure as the loudest thing in the
+  // sentence. What each phone is DOING is its settled level, not its first
+  // sample.
+  const level = (f) => {
+    const a = Math.round((f.from + 0.003) * SR), b = Math.min(buf.length, Math.round(f.to * SR));
+    let s = 0;
+    for (let i = a; i < b; i++) s += buf[i] * buf[i];
+    return Math.sqrt(s / Math.max(1, b - a));
+  };
+  const scored = times.filter((f) => f.to - f.from > 0.006).map((f) => ({ f, rms: level(f) }));
+  const vowels = scored.filter((r) => !r.f.label.includes(':'));
+  const loudestVowel = vowels.reduce((a, b) => (b.rms > a.rms ? b : a));
+  // (a) NOTHING THAT IS NOT A VOWEL MAY BE LOUDER THAN THE LOUDEST VOWEL. That
+  //     is the normalisation-relevant claim, and it covers bursts, closures,
+  //     aspiration and frication in one line. Before the fix the eight loudest
+  //     frames in this sentence were all bursts.
+  const overs = scored.filter((r) => r.f.label.includes(':') && r.rms > loudestVowel.rms);
+  if (overs.length) {
+    const w = overs.reduce((a, b) => (b.rms > a.rms ? b : a));
+    fail(`${overs.length} frame(s) are louder than the loudest vowel — worst ${w.f.label} at ${(20 * Math.log10(w.rms / loudestVowel.rms)).toFixed(1)} dB over — and renderSpeech normalises by the peak, so the words come out underneath them`);
+  }
+  // (b) AND THE MAGNITUDE, against Fletcher. 16 dB published, 6 dB of budget.
+  const worst = scored.filter((r) => r.f.label.endsWith(':burst')).reduce((a, b) => (b.rms > a.rms ? b : a));
+  const burstDB = 20 * Math.log10(worst.rms / loudestVowel.rms);
+  if (!(burstDB < -10)) {
+    fail(`the loudest burst (${worst.f.label}) is ${burstDB.toFixed(1)} dB from the loudest vowel where Fletcher puts a stop 16 below — a stop is not the loudest sound in a sentence`);
+  }
+  stopLevel = { burstDB, loudest: loudestVowel.f.label, over: overs.length };
+}
+
+// ------------------------- 5. A PHONE BOUNDARY IS NOT AN EVENT, and it was
+
+/**
+ * A click is a step that is an OUTLIER AGAINST ITS OWN NEIGHBOURHOOD.
+ *
+ * This gate exists because a listener found what nothing here could: words
+ * "very near, accompanied with noise". Forty phone boundaries a sentence, each
+ * switching voicing and frication and a hundredfold power constant in a single
+ * sample, and every one of them a tick.
+ *
+ * The metric had to be got right before the model could be. ABSOLUTE step size
+ * measures loudness, not discontinuity — broadband noise at 0.8 legitimately
+ * steps by 1.0 between consecutive samples, so "the worst step in the buffer"
+ * reliably pointed at whichever phone happened to be a sibilant or a burst, and
+ * my first attempt at this was measuring /s/. The scale-free quantity is the
+ * step at a boundary over the MEDIAN step in the five milliseconds either side,
+ * and the larger of the two sides at that: a stop release comes out of silence,
+ * so a pooled median divides by nothing and reports sixty million.
+ */
+const W = Math.round(0.005 * SR);
+const midOf = (a) => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+
+/** The outlier ratio at one sample: its step over the median step around it. */
+function ratios(buf) {
+  const d = new Float64Array(buf.length);
+  for (let i = 1; i < buf.length; i++) d[i] = Math.abs(buf[i] - buf[i - 1]);
+  return (b) => {
+    if (b - W < 1 || b + W >= buf.length) return null;
+    // The LARGER of the two sides. A stop release comes out of silence, so a
+    // pooled or one-sided median divides by nothing and reports sixty million;
+    // what makes a click audible is a step bigger than what the signal is doing
+    // on EITHER side of it.
+    const local = Math.max(midOf(d.slice(b - W, b - 2)), midOf(d.slice(b + 3, b + W)));
+    return Math.max(d[b - 1], d[b], d[b + 1]) / Math.max(1e-12, local);
+  };
+}
+
+let clicks = { at: [], control: [] };
+{
+  // Four utterances, chosen to put every KIND of boundary in: vowel into nasal
+  // (the worst one, and the one that survived the first fix), fricative into
+  // vowel, burst into vowel, approximant into vowel, vowel into vowel.
+  const say = (s) => s.split(' ').map((p) => ({ phone: p }));
+  for (const u of [
+    'D @ k w I k b r aU n f A k s j V m p s',
+    'm E n i m E n A r k V m I N h oU m',
+    'h E l oU D E r m aI n eI m I z ae n @',
+    's E v @ n b r aI t S I p s s eI l d p ae s t',
+  ]) {
+    const phones = say(u);
+    const at = ratios(renderSpeech(phones, VOICE, { sampleRate: SR, seed: 9 }));
+    const times = frameTimes(phones, VOICE);
+    for (let k = 1; k < times.length; k++) {
+      const r = at(Math.round(times[k].from * SR));
+      if (r !== null) clicks.at.push({ r, label: `${times[k - 1].label} → ${times[k].label}` });
+    }
+  }
+
+  // THE CONTROL IS A SIGNAL WITH NO BOUNDARIES IN IT AT ALL — one phone,
+  // rendered alone, sampled through its steady middle.
+  //
+  // The first version of this control sampled the middle of each frame in the
+  // same utterances, which sounds like the same thing and is not: a renderer
+  // that sweeps an antiresonator up from DC wrecks the middle of the frame too,
+  // so the control rose WITH the subject and a badly broken build passed. A
+  // control that moves with what it is controlling for is not a control. These
+  // renders cannot have the defect, because there is no boundary for it to
+  // happen at — and they cover the same span of signal types, from a periodic
+  // vowel to broadband /s/, so the comparison is like for like.
+  for (const p of ['A', 'i', 'u', 'E', 's', 'S', 'z', 'm', 'n', 'l']) {
+    const buf = renderSpeech([{ phone: p, seconds: 0.4 }], VOICE, { sampleRate: SR, seed: 9 });
+    const at = ratios(buf);
+    const from = Math.round(0.08 * SR);
+    const to = buf.length - Math.round(0.02 * SR);
+    // Matched in COUNT to the boundaries, because the maximum of a sample grows
+    // with the sample and otherwise this would compare sizes rather than shapes.
+    const want = Math.ceil(clicks.at.length / 10);
+    for (let j = 0; j < want; j++) {
+      const r = at(Math.round(from + ((to - from) * j) / want));
+      if (r !== null) clicks.control.push(r);
+    }
+  }
+
+  clicks.at.sort((a, b) => b.r - a.r);
+  clicks.worst = clicks.at[0];
+  clicks.controlMax = Math.max(...clicks.control);
+  // AND THE BUDGET IS THE CONTROL, not a number I liked. A boundary is allowed
+  // to be as much of an outlier as the middle of a steady phone is, and no more
+  // — twice that, because two samples of the same size drawn from the same
+  // distribution do differ by chance. A factor of two is not chance, and the
+  // bug this gate exists for missed by three thousand.
+  if (!(clicks.worst.r < 2 * clicks.controlMax)) {
+    fail(`the worst phone boundary steps ${clicks.worst.r.toFixed(1)}× its own neighbourhood (${clicks.worst.label}) against ${clicks.controlMax.toFixed(1)}× inside a steady phone — that is a click, and a listener hears forty of them a sentence as noise over the words`);
+  }
+}
+
+// ------------------------------------------- 6. the things it must not do
 
 {
   const guards = [];
@@ -495,7 +695,7 @@ for (const c of ['f', 's', 'S']) {
 // ------------------------------------------------------------------- report
 
 if (json) {
-  console.log(JSON.stringify({ failures, loci, vot, published: LA_1964, nasals, fricatives, closureRatio }, null, 2));
+  console.log(JSON.stringify({ failures, loci, vot, published: LA_1964, nasals, fricatives, closureRatio, stopLevel, clicks: { worst: clicks.worst, controlMax: clicks.controlMax } }, null, 2));
 } else {
   console.log('consonants — a stop is a transition, and a nasal needs a zero\n');
 
@@ -503,20 +703,28 @@ if (json) {
   console.log('  F2 at voicing onset, against the vowel\'s own F2, over ten vowels whose');
   console.log('  F2s span 840 to 2290 Hz. Sussman et al. (1991) found the points fall on');
   console.log('  a line — one per place of articulation.\n');
-  console.log('    stop    slope    R²      fixed point    Delattre et al. (1955)');
-  for (const c of ['b', 'd', 'g']) {
+  console.log('    stop    slope   Sussman     R²      fixed point   Delattre (1955)');
+  for (const [c, published] of [['b', 0.87], ['d', 0.43], ['g', 1.07]]) {
+    const inRange = Number.isFinite(loci[c].locus)
+      && loci[c].locus >= Math.min(...loci[c].xs) && loci[c].locus <= Math.max(...loci[c].xs);
     console.log(
-      `    /${c}/      ${loci[c].slope.toFixed(2).padStart(5)}   ${loci[c].r2.toFixed(3)}      ` +
-        `${(Number.isFinite(loci[c].locus) ? `${loci[c].locus.toFixed(0)} Hz` : 'none').padStart(8)}         ${loci[c].published}`
+      `    /${c}/      ${loci[c].slope.toFixed(2).padStart(5)}     ${published.toFixed(2)}    ${loci[c].r2.toFixed(3)}      ` +
+        `${(Number.isFinite(loci[c].locus) ? `${loci[c].locus.toFixed(0)} Hz` : 'none').padStart(8)}${inRange ? ' ' : '*'}        ${loci[c].published}`
     );
   }
   console.log(`\n    A slope of 1 would mean the consonant does nothing and the vowel is`);
   console.log('    already there; 0 would mean every vowel starts from the same frequency.');
   console.log(`    /b/ at ${loci.b.slope.toFixed(2)} against /d/ at ${loci.d.slope.toFixed(2)} is the lips leaving the tongue free`);
   console.log('    while an alveolar closure pins it — published, 0.87 and 0.43.');
-  console.log(`    The two fixed points land ${(loci.d.locus - loci.b.locus).toFixed(0)} Hz apart. /g/ has NONE — its slope is`);
-  console.log(`    ${loci.g.slope.toFixed(2)}, so the line never crosses the diagonal, because the tongue body`);
-  console.log('    IS the velar closure and there is nothing left over to point anywhere.');
+  console.log('\n    ALL THREE SLOPES ARE GATED; OF THE FIXED POINTS, ONLY /d/\'S. A * marks');
+  console.log(`    a crossing outside the ${Math.min(...loci.b.xs).toFixed(0)}–${Math.max(...loci.b.xs).toFixed(0)} Hz of vowel F2 the line was fitted to, which`);
+  console.log('    makes it an extrapolation rather than a measurement. It is intercept/(1 −');
+  console.log(`    slope), so a slope near one divides by nearly nothing: /b/ at ${loci.b.slope.toFixed(2)} divides`);
+  console.log(`    by ${(1 - loci.b.slope).toFixed(2)}, and the number swings hundreds of hertz on a change no`);
+  console.log(`    listener could hear. /g/ at ${loci.g.slope.toFixed(2)} runs at or above the diagonal and`);
+  console.log('    crosses — if at all — above every vowel there is, which is what having no');
+  console.log('    locus MEANS: the tongue body IS the velar closure, and there is nothing');
+  console.log('    left over to point anywhere.');
   console.log(`\n    AND THE TRANSITIONS REVERSE. The same /d/ before /i/ runs`);
   console.log(`    ${reversal.front.onset.toFixed(0)} → ${reversal.front.target.toFixed(0)} Hz, and before /u/ it runs ${reversal.back.onset.toFixed(0)} → ${reversal.back.target.toFixed(0)}.`);
   console.log('    Opposite directions, one consonant. Nothing specifies that; it falls out');
@@ -566,6 +774,27 @@ if (json) {
   console.log('    in front of the constriction to shape or amplify anything. That is why');
   console.log('    /f/ and /θ/ are the two English consonants people mishear most.');
   console.log(`\n    ...and a /p/ closure is ${(closureRatio * 100).toFixed(1)}% as loud as the vowel beside it.`);
+  console.log(`\n    AND A STOP IS THE QUIETEST THING IN A SENTENCE. The loudest phone in one`);
+  console.log(`    is /${stopLevel.loudest}/, and ${stopLevel.over} frames are over it. The loudest burst sits`);
+  console.log(`    ${(-stopLevel.burstDB).toFixed(0)} dB under it, where Fletcher puts a stop 16 under. It was 6.5 dB OVER,`);
+  console.log('    because a burst carried `glottal: true` and inherited the aspiration');
+  console.log('    constant — a hundred times frication. renderSpeech normalises by the');
+  console.log('    peak, so the sentence came out levelled by its clicks. No check here');
+  console.log('    had ever compared a burst to anything.\n');
+
+  console.log('  5. A PHONE BOUNDARY IS NOT AN EVENT');
+  console.log('  How far a boundary steps, over the median step in the 5 ms either side.');
+  console.log('  The control is the same measurement on single phones rendered ALONE,');
+  console.log('  matched one for one — a signal with no boundary for the defect to be at.\n');
+  console.log(`    worst boundary   ${clicks.worst.r.toFixed(1)}×   ${clicks.worst.label}`);
+  console.log(`    worst steady     ${clicks.controlMax.toFixed(1)}×   ← the control: one phone alone, no boundaries`);
+  console.log(`    over ${(2 * clicks.controlMax).toFixed(1)}×:         ${clicks.at.filter((c) => c.r >= 2 * clicks.controlMax).length} of ${clicks.at.length} boundaries`);
+  console.log('\n    Absolute step size would measure LOUDNESS: broadband noise at 0.8 steps');
+  console.log('    by 1.0 between samples quite legitimately, and the first version of this');
+  console.log('    metric was measuring /s/. Before the amplitude, the noise gain and the');
+  console.log('    nasal zero were made continuous, the worst boundary here stepped 6810×');
+  console.log('    its own neighbourhood, and a listener reported the words as "very near,');
+  console.log('    accompanied with noise". Nothing in this file could see it.');
 }
 
 if (failures.length) {

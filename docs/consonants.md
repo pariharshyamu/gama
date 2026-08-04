@@ -9,11 +9,15 @@ npm run consonants
 
 ---
 
-## Three ways a vowel synthesizer breaks
+## Five ways a vowel synthesizer breaks
 
 `voice.ts` is a cascade of three resonators, which is a vowel and only a vowel.
 Consonants break it in three separate places, and each break is a different piece
 of machinery rather than another row in a table.
+
+Two more were found by a listener rather than by anything in this repository,
+and they are the last two sections: a stop that was the loudest sound in a
+sentence, and forty clicks a sentence at the phone boundaries.
 
 ## 1. A stop is a TRANSITION
 
@@ -43,10 +47,10 @@ own F2 across many vowels and found the points fall on a line — one per place 
 articulation:
 
 ```
-stop    slope    R²      fixed point    Delattre et al. (1955)
-/b/      0.87   0.976        548 Hz         720
-/d/      0.53   0.919       1840 Hz        1800
-/g/      1.07   0.965         none          2000
+stop    slope   Sussman     R²      fixed point   Delattre (1955)
+/b/      0.91     0.87     0.963       287 Hz*         720
+/d/      0.49     0.43     0.938      1757 Hz          1800
+/g/      0.97     1.07     0.984      4629 Hz*         2000
 ```
 
 A slope of 1 would mean the consonant does nothing and the vowel is already
@@ -56,12 +60,26 @@ round trip through the renderer, not an independent prediction**, and the gate
 says so. What it does check is that the coefficients survive being turned into
 audio and read off a spectrum — which they did not, twice, on the way here.
 
+**All three slopes are gated; of the fixed points, only `/d`'s.** The `*` marks
+a crossing outside the 840–2290 Hz of vowel F2 the line was fitted to, which
+makes it an extrapolation rather than a measurement. The fixed point is
+`intercept / (1 − slope)`, so a slope near one divides by nearly nothing: `/b/`
+at 0.87 divides by 0.13 and at 0.94 by 0.06, which moves its "locus" from 548 Hz
+to 74 without the model having changed in any way a listener could hear. That
+assertion duly broke the day an unrelated fix nudged the slope by a hundredth —
+**a gate that asserts a number the arithmetic guarantees is unstable is
+measuring its own conditioning and calling the result physics.** The slope is
+what Sussman published and what a fitted line determines well.
+
 The ordering, though, is anatomy. While the lips are shut for `/b/` the tongue
 has nothing to do and is already where the vowel wants it. An alveolar closure
 uses the tongue tip and pins the body part-way. And a velar closure **is** the
-tongue body, the same organ that makes F2 — so `/g/`'s slope comes out at 1.07
-and its line never crosses the diagonal. **A velar has no locus**, and the gate
-asserts that as a positive claim rather than printing a `NaN` and hoping.
+tongue body, the same organ that makes F2 — so `/g/`'s slope comes out near one
+and its line runs along the diagonal rather than crossing it among the vowels.
+**A velar has no locus**, and the gate asserts that as a positive claim rather
+than printing a `NaN` and hoping — as a statement about RANGE, because testing
+`Number.isFinite` made the claim hinge on the slope landing above a hard-coded
+0.999, and a slope of 0.96 is the same line to any eye.
 
 ## 2. The `/p/` vs `/b/` distinction is a DURATION
 
@@ -113,11 +131,90 @@ that perfectly well.
 The zeros rise as the side branch shortens — `/m/` closes at the lips and keeps
 the whole mouth, `/ŋ/` closes at the velum and keeps almost none.
 
+## 4. A stop is the QUIETEST thing in a sentence, not the loudest
+
+A listener reported the words as "very near, accompanied with noise", and then,
+after a first round of fixes, that the clicks were "still prominent". Both were
+right and both were level errors nothing here could see.
+
+**The burst frame carried `glottal: true`.** Aspiration is made at the glottis
+and drives the whole tube, so it carries a power constant a hundred times
+frication's. A release is air escaping a constriction — the same aerodynamic
+event as a fricative, at the same place in the tract. That one flag handed every
+burst the aspiration's level:
+
+```
+                      peak      RMS vs the loudest vowel
+burst, before        0.500              +6.5 dB
+burst, after         0.022             −25.4 dB
+Fletcher (1953)                        −16.0 dB     /t/ 15 against /ɑ/ 600
+```
+
+`renderSpeech` normalises by the peak, so whatever is loudest sets the level of
+everything else — and a sentence came out levelled by its own stops with the
+words underneath them. **Nothing had ever compared a burst to anything.** The
+fricative check compares fricatives to each other and a closure to the vowel
+beside it; the diction gate compares vowels, nasals and fricatives to Fletcher.
+The gate now asserts that no frame which is not a vowel may be louder than the
+loudest vowel, which covers all four kinds in one line.
+
+## 5. A phone boundary is not an EVENT — and forty a sentence were
+
+**The metric had to be right before the model could be.** Absolute step size
+measures loudness, not discontinuity — broadband noise at 0.8 legitimately steps
+by 1.0 between consecutive samples — so "the worst step in the buffer" reliably
+pointed at whichever phone happened to be a sibilant or a burst, and the first
+attempt at this was measuring `/s/`. The scale-free quantity is the step at a
+boundary over the **median step in the 5 ms either side**, and the larger of the
+two sides at that, because a stop release comes out of silence and a pooled
+median divides by nothing and reports sixty million.
+
+Measured that way, the boundaries were filters, not amplitudes:
+
+```
+                                              worst boundary
+the zero's FREQUENCY interpolated from 0         16409×
+the antiresonator re-entered with stale state        19×
+noise scaled before its resonators, not after        11×
+burst power split from aspiration, unramped        11.8×
+fixed                                               4.6×
+control — one phone alone, no boundary in it        4.5×
+```
+
+A vowel has no antiformant, which the table writes as `0 Hz`. Interpolating the
+frequency out of that swept the antiresonator up from DC across the whole
+spectrum in two milliseconds at every vowel→nasal boundary. **A velum does not
+open at DC**: the zero sits at its own frequency from the first sample, and its
+DEPTH is what ramps.
+
+**The control is a signal with no boundaries in it at all** — single phones
+rendered alone, sampled through their steady middle, matched one for one against
+the boundaries. The first version of that control sampled the middle of each
+frame in the same utterances, which sounds like the same thing and is not: a
+renderer that sweeps an antiresonator wrecks the middle of a frame too, so the
+control rose *with* the subject and a badly broken build passed at 153× against
+a budget of 172. **A control that moves with what it is controlling for is not a
+control.**
+
+### The fix that removes one click can make the next one
+
+The 3 ms raised-cosine ramp on the noise gain was written first, as the obvious
+explanation. Across 980 rendered boundaries it moved **nothing**: switching a
+*noise* source on and off is not a discontinuity, because noise is already
+maximally discontinuous, and the step it makes is the step it was making anyway.
+So it was reverted rather than kept as plausible-looking lines no gate could
+distinguish.
+
+Then splitting the burst's power from the aspiration's put a hundredfold gain
+change between two adjacent noise frames, `/p/`'s release into its own
+aspiration went to 11.8×, and the ramp came back — this time load-bearing, and
+this time gated.
+
 ---
 
 ## What the gate had to learn to measure any of this
 
-Four analyser defects, each of which made the model look wrong or — worse — look
+Six analyser defects, each of which made the model look wrong or — worse — look
 right:
 
 - **The nasal test was measuring valleys.** An all-pole spectrum has gaps between
@@ -136,7 +233,14 @@ right:
   it at 1378. The search band is bounded by the phones themselves now.
 - **VOT was nearly measured by loudness.** Aspiration is loud; an energy
   threshold finds the burst and calls that the vowel, reporting every VOT as
-  about zero. Voicing onset is found by **periodicity**.
+  about zero. Voicing onset is found by **periodicity** — though not yet
+  independently of level; see below.
+- **The boundary metric was measuring /s/.** A step of 1.0 in broadband noise at
+  amplitude 0.8 is the noise, not a click. Outliers are only outliers against a
+  neighbourhood.
+- **The boundary metric's control moved with its subject.** Sampling the middle
+  of a frame in the same broken utterance is not a control, because the defect
+  reaches the middle of the frame too.
 
 And two real model errors the gate caught:
 
@@ -195,6 +299,14 @@ in it at all.
 burst, no aspiration, just a closure and silence — and `/l/` before a vowel and
 after one are audibly different segments. Everything here is rendered as if it
 were word-initial.
+
+**VOT is measured with a level-dependent threshold.** The tracker trips on a
+fixed correlation strength applied to a signal that starts at whatever the
+aspiration is reading, so dropping `ASPIRATION_POWER` by 8 dB — a change with
+nothing to do with timing — moves every published-looking value in that table by
+about 14 ms. A level-independent replacement needs an analyser that can resolve
+a 118 Hz voice in less than the 1 ms `/b/` gives it, which is a different piece
+of work. Stated rather than left to be found.
 
 **The lexicon is still yours.** This is the machinery for saying phones; turning
 English text into phones needs a pronunciation dictionary, which is data and a

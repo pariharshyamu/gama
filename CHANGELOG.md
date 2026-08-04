@@ -16,6 +16,93 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.51.3] — 2026-08-04
+
+Two listener reports, one release. The words were "very near, accompanied with
+noise", and then the clicks were "still prominent". Both were real, both were
+level errors in the noise branch, and neither was visible to any gate here.
+
+### Fixed
+
+- **A stop burst was the loudest thing in a sentence.** The burst frame carried
+  `glottal: true` — a mislabel, because a release is air escaping a constriction
+  and not noise made at the glottis — and so inherited `ASPIRATION_POWER`, a
+  hundred times the frication constant. Every burst peaked at TWICE the loudest
+  vowel and sat 6.5 dB above it in RMS, and `renderSpeech` normalises by the
+  peak, so each line came out levelled by its own clicks with the words
+  underneath them. Fletcher (1953) puts a stop 16 to 20 dB **below** a vowel:
+  /t/ 15 and /p/ 6 against /ɑ/'s 600. Bursts now sit 25 dB under, and the
+  loudest phone in a sentence is a vowel.
+- **The nasal zero was swept up from DC.** A vowel has no antiformant, which
+  `CONSONANTS` writes as `0 Hz`, and the render loop interpolated the zero's
+  FREQUENCY out of that — so at every vowel→nasal boundary the antiresonator
+  swept across the whole spectrum in a couple of milliseconds. Measured against
+  what the signal was doing either side, the step was **16409×**. A velum does
+  not open at DC: the zero sits at its own frequency from the first sample and
+  its DEPTH is what ramps.
+- **The antiresonator was re-entered cold.** It was only called when something
+  was nasal, so its two-sample memory arrived at each `/m/` holding whatever it
+  had last seen seconds earlier — an 18.7× step on its own. It runs on every
+  sample now; only the mix is gated.
+- **Noise gains are applied after the filters, not before.** Scaling the source
+  first is algebraically identical and acoustically is not: the noise
+  resonators' memory then carries the previous phone's amplitude into the next,
+  and a `/p/` closure releasing into its own burst stepped 11×.
+- **The noise gain ramps across a phone boundary** — 3 ms, raised cosine, and
+  not into a burst, because a stop release is abrupt in real speech. This was
+  written first, measured at exactly zero effect across 980 boundaries, and
+  REVERTED: switching a noise source on and off is not a discontinuity, since
+  noise is already maximally discontinuous. Separating the burst's power from
+  the aspiration's then put a hundredfold gain change between two adjacent noise
+  frames and `/p/`'s release into its own aspiration jumped to 11.8×, so it came
+  back — now load-bearing, and gated. The fix that removes one click can make
+  the next one.
+
+### Added
+
+- **`npm run consonants` gained two sections, and they are the only things here
+  that could have caught any of the above.**
+  - **4b, a stop is the quietest thing in a sentence.** No frame that is not a
+    vowel may be louder than the loudest vowel, and a burst must sit at least
+    10 dB under it against Fletcher's 16. Section 4 compared fricatives to each
+    other and a closure to its neighbour; the diction gate compared vowels,
+    nasals and fricatives to Fletcher. Nothing anywhere had ever compared a
+    BURST to anything.
+  - **5, a phone boundary is not an event.** A click is a step that is an
+    outlier against its own neighbourhood, so the metric is the step at a
+    boundary over the median step in the 5 ms either side — absolute step size
+    measures loudness, and the first version of this was measuring /s/. The
+    control is single phones rendered ALONE, where no boundary exists for the
+    defect to be at. Every fix above fails it when reverted.
+
+### Changed
+
+- **The locus gate asserts the three SLOPES and only `/d/`'s fixed point.** A
+  fixed point is `intercept / (1 − slope)`, and for a labial the divisor is
+  ~0.1: `/b/` moving from a slope of 0.87 to 0.94 moves its "locus" from 548 Hz
+  to 74 with nothing audible having changed. The slope is what Sussman published
+  and what a fitted line determines well. `/g/`'s "no locus" is now a claim
+  about RANGE — its crossing lies above every vowel F2 in the set — rather than
+  hinging on `Number.isFinite` and a hard-coded 0.999.
+
+### Known
+
+- **The VOT tracker is not independent of the aspiration level.** It trips on a
+  fixed `strength > 0.6` applied to a correlation that starts at whatever the
+  aspiration happens to be reading, so dropping `ASPIRATION_POWER` by 8 dB — a
+  change with nothing to do with timing — moves every value in that table by
+  about 14 ms and takes `/g/` from 20 ms to 0. The replacement tried here (floor
+  and ceiling from the same buffer, crossing at their midpoint, corrected for
+  the window filling) reads WORSE, because 30 ms is the shortest window
+  `pitchIn` can resolve a 118 Hz voice in and `/b/`'s 1 ms VOT is then inside
+  the same window as its own release. Measuring a 1 ms interval needs an
+  analyser that does not need 30 ms. Written down rather than left to be found.
+- **A control that moves with its subject is not a control.** The first version
+  of section 5's control sampled the middle of each frame in the same
+  utterances, which sounds like the same thing and is not: a renderer that
+  sweeps an antiresonator wrecks the middle of a frame too, so a badly broken
+  build passed at 153× against a budget of 172.
+
 ## [0.51.2] — 2026-08-04
 
 ### Fixed

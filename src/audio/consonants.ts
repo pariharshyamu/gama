@@ -181,6 +181,7 @@ export const FRICATION_POWER = 5.7e-4;
  */
 export const ASPIRATION_POWER = 0.06;
 
+
 /**
  * How much of the coming vowel is already in the closure, 0..1.
  *
@@ -357,6 +358,17 @@ interface Frame {
 }
 
 /**
+ * Everything the noise branch multiplies its source by, in one number.
+ *
+ * The amplitude, the power constant and the parallel branch's factor all change
+ * at once when one phone gives way to the next, and a boundary is continuous
+ * only if the PRODUCT is. Ramping the amplitude while a hundredfold constant
+ * switched underneath it would leave the click exactly where it was.
+ */
+const noiseGain = (f: Frame): number =>
+  f.noise * (f.glottal ? ASPIRATION_POWER : FRICATION_POWER) * (f.noiseFormants.length ? 3 : 1);
+
+/**
  * Turn phones into a timeline of articulatory frames.
  *
  * Exported because it is most of what this module claims, and because the gate
@@ -418,12 +430,24 @@ export function planPhones(
       });
       // BURST. A few milliseconds of noise shaped by the cavity in front of the
       // release, which for a stop is wherever the closure was.
+      //
+      // NOT `glottal`. A release is air escaping a constriction — the same
+      // aerodynamic event as a fricative, at the same place in the tract — and
+      // it was marked as glottal here for no better reason than that it sits
+      // next to the aspiration in the plan. Aspiration IS made at the glottis
+      // and drives the whole tube, so it carries a power a hundred times
+      // higher, and one mislabelled flag handed a burst that level: every stop
+      // in a sentence peaked at TWICE the loudest vowel and sat 6.5 dB above it
+      // in RMS, so `renderSpeech` normalised the utterance by its clicks and put
+      // the words underneath them. Fletcher (1953) puts a stop 16 to 20 dB
+      // BELOW a vowel. A listener heard precisely that difference and reported
+      // it twice before any gate here could.
       frames.push({
         seconds: 0.008,
         formants: target,
         voicing: 0, noise: 0.35,
         noiseFormants: [target[1], target[2], 5000 * scale],
-        zero: 0, glide: 1, f0: pitch, glottal: true,
+        zero: 0, glide: 1, f0: pitch,
         label: `${phone}:burst`,
       });
       // ASPIRATION, for exactly the voice onset time. This is the whole /p/ vs
@@ -515,6 +539,7 @@ export function renderSpeech(
   const poles = [resonator(sampleRate), resonator(sampleRate), resonator(sampleRate)];
   const noisePoles = [resonator(sampleRate), resonator(sampleRate), resonator(sampleRate)];
   const notch = antiresonator(sampleRate);
+  let lastZero = 1000;
   let phase = 0;
   let previous = 0;
   let cursor = 0;
@@ -523,8 +548,30 @@ export function renderSpeech(
     const frame = frames[s];
     const length = Math.round(frame.seconds * sampleRate);
     const before = s === 0 ? frames[0] : frames[s - 1];
+    // THE NOISE GAIN RAMPS ACROSS THE BOUNDARY. Three milliseconds, raised
+    // cosine so the slope is continuous too — well under a pitch period at any
+    // voice this library makes.
+    //
+    // It had nothing to do until a burst stopped being `glottal`: while a burst
+    // and the aspiration after it shared one power constant there was no step
+    // between them to smooth, and an earlier version of this ramp was reverted
+    // for measuring exactly zero across 980 boundaries. Separating the two put
+    // a hundredfold gain change between adjacent noise frames, and /p/'s
+    // release into its own aspiration jumped to 11.8× what the signal was doing
+    // either side of it. The fix that removes one click can make the next one.
+    //
+    // NOT INTO A BURST, though. A stop release is abrupt in real speech — that
+    // is what a stop IS — and fading it up over three milliseconds softens the
+    // one event the consonant depends on.
+    const ramp = frame.label.endsWith(':burst')
+      ? 1
+      : Math.max(1, Math.min(Math.round(0.003 * sampleRate), Math.floor(length / 2)));
+    const beforeGain = noiseGain(before);
+    const frameGain = noiseGain(frame);
     for (let i = 0; i < length && cursor < n; i++, cursor++) {
       const t = Math.min(1, i / Math.max(1, length * frame.glide));
+      const fade = 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, i / ramp));
+      const gainNow = beforeGain + (frameGain - beforeGain) * fade;
       let voiced = 0;
       if (frame.voicing > 0) {
         if (frame.f0 > 0) {
@@ -548,17 +595,46 @@ export function renderSpeech(
       }
       // THE ZERO. Only a nasal has one, and no arrangement of the three poles
       // above could stand in for it.
-      const zero = before.zero + (frame.zero - before.zero) * t;
-      if (zero > 0) x = notch(x, zero, 250);
+      //
+      // ITS DEPTH RAMPS, NOT ITS FREQUENCY, and this is the whole of why a
+      // listener heard the words "accompanied with noise". A vowel has no zero,
+      // which this table writes as 0 Hz, and interpolating the FREQUENCY out of
+      // that swept the antiresonator up from DC across the entire spectrum in a
+      // couple of milliseconds. Every vowel→nasal boundary in a sentence
+      // cracked — 16000× the step the signal was making either side of it, the
+      // loudest event in the utterance by far. A velum does not open at DC. It
+      // opens, and a notch that was already at 764 Hz gets deeper.
+      const nasalBefore = before.zero > 0 ? 1 : 0;
+      const nasalNow = frame.zero > 0 ? 1 : 0;
+      const zeroHz = nasalBefore && nasalNow
+        ? before.zero + (frame.zero - before.zero) * t
+        : frame.zero || before.zero;
+      // And it runs on EVERY sample, whether or not anything is nasal, because
+      // a two-sample memory re-entered after a second of not being called
+      // starts from whatever it last saw — and that transient lands exactly on
+      // the boundary the depth ramp exists to smooth. Only the MIX is gated.
+      if (zeroHz > 0) lastZero = zeroHz;
+      const notched = notch(x, lastZero, 250);
+      const depth = nasalBefore + (nasalNow - nasalBefore) * t;
+      if (depth > 0) x += (notched - x) * depth;
 
       // Frication runs through its OWN filters, in parallel — a fricative's
       // noise is shaped by the cavity in front of the constriction, which is
       // not the cavity the voicing came through.
-      if (frame.noise > 0) {
-        const source = noise() * frame.noise;
-        const power = frame.glottal ? ASPIRATION_POWER : FRICATION_POWER;
-        let hiss = source * power;
-        if (frame.noiseFormants.length) {
+      //
+      // EVERY GAIN IS APPLIED AFTER THE FILTERS, so the resonators always see
+      // unit-scale noise. Scaling the source first is algebraically the same
+      // thing and acoustically is not: a resonator's two-sample memory then
+      // carries the PREVIOUS phone's amplitude into the next one, and a /p/
+      // closure releasing into its own burst — silence into full-scale noise —
+      // stepped eleven times what the burst was doing either side of it.
+      if (gainNow !== 0) {
+        const source = noise();
+        // Frequencies are held from whichever side has them, so a tail decays
+        // through the filters that made it rather than through none.
+        const shaper = frame.noiseFormants.length ? frame.noiseFormants : before.noiseFormants;
+        let hiss = source;
+        if (shaper.length) {
           // PARALLEL, not cascade. A fricative spectrum has several separate
           // peaks, and three narrow bandpasses IN SERIES pass almost nothing
           // when their centres are far apart — /f/'s 1200 / 4500 / 8000
@@ -566,12 +642,13 @@ export function renderSpeech(
           // rather than a quiet consonant. Poles in series multiply; a spectrum
           // with several humps in it needs them added.
           hiss = 0;
-          for (let k = 0; k < frame.noiseFormants.length && k < 3; k++) {
-            hiss += noisePoles[k](source, frame.noiseFormants[k], 350);
+          for (let k = 0; k < shaper.length && k < 3; k++) {
+            const a = before.noiseFormants[k] ?? shaper[k];
+            const b = frame.noiseFormants[k] ?? shaper[k];
+            hiss += noisePoles[k](source, a + (b - a) * fade, 350);
           }
-          hiss *= 3 * power;
         }
-        x += hiss;
+        x += hiss * gainNow;
       }
 
       const y = x - previous;
