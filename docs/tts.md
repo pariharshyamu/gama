@@ -98,6 +98,30 @@ constant — a piecewise-constant rate change, which a word-anchored warp invert
 error in it. The rate now wanders within each word as well, which is information
 no word boundary can carry.
 
+## The pitch, which is the other half of a face
+
+`SpokenLine.pitchAt(seconds)` returns **semitones relative to whoever is
+speaking**. Ekman's *About Brows* (1979) and Cavé et al. (1996) found that brow
+raises are prosodic before they are emotional — about seven in ten coincide with
+a rise in F0 — so a face with the contour punctuates a sentence for free, and one
+without it has to be animated by hand.
+
+```
+a statement spans        6.3 semitones
+a question ends at       9.0  against a statement's 3.5
+a long line declines     1.7 semitones from its first half to its second
+```
+
+It is a field on the same cue the visemes are on, so a word boundary that moves
+the mouth moves the accent with it. **Semitones and not hertz**, because a face
+does not care how big a larynx is: a 1.2 m NPC and a 1.95 m one hand the same
+numbers to the same face for the same sentence. Nothing else in the gate pins
+that — returning raw hertz passes the span check, the question check and the
+declination check, and only the two-speaker comparison catches it.
+
+The declination is why the consumer needs a running baseline. A brow wired
+straight to pitch sinks with the sentence; ANIMA's `Brows` tracks the floor.
+
 ## `speechAvailable()` is not what you think it is
 
 It reports whether the **API** exists. Not whether the platform can speak, and

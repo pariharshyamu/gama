@@ -16,6 +16,30 @@ Two gaps between this file and the registry, stated rather than papered over:
 `0.33.0` was committed but superseded by `0.34.0` before a publish, so
 `npm install gama3d@0.33.0` finds nothing.
 
+## [0.53.0] — 2026-08-04
+
+### Added
+
+- **`SpokenLine.pitchAt(seconds)` and `VisemeCue.pitch`** — the contour, in
+  SEMITONES relative to the speaker, on the same cue the visemes ride so a word
+  boundary that moves the mouth moves the accent with it. Ekman (1979) and Cavé
+  et al. (1996): brow raises are prosodic before they are emotional, and about
+  seven in ten land on a rise in F0. ANIMA's `Brows` consumes exactly this
+  signature and still imports nothing from here.
+- **`pitchFrom(track, seconds)`**, the pure reader, mirroring `mouthFrom`.
+- **`npm run tts` section 5** — the contour spans 6.3 semitones on a statement,
+  a question ends 5.5 above one, and a long line declines 1.7 across itself.
+
+### Known — two of the new checks were decorations
+
+- **Nothing pinned the UNIT.** Returning raw hertz passed the span check, the
+  question check and the declination check; only a comparison of the same
+  sentence at 1.2 m and 1.95 m catches it, and without that a face would raise
+  its brows by how big the speaker's larynx is.
+- **"The pitch rides the same warp" cannot fail**, because the pitch is a field
+  on the cue the warp moves. It is a regression guard against a future split,
+  and it is labelled as one rather than counted as a claim.
+
 ## [0.52.0] — 2026-08-04
 
 **A listener said the synthesizer still hissed, and said "if you cannot fix it,

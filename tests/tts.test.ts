@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  anchorTrack, mouthFrom, planLine, speakAloud, speechAvailable, utteranceVoice,
+  anchorTrack, mouthFrom, pitchFrom, planLine, speakAloud, speechAvailable, utteranceVoice,
 } from '../src/audio/tts';
 import { visemeOf } from '../src/audio/diction';
 import { voiceOf } from '../src/audio/voice';
@@ -181,5 +181,61 @@ describe('degrading without a platform voice', () => {
     line.cancel();
     expect(line.done).toBe(true);
     expect(line.mouthAt(0.2)).toEqual({ open: 0, round: 0, close: 0, spread: 0 });
+  });
+});
+
+describe('the pitch a face punctuates with', () => {
+  it('gives every cue a pitch, in semitones relative to the speaker', () => {
+    const plan = planLine('the traveller stopped at the gate.', VOICE);
+    for (const c of plan.cues) {
+      expect(Number.isFinite(c.pitch)).toBe(true);
+      // A human contour lives inside an octave either way of its own f0.
+      expect(Math.abs(c.pitch)).toBeLessThan(12);
+    }
+  });
+
+  it('is the SAME contour whatever size the speaker is', () => {
+    // Two NPCs a fifth apart hand a face identical numbers, so their brows do
+    // the same thing on the same sentence. In hertz they would differ by 40%.
+    const a = planLine('the traveller stopped at the gate.', voiceOf({ height: 1.2 }));
+    const b = planLine('the traveller stopped at the gate.', voiceOf({ height: 1.95 }));
+    for (let i = 0; i < a.cues.length; i++) expect(a.cues[i].pitch).toBeCloseTo(b.cues[i].pitch, 9);
+  });
+
+  it('ends a question higher than a statement', () => {
+    const q = planLine('did the traveller stop at the gate?', VOICE);
+    const s = planLine('the traveller stopped at the gate.', VOICE);
+    expect(q.cues[q.cues.length - 1].pitch).toBeGreaterThan(s.cues[s.cues.length - 1].pitch + 2);
+  });
+
+  it('declines across a long statement, which is why a face needs a baseline', () => {
+    const p = planLine('the keeper walked the north road and counted every stone along the river.', VOICE);
+    const half = p.cues.length >> 1;
+    const mean = (a: typeof p.cues) => a.reduce((x, c) => x + c.pitch, 0) / a.length;
+    expect(mean(p.cues.slice(0, half))).toBeGreaterThan(mean(p.cues.slice(half)) + 0.5);
+  });
+
+  it('is silent outside the line, so a pause is distinguishable from a low note', () => {
+    const plan = planLine('hello there', VOICE);
+    expect(pitchFrom(plan.cues, -1)).toBe(0);
+    expect(pitchFrom(plan.cues, plan.seconds + 1)).toBe(0);
+    expect(pitchFrom([], 0.5)).toBe(0);
+  });
+
+  it('rides the same warp as the visemes', () => {
+    const plan = planLine('the traveller stopped at the gate.', VOICE);
+    const marks = plan.words.map((w, i) => ({ word: i, at: w.from * 1.6 }));
+    const warped = anchorTrack(plan.cues, plan.words, marks, plan.seconds * 1.6);
+    for (let i = 0; i < plan.cues.length; i++) expect(warped[i].pitch).toBe(plan.cues[i].pitch);
+    const peak = (t: typeof plan.cues) => t.reduce((b, c) => (c.pitch > b.pitch ? c : b)).from;
+    expect(peak(warped) / peak(plan.cues)).toBeCloseTo(1.6, 1);
+  });
+
+  it('reports pitch through a SpokenLine, and nothing once it is done', () => {
+    const line = speakAloud('hello there', VOICE);
+    expect(Number.isFinite(line.pitchAt(0.1))).toBe(true);
+    expect(line.pitchAt(-1)).toBe(0);
+    line.cancel();
+    expect(line.pitchAt(0.1)).toBe(0);
   });
 });

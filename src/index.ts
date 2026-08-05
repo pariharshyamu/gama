@@ -108,6 +108,7 @@ export {
 export {
   anchorTrack,
   mouthFrom,
+  pitchFrom,
   planLine,
   speakAloud,
   speechAvailable,

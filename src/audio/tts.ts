@@ -49,6 +49,16 @@ export interface VisemeCue {
   from: number;
   to: number;
   viseme: Viseme;
+  /**
+   * Pitch, SEMITONES relative to this speaker's own f0.
+   *
+   * Semitones and not hertz, because the consumer is a face and a face does not
+   * care how big the larynx is. `voiceOf` derives f0 from height, so a 1.5 m NPC
+   * and a 1.9 m one are ninety hertz apart and raise their brows on the same
+   * accent by the same amount. A ratio survives the difference; a frequency
+   * does not.
+   */
+  pitch: number;
 }
 
 /** Where one word sits in a planned track, as a half-open cue range. */
@@ -92,7 +102,14 @@ export function planLine(
   let t = 0;
   for (const p of said.phones) {
     const seconds = p.seconds ?? 0.06;
-    cues.push({ phone: p.phone, from: t, to: t + seconds, viseme: visemeOf(p.phone) });
+    const hz = p.f0 ?? voice.f0;
+    cues.push({
+      phone: p.phone,
+      from: t,
+      to: t + seconds,
+      viseme: visemeOf(p.phone),
+      pitch: 12 * Math.log2(Math.max(1e-6, hz) / voice.f0),
+    });
     t += seconds;
   }
 
@@ -203,6 +220,25 @@ export function anchorTrack(
     const from = warp(c.from);
     return { ...c, from, to: Math.max(from, warp(c.to)) };
   });
+}
+
+/**
+ * The pitch at a moment, in semitones. Zero outside the line.
+ *
+ * The SECOND thing a face wants from a voice, and the reason it is here rather
+ * than left to the consumer: Ekman (1979) and Cavé et al. (1996) found brow
+ * raises are prosodic before they are emotional — about seven in ten coincide
+ * with an F0 rise. So a face that has this signal punctuates a sentence for
+ * free, and one that does not has to be animated by hand.
+ *
+ * It rides the SAME warp as the visemes. A word boundary that moves the mouth
+ * moves the accent with it, because they are the same event.
+ */
+export function pitchFrom(track: readonly VisemeCue[], seconds: number): number {
+  if (!track.length) return 0;
+  if (seconds < track[0].from || seconds >= track[track.length - 1].to) return 0;
+  for (const c of track) if (seconds >= c.from && seconds < c.to) return c.pitch;
+  return 0;
 }
 
 /** The mouth at a moment, from a track. Nothing before the first cue or after the last. */
@@ -326,6 +362,8 @@ export interface SpokenLine {
   elapsed(): number;
   /** The mouth now, or at a given time. */
   mouthAt(seconds?: number): Viseme;
+  /** The pitch now, or at a given time, in semitones relative to this speaker. */
+  pitchAt(seconds?: number): number;
   readonly started: boolean;
   readonly done: boolean;
   /** True when the platform never started and the mouth is running off the plan. */
@@ -372,6 +410,11 @@ export function speakAloud(
       const t = seconds ?? line.elapsed();
       if (t < 0 || finished || expired()) return { open: 0, round: 0, close: 0, spread: 0 };
       return mouthFrom(track, t);
+    },
+    pitchAt(seconds) {
+      const t = seconds ?? line.elapsed();
+      if (t < 0 || finished || expired()) return 0;
+      return pitchFrom(track, t);
     },
     get started() {
       return startedAt >= 0;

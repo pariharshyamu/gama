@@ -32,7 +32,7 @@
  * self-congratulation is that the control is scored by the same simulator, so
  * anything the simulation gets wrong is wrong for both.
  */
-import { anchorTrack, planLine, mouthFrom, utteranceVoice, voiceOf } from '../dist/index.js';
+import { anchorTrack, planLine, mouthFrom, pitchFrom, utteranceVoice, voiceOf } from '../dist/index.js';
 
 const json = process.argv.includes('--json');
 const failures = [];
@@ -252,10 +252,102 @@ let pitches = {};
   }
 }
 
+// ------------------- 5. AND THE PITCH RIDES THE SAME WARP AS THE MOUTH
+
+/**
+ * A brow raise is punctuation before it is emotion — Ekman (1979), and Cavé et
+ * al. (1996) put about seven in ten of them on a rise in F0. So a face wants the
+ * contour as well as the visemes, and it wants them to have been moved by the
+ * same word boundary: an accent that lands where the mouth is not is worse than
+ * no accent at all.
+ *
+ * Two claims, and the second is the one that could be false.
+ */
+let pitchTrack = {};
+{
+  const statement = planLine('the traveller stopped at the gate.', VOICE);
+  const question = planLine('did the traveller stop at the gate?', VOICE);
+  const long = planLine('the keeper walked the north road and counted every stone along the river.', VOICE);
+
+  // (a) THE CONTOUR HAS SOMETHING IN IT. A flat track gives a face nothing to
+  //     do, and this is exactly the failure a prosody model can have while every
+  //     other number in it looks right.
+  const span = (p) => {
+    const ps = p.cues.map((c) => c.pitch);
+    return Math.max(...ps) - Math.min(...ps);
+  };
+  if (!(span(statement) > 3)) {
+    fail(`a statement's contour spans only ${span(statement).toFixed(1)} semitones — a face driven off this has nothing to punctuate`);
+  }
+  // ...and a QUESTION ends higher than a statement, which nobody put in the cue
+  // track: it comes from the intonation the prosody model chose off a '?'.
+  const endsAt = (p) => p.cues[p.cues.length - 1].pitch;
+  if (!(endsAt(question) > endsAt(statement) + 2)) {
+    fail(`a question ends at ${endsAt(question).toFixed(1)} semitones against a statement's ${endsAt(statement).toFixed(1)} — the terminal rise is not reaching the cue track`);
+  }
+  // ...and a long statement DECLINES, which is what makes a running baseline
+  // necessary on the far side of the seam rather than optional.
+  const half = long.cues.length >> 1;
+  const meanOf = (a) => a.reduce((x, y) => x + y.pitch, 0) / Math.max(1, a.length);
+  const decline = meanOf(long.cues.slice(0, half)) - meanOf(long.cues.slice(half));
+
+  // (b) AND IT IS SPEAKER-INDEPENDENT, WHICH IS THE UNIT. Semitones relative to
+  //     whoever is talking, so a 1.2 m NPC and a 1.95 m one hand a face the same
+  //     contour for the same sentence and their brows do the same thing.
+  //
+  //     Nothing else here pins the unit. Returning raw HERTZ passes every other
+  //     check in this section — a statement still spans plenty of them, a
+  //     question still ends higher — and it would make brow height a function of
+  //     how big the larynx is. Two speakers a fifth apart is the check.
+  {
+    const small = planLine('the traveller stopped at the gate.', voiceOf({ height: 1.2 }));
+    const tall = planLine('the traveller stopped at the gate.', voiceOf({ height: 1.95 }));
+    let worst = 0;
+    for (let i = 0; i < Math.min(small.cues.length, tall.cues.length); i++) {
+      worst = Math.max(worst, Math.abs(small.cues[i].pitch - tall.cues[i].pitch));
+    }
+    if (!(worst < 0.01)) {
+      fail(`a 1.2 m speaker and a 1.95 m one differ by ${worst.toFixed(2)} on the same sentence — the contour is not in semitones relative to the speaker, so a face would raise its brows by how big the larynx is`);
+    }
+    pitchTrack.speakerSpread = worst;
+  }
+
+  // (c) AND IT MOVES WITH THE WORDS — a regression guard, not a claim. The pitch
+  //     is a FIELD ON THE CUE the warp moves, so it cannot be left behind
+  //     without someone deliberately splitting the two tracks apart. That is the
+  //     design working; deleting the warp entirely does not fail this line, and
+  //     it is here so a future split has something to break.
+  const marks = statement.words.map((w, i) => ({ word: i, at: w.from * 1.6 }));
+  const warped = anchorTrack(statement.cues, statement.words, marks, statement.seconds * 1.6);
+  const peakOf = (track) => {
+    let best = { pitch: -Infinity, from: 0 };
+    for (const c of track) if (c.pitch > best.pitch) best = c;
+    return best.from;
+  };
+  const before = peakOf(statement.cues);
+  const after = peakOf(warped);
+  if (!(Math.abs(after / Math.max(1e-9, before) - 1.6) < 0.05)) {
+    fail(`the loudest accent sat at ${before.toFixed(2)}s and after a 1.6x warp sits at ${after.toFixed(2)}s — the pitch is not riding the same anchor as the visemes`);
+  }
+  // And it is silent outside the line, which is what lets a face hold its
+  // declination line through a pause instead of resetting to the floor.
+  if (!(pitchFrom(warped, -1) === 0 && pitchFrom(warped, 1e3) === 0)) {
+    fail('the contour is not zero outside the line, so a face cannot tell speech from silence');
+  }
+  pitchTrack = {
+    statementSpan: span(statement),
+    questionEnd: endsAt(question),
+    statementEnd: endsAt(statement),
+    decline,
+    peakBefore: before,
+    peakAfter: after,
+  };
+}
+
 // ------------------------------------------------------------------- report
 
 if (json) {
-  console.log(JSON.stringify({ failures, identity, monotonic, scores, meanAnchored, meanControl, pitches }, null, 2));
+  console.log(JSON.stringify({ failures, identity, monotonic, scores, meanAnchored, meanControl, pitches, pitchTrack }, null, 2));
 } else {
   console.log('tts — the platform speaks, and this library still owns the mouth\n');
   console.log('  NOTHING HERE LISTENS TO A VOICE. There is no speechSynthesis in Node and');
@@ -295,6 +387,18 @@ if (json) {
   console.log(`  utterance.pitch is dimensionless and the platform never says what its 1.0`);
   console.log('  is in hertz, so the mapping is a RATIO against this library\'s own speaker.');
   console.log(`    1.95 m  ${pitches.tall.toFixed(2)}      1.75 m  ${pitches.mid.toFixed(2)}      1.20 m  ${pitches.small.toFixed(2)}`);
+
+  console.log('\n  5. AND THE PITCH RIDES THE SAME WARP');
+  console.log('  A brow raise is punctuation before it is emotion (Ekman 1979), and about');
+  console.log('  seven in ten land on a rise in F0 (Cavé et al. 1996) — so a face wants the');
+  console.log('  contour too, moved by the same word boundary that moved the mouth.\n');
+  console.log(`    a statement spans        ${pitchTrack.statementSpan.toFixed(1)} semitones`);
+  console.log(`    a question ends at       ${pitchTrack.questionEnd.toFixed(1)}  against a statement's ${pitchTrack.statementEnd.toFixed(1)}`);
+  console.log(`    a long line declines     ${pitchTrack.decline.toFixed(1)} semitones from its first half to its second`);
+  console.log(`    the loudest accent       ${pitchTrack.peakBefore.toFixed(2)}s → ${pitchTrack.peakAfter.toFixed(2)}s under a 1.6x warp`);
+  console.log('\n    That last one is the claim that could be false. The declination is why');
+  console.log('    a face needs a running baseline on the far side of the seam: a brow');
+  console.log('    wired straight to pitch sinks with the sentence.');
 }
 
 if (failures.length) {
