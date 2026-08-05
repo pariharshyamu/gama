@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101820" />
+    <title>RECESS</title>
+    <meta
+      name="description"
+      content="Three childhood games with the stakes moved. A small 3D game for the browser, built on gama3d, scena3d and anima3d."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101820'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%232f9e8f'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='%23101820'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/game.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="ui" class="ui">
+      <section data-screen="title" class="screen">
+        <h1>RE<span>CESS</span></h1>
+        <p class="tag">
+          Three games you already know the rules to. Getting out needs a reflex,
+          a nerve and a reading — in that order.
+        </p>
+        <div class="best" id="best"></div>
+        <div class="row">
+          <button data-shell="play" data-autofocus class="primary">Enter</button>
+          <button data-screen-open="help">How to play</button>
+          <button data-screen-open="about">What it is built on</button>
+          <button data-screen-open="settings">Settings</button>
+        </div>
+        <p class="seedline">Seed <b id="seed-shown">—</b></p>
+        <p class="credit">
+          Built on <b>gama3d</b> · <b>scena3d</b> · <b>anima3d</b> — the hall,
+          the people and the rules are all generated in code.
+        </p>
+      </section>
+
+      <section data-screen="help" class="screen" hidden>
+        <h2>How to play</h2>
+        <h3>Round one — Green Light</h3>
+        <ul class="help">
+          <li><b>Hold W</b> to run. Let go to stop.</li>
+          <li>
+            The Watcher takes <b>0.62 s</b> to come round. Noticing costs you
+            about <b>0.18 s</b> and stopping costs the rest — so let go
+            <em>while it is still turning</em>, not when it has finished.
+          </li>
+          <li>Anything moving faster than a sway when it is looking is out.</li>
+        </ul>
+        <h3>Round two — Panes</h3>
+        <ul class="help">
+          <li><b>A</b> and <b>D</b> pick a pane, <b>W</b> steps onto it.</li>
+          <li>
+            One of each pair holds. They are cut from the same sheet and there
+            is no tell — so the only real move is to let someone ahead of you
+            find out first.
+          </li>
+        </ul>
+        <h3>Round three — Marbles</h3>
+        <ul class="help">
+          <li>They say what they are holding. Sometimes it is a lie.</li>
+          <li>
+            <b>H</b> holds the lamp still, <b>B</b> believes them, <b>N</b>
+            calls the bluff.
+          </li>
+          <li>
+            Lying is work, and work dilates a pupil — by about half a
+            millimetre. The light moves it by five and a half. So you can only
+            read them with the lamp held, and you only get three holds.
+          </li>
+        </ul>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="about" class="screen" hidden>
+        <h2>What it is built on</h2>
+        <p class="tag">
+          Nothing in here is a difficulty curve tuned by feel. Each round is
+          built on a measurement somebody published, and the game is what
+          happens when you have to live inside it.
+        </p>
+        <ul class="help">
+          <li>
+            <b>Round one</b> — Donders measured simple reaction time in 1868 and
+            got about 180 ms. It is still about 180 ms. Deciding <em>which</em>
+            signal arrived roughly doubles it. Every rival on that field is
+            drawn a skill, and whether they die is whether their reaction plus
+            their braking fits inside the Watcher's turn.
+          </li>
+          <li>
+            <b>Round two</b> — an honest coin. The panes share one material
+            instance, so there is no tint or seam to read the answer off. What
+            varies is who pays for the information.
+          </li>
+          <li>
+            <b>Round three</b> — everyone knows liars look away. They do not:
+            DePaulo et al.'s 2003 meta-analysis found gaze aversion essentially
+            unrelated to deception. What does hold is that lying is effortful,
+            and effort dilates the pupil — Hess &amp; Polt (1964), Kahneman
+            &amp; Beatty (1966) — by roughly half a millimetre. Moon &amp;
+            Spencer (1944) has the light worth five and a half. Eleven to one,
+            which is why the lamp is the mechanic.
+          </li>
+        </ul>
+        <p class="credit">
+          Inspired by the survival-game genre; the rounds are folk playground
+          games and every asset here is generated procedurally.
+        </p>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="settings" class="screen" hidden>
+        <h2>Settings</h2>
+        <label class="opt">
+          <span>Contestants</span>
+          <select data-setting="crowd">
+            <option value="full">Full hall</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Few — best for phones</option>
+          </select>
+        </label>
+        <label class="opt"><span>Sound</span><input type="checkbox" data-setting="sound" /></label>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="paused" class="screen" hidden>
+        <h2>Paused</h2>
+        <div class="row">
+          <button data-shell="resume" data-autofocus class="primary">Resume</button>
+          <button data-shell="quit">Leave</button>
+        </div>
+      </section>
+
+      <section data-screen="results" class="screen" hidden>
+        <h2 id="results-title">Eliminated</h2>
+        <div class="score" id="final-round">Round 1</div>
+        <div class="stats" id="final-stats"></div>
+        <div class="row">
+          <button data-shell="again" data-autofocus class="primary">Again</button>
+          <button data-shell="title">Title</button>
+        </div>
+      </section>
+
+      <div data-screen="loading" class="screen" hidden>
+        <div class="spin"></div>
+        <p>Opening the hall…</p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

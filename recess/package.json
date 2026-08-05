@@ -1,0 +1,24 @@
+{
+  "name": "recess",
+  "private": true,
+  "version": "1.0.0",
+  "description": "RECESS \u2014 three childhood games with the stakes moved. Built on GAMA, SCENA and ANIMA.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "verify": "node tools/playthrough.mjs"
+  },
+  "dependencies": {
+    "anima3d": "^0.70.0",
+    "gama3d": "^0.53.0",
+    "scena3d": "^0.109.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.1",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}
