@@ -1,0 +1,160 @@
+# Flight: the arcade-honest model
+
+The trilogy's flight model keeps exactly the physics a player can FEEL
+and nothing they can't. SCENA builds the airplanes; `FlightController`
+flies them.
+
+## FlightController
+
+```ts
+const flight = new FlightController({
+  onTakeoff: () => hud.banner('AIRBORNE'),
+  onStall: () => feel.shake(0.35),
+  onLand: (sink) => feel.shake(Math.min(sink / 12, 0.5)),
+});
+game.onUpdate((t) => {
+  flight.throttle = input.throttle;
+  flight.control({ pitch: stick.y, roll: stick.x, yaw: rudder });
+  flight.update(t.delta);
+  flight.apply(airframe);                       // pose the mesh
+  plane.update(t.delta, flight.aircraftInput);  // the SCENA plane shows it
+});
+```
+
+The rules, in feel-order:
+
+- **Throttle buys speed, speed buys lift.** Climbing costs energy;
+  diving returns it.
+- **Bank-to-turn.** Roll and pull — the coupling that makes flight
+  feel like flight. A whisper of rudder helps; it doesn't replace it.
+- **The stall.** Below `stallSpeed` the wings stop flying: the nose
+  drops, the sky lets go, and only airspeed buys it back. `onStall`
+  fires on entry; `stalled` reads live.
+- **The ground is not optional.** On it, the controller taxis — rudder
+  steers, wings stay level, and nothing flies until `rotateSpeed` plus
+  a pull on the stick (`onTakeoff`). Touchdown fires `onLand(sinkRate)`
+  and the CALLER judges it: a two is a greaser, an eight is a story.
+
+`apply(object)` poses any Object3D from the state (yaw/pitch/roll);
+`aircraftInput` mirrors the stick in the shape a SCENA plane's
+`update` expects, so the control surfaces deflect and the gear drops
+when low and slow — the model and the airframe never disagree.
+
+## The stick is a rate
+
+`control()` deflections are RATES, not attitudes — holding full back
+keeps pitching until the clamp. Autopilots (and the `aviator` bot)
+should chase target *attitudes* proportionally:
+
+```ts
+const stick = clamp((targetPitch - flight.pitch) * 4, -1, 1);
+```
+
+Two bugs this release's own bot wrote, both worth keeping: a
+proportional-only roll command *integrated* into a saturated bank and
+orbited its waypoint forever (chase a target bank instead); and a
+too-gentle approach stick never got the nose down from a full-power
+climb, stalling it onto the runway at 11 m/s (the telemetry's last
+line before that fix: a perfect level skim at exactly flare height,
+forever — an autopilot that flares too well never lands).
+
+## Altitude bands & AI in 3D
+
+The steering library already thinks in `Vector3` — `Pursue`, `Evade`
+and friends work at altitude unchanged, and `Containment` pushes on
+all three axes, so a tall `Box3` IS the altitude band that keeps AI
+wingmen in the play volume. No new class needed; that audit is the
+whole story.
+
+## The aviator playground
+
+The `aviator` example is the model demonstrating itself: takeoff,
+a waypoint square at 14 m, and once per lap the autopilot cuts the
+engine, holds the nose up, and lets physics do the teaching — stall,
+nose-drop, sink, power-on recovery. The engine's voice (`EngineSound`)
+follows the throttle the whole way.
+
+## HoverController — the helicopter's half
+
+```ts
+const hover = new HoverController({ seed: 4, onLand: (s) => feel.shake(s / 10) });
+hover.spool = 1;                       // rotors take seconds, not frames
+game.onUpdate((t) => {
+  hover.control({ collective, cyclicPitch, cyclicRoll, pedal });
+  hover.update(t.delta);
+  hover.apply(shipMesh);
+  heli.update(t.delta, hover.helicopterInput);  // the SCENA ship shows it
+});
+```
+
+Collective climbs, cyclic tilts-to-translate in the heading frame,
+pedals yaw — and nothing lifts until the rotor is spooled and singing.
+The signature detail is the **hover breath**: with the stick centred a
+real helicopter wanders, so a seeded aperiodic drift keeps a
+"perfectly still" hover from reading as a screenshot — bounded, and
+byte-identical for the same seed. Touchdown reports the sink rate for
+the skids to judge.
+
+## rotorVoicing & RotorSound — the wop-wop
+
+A helicopter's voice is amplitude, not pitch: broadband noise CHOPPED
+at the blade-pass frequency (rotor rev/s × blades) — the wop-wop is a
+tremolo, which is why a three-blade ship sounds different from a
+two-blade one at the same rpm. `rotorVoicing(rpm, blades)` is the pure
+recipe; `RotorSound` runs it live — the LFO *is* the rotor:
+
+```ts
+const rotor = new RotorSound(sounds, { blades: 3, volume: 0.4 });
+rotor.set(hover.rotor * 400);   // per frame — 400 rpm × 3 blades = 20 Hz chop
+```
+
+## The night rescue
+
+The `rescue` playground is the searchlight handshake the helicopter
+was built for: the nose light is a gama `Flashlight` feeding an
+`Illumination` field, so the beam the player SEES and the exposure the
+game COMPUTES are the same math. The bot flies the search ladder over
+a night sea, the beam sweeping, until the drifting raft reads
+`inBeam` — then holds the hover (breathing), lowers the winch, and
+counts the soul aboard. Probes watched two rescues end to end with
+exposure rising from 0.03 in the dark to 0.20 under the beam.
+
+## Missiles — the turn-rate limit is the whole game
+
+```ts
+const missiles = new Missiles({ turnRate: 1.4, flareCharm: 0.5,
+  onHit: ({ target }) => down(target),
+  onDecoyed: (at) => hud.banner('FLARED OFF') });
+scene.add(missiles.group);
+missiles.fire(jet.position, jet.forward, { center: bandit.position, radius: 2 });
+// per frame: missiles.update(dt);   afraid? missiles.flare(bandit.position);
+```
+
+Pooled instanced rounds that CHASE: lead pursuit toward where the
+target is going (velocity estimated by watching it move — targets stay
+structural `{center, radius}`), turned by an airframe with a **hard
+rate limit**, and hard turns **bleed speed**, which tightens the
+radius. Without the bleed, a round whose turn circle is wider than the
+range *orbits* its quarry forever — the same trap the aviator
+autopilot fell into, now a physics feature: slow targets are doomed,
+fast crossers at close range out-turn the seeker (both are tests), and
+the space between is piloting.
+
+Flares are first-class: each missile gives each flare exactly **one
+seeded chance** to seduce it. The motor runs out (`onMiss`), the
+ground is not optional, and the proximity fuse ends arguments.
+
+## LockOn — the growl before the shot
+
+Cone + range + time: hold the bandit in the seeker cone and `progress`
+climbs to `locked`; drift out and it all resets — no credit for past
+devotion. Map `progress` to a tick cadence and you have the tone.
+
+## The dogfight
+
+The `dogfight` playground flies both sides of the argument: blue hunts
+on a lock-and-fire loop (FOX TWO at solid tone), the bandits orbit,
+fall spinning when hit, respawn across the arena, and shoot back —
+and BOTH sides carry flares, so neither side's missiles are magic.
+Probes watched kills climb 1 → 4 with two rounds flared off and the
+player taking one home.

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playground · GAMA</title>
+    <script type="module" crossorigin src="./assets/playground-D025mN4R.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-B5Qt9EMX.js">
+    <link rel="modulepreload" crossorigin href="./assets/examples-3qAfBJJL.js">
+    <link rel="stylesheet" crossorigin href="./assets/site-DnUZ1ehj.css">
+  </head>
+  <body>
+    <div class="pg">
+      <nav class="nav">
+        <a class="logo" href="./index.html">GA<span>MA</span></a>
+        <a class="navlink" href="./guide.html">Guide</a>
+        <a class="navlink active" href="./playground.html">Playground</a>
+        <a class="navlink" href="./editor.html">Editor</a>
+        <span class="spacer"></span>
+        <a class="navlink" href="https://github.com/pariharshyamu/gama">GitHub</a>
+      </nav>
+      <div class="pg-toolbar">
+        <select id="example-select" aria-label="Example"></select>
+        <button class="run" id="run">Run ▸</button>
+        <button id="reset">Reset</button>
+        <span class="hint">Ctrl/⌘+Enter runs · edit freely — it's your copy · click the preview to give it keyboard focus</span>
+      </div>
+      <div class="pg-main">
+        <div class="pg-editor">
+          <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        </div>
+        <div class="pg-preview">
+          <iframe id="preview" title="preview" allow="pointer-lock"></iframe>
+          <div class="pg-error" id="error"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

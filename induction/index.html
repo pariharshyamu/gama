@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1016" />
+    <title>INDUCTION</title>
+    <meta
+      name="description"
+      content="Watch a transformer grow the circuit that lets it copy. A two-layer model, trained in your browser, with every attention weight drawn where it happens."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1016'/%3E%3Cpath d='M7 22 Q16 6 25 22' stroke='%2335c0ac' stroke-width='2.6' fill='none'/%3E%3Ccircle cx='7' cy='22' r='2.4' fill='%23e8834f'/%3E%3Ccircle cx='25' cy='22' r='2.4' fill='%2335c0ac'/%3E%3C/svg%3E"
+    />
+    <script type="module" crossorigin src="./assets/index-DNblHUxo.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CihtE-UT.css">
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="ui" class="ui">
+      <section data-screen="title" class="screen">
+        <h1>IN<span>DUCTION</span></h1>
+        <p class="tag">
+          A two-layer transformer, trained in this tab, on a task it can only
+          solve one way. Watch the circuit that solves it assemble itself.
+        </p>
+        <div class="row">
+          <button data-shell="play" data-autofocus class="primary">Start training</button>
+          <button data-screen-open="about">What am I looking at</button>
+          <button data-screen-open="why">Why this task</button>
+        </div>
+        <p class="credit">
+          Built on <b>gama3d</b> · <b>scena3d</b> · <b>anima3d</b>. No weights are
+          downloaded and no assets are loaded — the model is initialised, trained
+          and drawn from code in front of you.
+        </p>
+      </section>
+
+      <section data-screen="about" class="screen" hidden>
+        <h2>What am I looking at</h2>
+        <p class="tag">
+          A transformer has three independent axes and a diagram on paper can
+          only show two. So this one is laid out in all three.
+        </p>
+        <ul class="help">
+          <li><b>Across</b> — position in the sequence. The letters are the tokens.</li>
+          <li>
+            <b>Away from you</b> — depth. The input row, then layer 0, then layer
+            1, then what the model predicts. The bars running the whole length
+            are the <b>residual stream</b>: every block reads from it and adds
+            back into it.
+          </li>
+          <li>
+            <b>The arcs</b> — attention, drawn from each query to the keys it
+            reads. Brightness is weight. Each head is tilted to its own angle so
+            you can read them at the same time instead of on top of each other.
+          </li>
+          <li>
+            <b>Green letters</b> at the far end are correct predictions, red are
+            wrong. The dim ones are positions where being wrong is the right
+            answer — nothing could know them yet.
+          </li>
+        </ul>
+        <h3>Controls</h3>
+        <ul class="help">
+          <li>Drag to orbit, wheel to zoom.</li>
+          <li><b>Space</b> pause or resume training · <b>N</b> a new sequence</li>
+          <li><b>S</b> turn the √d divisor off, and watch the arcs collapse</li>
+          <li><b>M</b> switch the MLPs on, and watch the circuit dissolve</li>
+        </ul>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+
+      <section data-screen="why" class="screen" hidden>
+        <h2>Why this task</h2>
+        <p class="tag">
+          Each line is a short random pattern of letters, repeated until the line
+          is full. The pattern's <em>length changes every time</em>.
+        </p>
+        <ul class="help">
+          <li>
+            Until a letter has appeared once, nothing can predict what follows
+            it. Those positions are pinned at the loss of pure guessing, forever,
+            and the model never beats them. That is the grey curve.
+          </li>
+          <li>
+            After it has appeared, the answer is exact — whatever followed it
+            last time. But finding it means matching on <em>content</em>, and
+            that takes two layers: one head to record “the letter before me was
+            X”, and a second to look for a place whose recorded letter matches
+            the one I am holding now. Elhage et al. (2021) show one layer cannot
+            express it.
+          </li>
+          <li>
+            The length has to vary. With a fixed period the answer always sits
+            the same distance back, and a single head can find it by counting
+            positions with no content matching at all — which is exactly what the
+            first version of this did, scoring 0.85 on the induction metric for a
+            head doing nothing of the kind.
+          </li>
+        </ul>
+        <p class="credit">
+          Vaswani et al. 2017 for the architecture and the √d<sub>k</sub>
+          derivation; Elhage et al. 2021 for the residual stream and the
+          two-layer argument; Olsson et al. 2022 for induction heads.
+        </p>
+        <div class="row"><button data-screen-open="title" class="primary">Back</button></div>
+      </section>
+    </div>
+
+    <div id="hud">
+      <div class="panel" id="panel">
+        <div class="stats" id="stats"></div>
+        <canvas id="plot" width="330" height="120"></canvas>
+        <div class="legend">
+          <span><i style="background: #93a6ad"></i>never seen — unguessable</span>
+          <span><i style="background: #35c0ac"></i>seen before — induction can answer</span>
+        </div>
+        <div class="heads" id="heads"></div>
+        <div class="gauge" id="entropy"></div>
+        <div class="switches">
+          <button data-toggle="scale" class="sw on">√d divisor <b>on</b></button>
+          <button data-toggle="mlp" class="sw">MLPs <b>off</b></button>
+          <button data-toggle="run" class="sw on">training <b>on</b></button>
+          <button data-act="sample" class="sw">new sequence</button>
+        </div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+  </body>
+</html>
