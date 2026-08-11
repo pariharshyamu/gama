@@ -179,8 +179,7 @@ function refresh(force = false): void {
   const spread = meanEntropy((l, h) => model.attention(l, h), cfg);
   panel.setEntropy(spread.bits, spread.ceiling, scaled);
 
-  const ev = history[history.length - 1];
-  panel.setStats(steps, ev?.cold ?? 0, ev?.repeat ?? 0, (performance.now() - started) / 1000);
+  panel.setStats(steps, history[history.length - 1], (performance.now() - started) / 1000);
 }
 
 // ---------------------------------------------------------------- the loop

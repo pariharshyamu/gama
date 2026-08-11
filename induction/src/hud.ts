@@ -136,11 +136,18 @@ export class Panel {
       .join('');
   }
 
-  setStats(step: number, cold: number, repeat: number, secs: number): void {
+  /**
+   * `latest` is undefined until the first evaluation lands, a few dozen steps
+   * in. It used to fall back to 0, which put "cold 0.00 repeat 0.0e+0" on
+   * screen for the first second of every run — a loss of zero, i.e. a model
+   * that has already solved it perfectly, displayed at step 1.
+   */
+  setStats(step: number, latest: Point | undefined, secs: number): void {
+    const n = (v: number) => (v < 0.01 ? v.toExponential(1) : v.toFixed(3));
     this.stats.innerHTML =
       `<span><b>${step}</b> steps</span>` +
-      `<span>cold <b>${cold.toFixed(2)}</b></span>` +
-      `<span class="hi">repeat <b>${repeat < 0.01 ? repeat.toExponential(1) : repeat.toFixed(3)}</b></span>` +
+      `<span>cold <b>${latest ? latest.cold.toFixed(2) : '—'}</b></span>` +
+      `<span class="hi">repeat <b>${latest ? n(latest.repeat) : '—'}</b></span>` +
       `<span>${secs.toFixed(0)}s</span>`;
   }
 
