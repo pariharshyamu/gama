@@ -1,0 +1,27 @@
+{
+  "name": "induction",
+  "private": true,
+  "version": "1.0.0",
+  "description": "INDUCTION — watch a transformer grow the circuit that lets it copy. Built on GAMA, SCENA and ANIMA.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "gradcheck": "node --experimental-strip-types tools/gradcheck.mjs",
+    "laws": "node --experimental-strip-types tools/laws.mjs",
+    "circuit": "node --experimental-strip-types tools/circuit.mjs",
+    "verify": "node tools/verify.mjs"
+  },
+  "dependencies": {
+    "anima3d": "^0.70.0",
+    "gama3d": "^0.53.0",
+    "scena3d": "^0.109.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.1",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

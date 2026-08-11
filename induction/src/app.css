@@ -1,0 +1,372 @@
+:root {
+  --ink: #dfe9ef;
+  --dim: #93a6ad;
+  --bg: #0b1016;
+  --teal: #35c0ac;
+  --coral: #e8834f;
+  --red: #d8543f;
+  --panel: rgba(9, 15, 21, 0.93);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+#app canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- shell screens -------------------------------------------------------- */
+
+.ui {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  z-index: 3;
+}
+
+.screen {
+  pointer-events: auto;
+  width: min(700px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 28px 30px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.screen[hidden] {
+  display: none;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: clamp(38px, 8vw, 62px);
+  letter-spacing: 0.14em;
+  font-weight: 800;
+}
+h1 span {
+  color: var(--teal);
+}
+h2 {
+  margin: 0 0 12px;
+  font-size: 25px;
+}
+h3 {
+  margin: 20px 0 6px;
+  font-size: 14px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+.tag {
+  color: var(--dim);
+  margin: 0 0 18px;
+  max-width: 58ch;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.credit {
+  color: var(--dim);
+  font-size: 12.5px;
+  margin: 18px 0 0;
+  line-height: 1.6;
+}
+.help {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--dim);
+}
+.help li {
+  margin-bottom: 9px;
+}
+.help b {
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 11px 17px;
+  cursor: pointer;
+}
+button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+button.primary {
+  background: var(--teal);
+  border-color: transparent;
+  color: #03201b;
+  font-weight: 700;
+}
+
+/* ---- the panel ------------------------------------------------------------ */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 2;
+}
+#hud.on {
+  opacity: 1;
+}
+
+.panel {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 14px;
+  width: 362px;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-bottom: 8px;
+}
+.stats b {
+  color: var(--ink);
+}
+.stats .hi b {
+  color: var(--teal);
+}
+
+#plot {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 8px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--dim);
+  margin: 7px 0 12px;
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ---- head scores ---------------------------------------------------------- */
+
+.head {
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 11.5px;
+}
+.hrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.hrow b {
+  font-size: 12px;
+}
+.head .role {
+  color: var(--coral);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+/* Each metric is its own flex row. As a grid, the bar auto-placed into the
+   34px label column and every head drew the same stub whatever its score. */
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 3px;
+}
+.metric .lab {
+  width: 26px;
+  flex: none;
+  color: var(--dim);
+  font-size: 10px;
+}
+.metric .num {
+  width: 30px;
+  flex: none;
+  text-align: right;
+  color: var(--dim);
+}
+.metric .bar {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+.metric .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.15s linear;
+}
+/* Where a head that attends to nothing in particular would land. Without it a
+   diffuse head reads as a weak sharp one. */
+.metric .bar u {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* ---- the entropy gauge ---------------------------------------------------- */
+
+.gauge {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.g-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.g-lab {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  flex: 1;
+}
+#g-mm {
+  font-size: 23px;
+  font-weight: 800;
+  color: var(--teal);
+}
+.g-unit {
+  font-size: 11px;
+  color: var(--dim);
+}
+.g-bar {
+  height: 10px;
+  margin: 8px 0 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.g-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.12s linear;
+}
+.g-note {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.45;
+}
+
+/* ---- switches ------------------------------------------------------------- */
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.sw {
+  padding: 6px 10px;
+  font-size: 11.5px;
+  border-radius: 8px;
+}
+.sw b {
+  color: var(--dim);
+  font-weight: 600;
+}
+.sw.on b {
+  color: var(--teal);
+}
+.sw.danger b {
+  color: var(--red);
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  background: rgba(9, 15, 21, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.25s;
+  max-width: min(620px, 90vw);
+  text-align: center;
+}
+.toast.on {
+  opacity: 1;
+}
+
+@media (max-width: 780px) {
+  .panel {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 46vh;
+  }
+}
